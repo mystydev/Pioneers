@@ -1,0 +1,8 @@
+.md-typeset__scrollwrap {
+   margin: 1em -1.2rem 1em -1.6rem;
+}
+.md-typeset .admonition, .md-typeset details {
+	-webkit-box-shadow: none;
+	-moz-box-shadow: none;
+	box-shadow: none;
+}
