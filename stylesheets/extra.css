@@ -12,6 +12,10 @@
     margin: 1.5rem 0 1.6rem;
 }
 
+.md-nav__link[data-md-state=blur] {
+    color: rgb(255,255,255);
+}
+
 /*
 /////////////////
 // Inline Code //
