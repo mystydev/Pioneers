@@ -1,0 +1,22 @@
+{
+  "name": "Pioneers",
+  "servePort": 8000,
+  "partitions": {
+    "common": {
+      "path": "src/common",
+      "target": "ReplicatedStorage.Pioneers.Common"
+    },
+    "server": {
+      "path": "src/server",
+      "target": "ServerScriptService.Pioneers.Server"
+    },
+    "testez": {
+      "path": "TestEZ",
+      "target": "ReplicatedStorage.TestEZ"
+    },
+    "tests": {
+      "path": "src/tests",
+      "target": "ReplicatedStorage.Pioneers.Tests"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+site_name: Pioneers
+
+theme:
+  name: 'material'
+  palette:
+    primary: 'Teal'
+    accent: 'Teal'
+
+use_directory_urls: false
+
+markdown_extensions:
+  - admonition
+  - codehilite:
+      guess_lang: true
+  - toc:
+      permalink: "⇦"
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.caret
+  - pymdownx.tasklist
+  - pymdownx.arithmatex
+
+extra_css:
+  - 'stylesheets/extra.css'
+
+extra_javascript:
+  - 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML'
