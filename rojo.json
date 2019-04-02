@@ -8,7 +8,11 @@
     },
     "server": {
       "path": "src/server",
-      "target": "ServerScriptService.Pioneers.Server"
+      "target": "ServerScriptService.Server.Server"
+    },
+    "client": {
+      "path": "src/client",
+      "target": "StarterPlayer.StarterPlayerScripts.Client"
     },
     "testez": {
       "path": "TestEZ",
