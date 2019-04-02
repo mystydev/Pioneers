@@ -5,6 +5,7 @@ local Tile     = require(Common.Tile)
 local World    = require(Common.World)
 local ViewTile = require(Client.ViewTile)
 local ViewWorld = require(Client.ViewWorld)
+local ViewResources = require(Client.ViewResources)
 
 print("Pioneers client starting...")
 
@@ -23,3 +24,4 @@ end
 local world = World.new(tiles, {})
 ViewWorld.displayWorld(world)
 
+ViewResources.createDisplay()

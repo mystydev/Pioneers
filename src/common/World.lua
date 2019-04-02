@@ -2,7 +2,7 @@
 local World = {}
 local Vector2 = Vector2
 
-World.SIZE = 100 --How big on each axis the world is
+World.SIZE = 10 --How big on each axis the world is
                 --For example 10 = 0->10 inclusive
                 --This uses the axial coordinate system
 
