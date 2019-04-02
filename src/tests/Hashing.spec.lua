@@ -20,13 +20,13 @@ return (function()
     for x = 0, World.SIZE do
         testTiles[x] = {}
         for y = 0, World.SIZE do
-            testTiles[x][y] = Tile.new(Tile.GRASS, 0, Vector2.new(x, y), 100)
+            testTiles[x][y] = Tile.new(Tile.GRASS)
         end
     end
 
-    testTiles[80][70] = Tile.new(Tile.KEEP, 0, Vector2.new(80, 70), 100)
-    testTiles[58][37] = Tile.new(Tile.BARRACKS, 0, Vector2.new(58, 37), 100)
-    testTiles[73][63] = Tile.new(Tile.MINE, 0, Vector2.new(73, 62), 100)
+    testTiles[80][70] = Tile.new(Tile.KEEP)
+    testTiles[58][37] = Tile.new(Tile.BARRACKS)
+    testTiles[73][63] = Tile.new(Tile.MINE)
     
     local testUnits = {}
 

@@ -21,6 +21,9 @@ markdown_extensions:
   - pymdownx.tasklist
   - pymdownx.arithmatex
 
+repo_name: 'MystyDev/Pioneers'
+repo_url: 'https://github.com/mystydev/Pioneers'
+
 extra_css:
   - 'stylesheets/extra.css'
 
