@@ -41,9 +41,11 @@ return (function()
 
     describe("worldHash", function()
         it("should correctly hash", function()
+            World.SIZE = 100
             local hash = World.computeHash(testWorld)
             print("Found hash:", hash)
             expect(hash).to.be.equal("00080bf00000a2b4")
+            World.SIZE = origSize
         end)
     end)
 
