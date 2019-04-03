@@ -1,8 +1,7 @@
 local ViewUnit = {}
 
-local Client = script.Parent
 local Common = game.ReplicatedStorage.Pioneers.Common
-local ViewTile = require(Client.ViewTile)
+local Util = require(Common.Util)
 local Unit = require(Common.Unit)
 
 local UnitModel = game.ReplicatedStorage.Pioneers.Assets.Capsule
@@ -15,7 +14,7 @@ DisplayCol[Unit.SOLDIER]  = Color3.fromRGB(220,20,60)
 function ViewUnit.displayUnit(unit)
     local model = UnitModel:Clone()
 
-    model.CFrame = CFrame.new(ViewTile.axialCoordToWorldCoord(unit.Position) + Vector3.new(0, 3, 0))
+    model.CFrame = CFrame.new(Util.axialCoordToWorldCoord(unit.Position) + Vector3.new(0, 3, 0))
     model.Parent = Workspace
     model.Color = DisplayCol[unit.Type]
 end

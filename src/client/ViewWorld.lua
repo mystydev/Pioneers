@@ -5,9 +5,14 @@ local Common = game.ReplicatedStorage.Pioneers.Common
 local ViewTile = require(Client.ViewTile)
 local ViewUnit = require(Client.ViewUnit)
 local World = require(Common.World)
+local Util = require(Common.Util)
+
+local CurrentWorld
 
 function ViewWorld.displayWorld(world)
-    
+
+    CurrentWorld = world
+
     local tiles = world.Tiles
     local units = world.Units
 
@@ -22,6 +27,12 @@ function ViewWorld.displayWorld(world)
     end
 end
 
+function ViewWorld.convertInstanceToObject(inst)
+
+    local pos = Util.worldCoordToAxialCoord(inst.Position)
+
+    return CurrentWorld.Tiles[pos.x][pos.y]
+end
 
 
 return ViewWorld

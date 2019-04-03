@@ -2,17 +2,11 @@ local ViewTile = {}
 
 local Common = game.ReplicatedStorage.Pioneers.Common
 local Tile = require(Common.Tile)
+local Util = require(Common.Util)
 
 local TileModel = game.ReplicatedStorage.Pioneers.Assets.Hexagon
-
-local TILESPACING = 10 --Distance from center of hexagon to edge vertex
-local EDGESPACING = TILESPACING * (0.5 * 3^.5)
-
-local YOFFSET = EDGESPACING * 2 * Vector3.new(1, 0, 0)
-local XOFFSET = EDGESPACING * 2 * Vector3.new(-0.5, 0, 0.866)
-
-
 local DisplayCol = {}
+local TileToInstMap = {}
 
 DisplayCol[Tile.GRASS]    = Color3.fromRGB(50,205,50)
 DisplayCol[Tile.KEEP]     = Color3.fromRGB(139,0,139)
@@ -29,18 +23,18 @@ DisplayCol[Tile.GATE]     = Color3.fromRGB(188,143,143)
 function ViewTile.displayTile(tile)
     local model = TileModel:Clone()
 
-    model.Position = ViewTile.axialCoordToWorldCoord(tile.Position)
+    TileToInstMap[tile] = model
+
+    model.Position = Util.axialCoordToWorldCoord(tile.Position)
     model.Parent = Workspace
     model.Color = DisplayCol[tile.Type]
     
 end
 
-function ViewTile.axialCoordToWorldCoord(position)
+function ViewTile.updateDisplay(tile)
+    local model = TileToInstMap[tile]
 
-    local x = position.y * YOFFSET
-    local z = position.x * XOFFSET
-
-    return position.y * YOFFSET + position.x * XOFFSET
+    model.Color = DisplayCol[tile.Type]
 end
 
 return ViewTile

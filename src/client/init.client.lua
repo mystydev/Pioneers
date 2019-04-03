@@ -4,9 +4,13 @@ local Common = game.ReplicatedStorage.Pioneers.Common
 local Tile     = require(Common.Tile)
 local Unit     = require(Common.Unit)
 local World    = require(Common.World)
+local Util     = require(Common.Util)
+local UserStats = require(Common.UserStats)
+local Resource = require(Common.Resource)
 local ViewTile = require(Client.ViewTile)
 local ViewWorld = require(Client.ViewWorld)
-local ViewResources = require(Client.ViewResources)
+local ViewStats = require(Client.ViewStats)
+local TilePlacement = require(Client.TilePlacement)
 
 print("Pioneers client starting...")
 
@@ -29,4 +33,6 @@ units[1][1] = Unit.new(Unit.VILLAGER, 0, Vector2.new(1, 1), 100, 0, nil, nil, ni
 local world = World.new(tiles, units)
 ViewWorld.displayWorld(world)
 
-ViewResources.createDisplay()
+local stats = UserStats.new(23, 10, 16, 0, 0, 0)
+
+ViewStats.createDisplay(stats)

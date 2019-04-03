@@ -1,9 +1,9 @@
 
 local Resource = {}
 
-Resource.FOOD = "🍞"
-Resource.WOOD = "🌳"
-Resource.STONE = "⛏️"
+Resource.FOOD = 0
+Resource.WOOD = 1
+Resource.STONE = 2
 
 function Resource.new(Type, Amount)
     local new = {}
