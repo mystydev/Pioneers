@@ -43,11 +43,30 @@ function Tile.new(Type, OwnerID, Position, Health)
     local new = {}
 
     new.Type = Type
-    new.OwnerId = OwnerID
+    new.OwnerID = OwnerID
     new.Position = Position
     new.Health = Health
 
     return new
+end
+
+function Tile.serialisable(tile)
+    rep = {}
+    rep.T = tile.Type ~= Tile.GRASS and tile.Type or nil
+    rep.O = tile.OwnerID
+    rep.P = {tile.Position.x, tile.Position.y}
+    rep.H = tile.Type ~= Tile.GRASS and tile.Health or nil
+
+    return rep
+end
+
+function Tile.deserialise(data)
+    return Tile.new(
+        data.T or Tile.GRASS,
+        data.O,
+        Vector2.new(data.P.x, data.P.y),
+        data.H
+    )
 end
 
 return Tile

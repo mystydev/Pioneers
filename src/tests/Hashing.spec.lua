@@ -30,12 +30,8 @@ return (function()
     
     local testUnits = {}
 
-    for x = 0, World.SIZE do
-        testUnits[x] = {}
-    end
-
-    testUnits[50][40] = Unit.new(Unit.VILLAGER)
-    testUnits[70][26] = Unit.new(Unit.SOLDIER)
+    testUnits["63561632:0"] = Unit.new(Unit.VILLAGER, "63561632:0", 63561632, Vector3.new(50, 40, 0), 0, 0, nil, nil, nil, nil)
+    testUnits["63561632:1"] = Unit.new(Unit.VILLAGER, "63561632:1", 63561632, Vector3.new(70, 22, 0), 0, 0, nil, nil, nil, nil)
 
     local testWorld = World.new(testTiles, testUnits)
 
@@ -44,7 +40,7 @@ return (function()
             World.SIZE = 100
             local hash = World.computeHash(testWorld)
             print("Found hash:", hash)
-            expect(hash).to.be.equal("00080bf00000a2b4")
+            expect(hash).to.be.equal("00080bf0000b6080")
             World.SIZE = origSize
         end)
     end)

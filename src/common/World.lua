@@ -2,7 +2,7 @@
 local World = {}
 local Vector2 = Vector2
 
-World.SIZE = 10 --How big on each axis the world is
+World.SIZE = 50 --How big on each axis the world is
                 --For example 10 = 0->10 inclusive
                 --This uses the axial coordinate system
 
@@ -28,13 +28,8 @@ function World.computeHash(world)
 
     local unitHashValue = 0
 
-    for x = 0, World.SIZE do
-        for y = 0, World.SIZE do
-            local unit = world.Units[x][y]
-            if unit then
-                unitHashValue = ((unitHashValue + 1) * (unit.Type + 1) * x * y) % 1677216
-            end
-        end
+    for id, unit in pairs(world.Units) do 
+        unitHashValue = ((unitHashValue + 1) * (unit.Type + 1 * unit.Position.x * unit.Position.y) * unit.OwnerID) % 1677216
     end
 
     local hash = string.format("%08x%08x", tileHashValue, unitHashValue)
