@@ -28,7 +28,6 @@ StateLocalisation[UnitState.STORING] = "Storing"
 
 local currentWorld 
 
-
 local function establishUnitState(unit)
     local onTile = currentWorld.Tiles[unit.Position.x][unit.Position.y]
     local hasHome = unit.Home
@@ -38,7 +37,7 @@ local function establishUnitState(unit)
     local atHome = onTile == hasHome
     local atWork = onTile == hasWork
     local atTarget = onTile == hasTarget
-    local atStorage = onTile.Type == Tile.STORAGE
+    local atStorage = (onTile.Type == Tile.STORAGE) or (onTile.Type == Tile.KEEP)
 
     if unit.Health == 0 then
         return UnitState.DEAD, onTile
@@ -56,13 +55,27 @@ local function establishUnitState(unit)
 
 end
 
+local function getNumSharedNeighbours(tile)
+    local neighbours = Pathfinding.getNeighbours(tile)
+
+    local count = 0
+
+    for _, n in pairs(neighbours) do
+        if n.Type == tile.Type then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
 local function getTileOutput(tile)
     if tile.Type == Tile.FARM then
-        return Resource.new(Resource.FOOD, 1)
+        return Resource.new(Resource.FOOD, 1 + getNumSharedNeighbours(tile))
     elseif tile.Type == Tile.FORESTRY then
-        return Resource.new(Resource.WOOD, 1)
+        return Resource.new(Resource.WOOD, 1 + getNumSharedNeighbours(tile))
     elseif tile.Type == Tile.MINE then
-        return Resource.new(Resource.STONE, 1)
+        return Resource.new(Resource.STONE, 1 + getNumSharedNeighbours(tile))
     end
 end
 
@@ -91,16 +104,23 @@ local function processUnit(unit)
         end
     
     elseif state == UnitState.RESTING then
-        unit.Fatigue = unit.Fatigue - 5
-        if unit.Fatigue <= 0 then
-            unit.Fatigue = 0
-            unit.Target = unit.Work
+
+        if StatsController.UseResource(unit.OwnerID, Resource.new(Resource.FOOD, 5)) then
+
+            unit.Fatigue = unit.Fatigue - 5
+            if unit.Fatigue <= 0 then
+                unit.Fatigue = 0
+                unit.Target = unit.Work
+            end
+
+        else
+            print("Not enough food!")
         end
 
     elseif state == UnitState.STORING then 
-        if onTile.Type == Tile.STORAGE then
+        if onTile.Type == Tile.STORAGE or onTile.Type == Tile.KEEP then
             --print("Stored", unit.HeldResource.Amount, "of", Resource.Localisation[unit.HeldResource.Type])
-            StatsController.AddResource(nil, unit.HeldResource)
+            StatsController.AddResource(unit.OwnerID, unit.HeldResource)
             unit.HeldResource = nil
 
             if unit.Fatigue > 0 then

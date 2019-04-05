@@ -2,10 +2,52 @@
 local World = {}
 local Vector2 = Vector2
 
-World.SIZE = 50 --How big on each axis the world is
+local Common = game.ReplicatedStorage.Pioneers.Common
+local Tile = require(Common.Tile)
+
+World.SIZE = 200 --How big on each axis the world is
                 --For example 10 = 0->10 inclusive
                 --This uses the axial coordinate system
 
+local function hasNeighour(tiles, tile, type)
+    local posx, posy = tile.Position.x, tile.Position.y
+
+    return (tiles[posx  ][posy+1].Type == type
+            or tiles[posx  ][posy+1].Type == type
+            or tiles[posx+1][posy+1].Type == type
+            or tiles[posx+1][posy  ].Type == type
+            or tiles[posx  ][posy-1].Type == type
+            or tiles[posx-1][posy-1].Type == type
+            or tiles[posx-1][posy  ].Type == type)
+end
+
+local function nearHostile(tiles, tile, ID)
+    local posx, posy = tile.Position.x, tile.Position.y
+
+    for radius = 1, 4 do
+        local id
+
+        for i = 0, radius-1 do
+            id = tiles[posx + i][posy + radius].OwnerID
+            if id and id ~= ID then return true end
+
+            id = tiles[posx + radius][posy + radius - i].OwnerID
+            if id and id ~= ID then return true end
+
+            id = tiles[posx + radius - i][posy - i].OwnerID
+            if id and id ~= ID then return true end
+
+            id = tiles[posx - i][posy - radius].OwnerID
+            if id and id ~= ID then return true end
+
+            id = tiles[posx - radius][posy - radius + i].OwnerID
+            if id and id ~= ID then return true end
+
+            id = tiles[posx - radius + i][posy + i].OwnerID
+            if id and id ~= ID then return true end
+        end
+    end
+end
 
 function World.new(Tiles, Units)
     local new = {}
@@ -14,6 +56,25 @@ function World.new(Tiles, Units)
     new.Units = Units
 
     return new
+end
+
+function World.tileCanBePlaced(world, tile, type, ID)
+    local tiles = world.Tiles
+    local pos = tile.Position
+    local currentTile = tiles[pos.x][pos.y]
+
+    if nearHostile(tiles, currentTile, ID) then
+        return false end
+
+    if currentTile.Type == Tile.GRASS then
+        if type == Tile.KEEP then
+            return true
+        elseif type == Tile.PATH and hasNeighour(tiles, tile, Tile.KEEP) then
+            return true
+        elseif hasNeighour(tiles, tile, Tile.PATH) then
+            return true
+        end
+    end
 end
 
 function World.computeHash(world)

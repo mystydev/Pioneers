@@ -19,34 +19,16 @@ for x = 1, World.SIZE do
     end
 end
 
-local home = tiles[2][2]
-local work = tiles[2][5]
-local work2 = tiles[5][2]
-
-home.Type = Tile.HOUSE
-work.Type = Tile.FARM
-work2.Type = Tile.FORESTRY
-tiles[2][3].Type = Tile.PATH
-tiles[2][4].Type = Tile.PATH
-tiles[3][3].Type = Tile.PATH
-tiles[4][3].Type = Tile.PATH
-tiles[5][3].Type = Tile.PATH
-tiles[5][4].Type = Tile.PATH
-tiles[3][4].Type = Tile.STORAGE
-
-units["DEV:0"] = Unit.new(Unit.VILLAGER, "DEV:0", 0, Vector2.new(2, 2), 100, 0, home, work, work, nil)
-units["DEV:1"] = Unit.new(Unit.VILLAGER, "DEV:1", 0, Vector2.new(2, 2), 100, 0, home, work2, work2, nil)
 
 local world = World.new(tiles, units)
 
 Replication.assignWorld(world)
-
 ProcessRound.assignWorld(world)
 
-local stats = UserStats.new(23, 10, 16, 0, 0, 0)
-Replication.tempAssignStats(stats)
-StatsController.tempAddStats(stats)
+game.Players.PlayerAdded:Connect(function(player)
+    StatsController.addNewPlayer(player)
+end)
 
-while wait(0.1) do
+while wait(2) do
     ProcessRound.process()
 end

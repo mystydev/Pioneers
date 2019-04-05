@@ -56,12 +56,18 @@ end
 local function handleUnitUpdate(unit)
     repeat wait() until currentWorld
     local localUnit = currentWorld.Units[unit.ID]
-    
-    for i, v in pairs(unit) do
-        localUnit[i] = v
-    end
 
-    ViewUnit.updateDisplay(localUnit)
+    if not localUnit then
+        currentWorld.Units[unit.ID] = unit
+        ViewUnit.displayUnit(unit)
+    else
+
+        for i, v in pairs(unit) do
+            localUnit[i] = v
+        end
+
+        ViewUnit.updateDisplay(localUnit)
+    end
 end
 
 local function handleStatsUpdate(stats)
@@ -78,7 +84,6 @@ local function handleTileUpdate(tile)
     local localTile = currentWorld.Tiles[pos.x][pos.y] 
 
     for i, v in pairs(tile) do
-        print(i, v)
         localTile[i] = v 
     end
 

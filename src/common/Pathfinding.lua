@@ -62,26 +62,31 @@ function Pathfinding.assignWorld(w)
 end
 
 function Pathfinding.findClosestStorage(tile)
-    local searchspace = {tile}
+    local searchspace = {{tile = tile, dist = 0}}
     local checked = {}
     local iterations = 0
 
     while iterations < 1000 and iterations < #searchspace do
         iterations = iterations + 1
-        local current = searchspace[iterations]
-        
-        if current and not checked[current] then
-            checked[current] = true
-            local neighbours = getNeighbours(current)
-            
-            for _, neighbour in pairs(neighbours) do
-                
-                if neighbour.Type == Tile.STORAGE then
-                    return neighbour
-                end
+        local info = searchspace[iterations]
 
-                if neighbour.Type == Tile.PATH and not checked[neighbour] then
-                    table.insert(searchspace, neighbour)
+        if info then
+            local current = info.tile
+            local dist = info.dist
+
+            if current and not checked[current] then
+                checked[current] = true
+                local neighbours = getNeighbours(current)
+                
+                for _, neighbour in pairs(neighbours) do
+                    
+                    if neighbour.Type == Tile.STORAGE or neighbour.Type == Tile.KEEP then
+                        return neighbour, dist + 1
+                    end
+
+                    if neighbour.Type == Tile.PATH and not checked[neighbour] then
+                        table.insert(searchspace, {tile = neighbour, dist = dist + 1})
+                    end
                 end
             end
         end
@@ -144,5 +149,7 @@ function Pathfinding.findPath(startTile, endTile)
         end
     end
 end
+
+Pathfinding.getNeighbours = getNeighbours
 
 return Pathfinding

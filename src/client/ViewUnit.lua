@@ -8,7 +8,7 @@ local UnitModel = game.ReplicatedStorage.Pioneers.Assets.Capsule
 local DisplayCol = {}
 
 local TweenService = game:GetService("TweenService")
-local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+local tweenInfo = TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 
 
 DisplayCol[Unit.NONE]     = Color3.fromRGB(0,0,0)
@@ -37,7 +37,7 @@ end
 function ViewUnit.updateDisplay(unit)
     local model = unitToInstMap[unit]
     
-    local tween = TweenService:Create(model, tweenInfo, {CFrame = CFrame.new(Util.axialCoordToWorldCoord(unit.Position) + Vector3.new(0, 3, 0))})
+    local tween = TweenService:Create(model, tweenInfo, {CFrame = CFrame.new(Util.axialCoordToWorldCoord(unit.Position) + Vector3.new((math.random()-0.5)*8, 3, (math.random()-0.5)*8))})
     tween:Play()
     model.Color = DisplayCol[unit.Type]
 end

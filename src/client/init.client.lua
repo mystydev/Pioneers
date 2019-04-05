@@ -22,3 +22,5 @@ ViewWorld.displayWorld(world)
 local stats = Replication.getUserStats()
 
 ViewStats.createDisplay(stats)
+
+workspace.CurrentCamera.CFrame = CFrame.new(Vector3.new(1000, 50, 1000))

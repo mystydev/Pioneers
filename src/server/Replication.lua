@@ -1,17 +1,25 @@
 local Replication = {}
 
+local Server = script.Parent
+local Common = game.ReplicatedStorage.Pioneers.Common
+local Tile = require(Common.Tile)
+local World = require(Common.World)
+local UserStats = require(Common.UserStats)
+
 local Network = game.ReplicatedStorage.Network
 local Players = game:GetService("Players")
 
 local currentWorld
-local currentStats
+local UnitController
+local StatsController
 
 function Replication.assignWorld(w)
     currentWorld = w
-end
 
-function Replication.tempAssignStats(s)
-    currentStats = s
+    StatsController = require(Server.StatsController)
+    UnitController = require(Server.UnitController)
+
+    UnitController.assignWorld(w)
 end
 
 function Replication.pushUnitChange(unit)
@@ -19,7 +27,11 @@ function Replication.pushUnitChange(unit)
 end
 
 function Replication.pushStatsChange(stats)
-    Network.StatsUpdate:FireAllClients(stats)
+    local player = game.Players:GetPlayerByUserId(stats.PlayerID)
+    
+    if player then
+        Network.StatsUpdate:FireClient(player, stats)
+    end
 end
 
 function Replication.pushTileChange(tile)
@@ -31,53 +43,90 @@ local function worldStateRequest(player)
 end
 
 local function statsRequest(player)
-    return currentStats
+    return UserStats.Store[player.UserId]
 end
 
 local function tilePlacementRequest(player, tile, type)
+    
+    if not World.tileCanBePlaced(currentWorld, tile, type, player.UserId) then
+        return false end
+    
+    local requiredResources = Tile.ConstructionCosts[type]
+    local stats = UserStats.Store[player.UserId]
+
+    if not UserStats.hasEnoughResources(stats, requiredResources) then
+        return false end
+
     local pos = tile.Position
     local serverTile = currentWorld.Tiles[pos.x][pos.y]
 
+    StatsController.useRequirement(player.UserId, requiredResources)
+
     serverTile.Type = type
+    serverTile.OwnerID = player.UserId
+    
     Replication.pushTileChange(serverTile)
 
-    return true
-end
-
-local function unitHomeRequest(player, unit, home)
-    local serverUnit = currentWorld.Units[unit.ID]
-    local pos = home.Position
-    local serverHome = currentWorld.Tiles[pos.x][pos.y]
-
-    serverUnit.Home = serverHome
-    
-    print("Home set!", serverHome)
+    if type == Tile.HOUSE then 
+        delay(5, function()
+            UnitController.spawnUnit(player.UserId, serverTile)
+            while wait(20) do
+                UnitController.spawnUnit(player.UserId, serverTile)
+            end
+        end)
+    end
 
     return true
 end
 
-local function unitWorkRequest(player, unit, work)
+local function unitHomeRequest(player, unit, tile)
     local serverUnit = currentWorld.Units[unit.ID]
-    local pos = work.Position
-    local serverWork = currentWorld.Tiles[pos.x][pos.y]
+    local pos = tile.Position
+    local serverTile = currentWorld.Tiles[pos.x][pos.y]
 
-    serverUnit.Work = serverWork
-    
-    print("Work set!", serverWork)
+    local ID = player.UserId
 
-    return true
+    if ID == unit.OwnerID and ID == serverUnit.OwnerID  
+        and ID == tile.OwnerID and ID == serverTile.OwnerID then
+
+        return UnitController.setHome(serverUnit, serverTile)
+    else
+        return false
+    end
 end
 
-local function unitTargetRequest(player, unit, target)
+local function unitWorkRequest(player, unit, tile)
     local serverUnit = currentWorld.Units[unit.ID]
-    local pos = target.Position
-    local serverTarget = currentWorld.Tiles[pos.x][pos.y]
+    local pos = tile.Position
+    local serverTile = currentWorld.Tiles[pos.x][pos.y]
 
-    serverUnit.Target = serverTarget
-    
-    print("Target set!", serverTarget)
+    local ID = player.UserId
 
-    return true
+    print(ID, unit.OwnerID, serverUnit.OwnerID, tile.OwnerID, serverTile.OwnerID)
+
+    if ID == unit.OwnerID and ID == serverUnit.OwnerID  
+        and ID == tile.OwnerID and ID == serverTile.OwnerID then
+
+        return UnitController.setWork(serverUnit, serverTile)
+    else
+        return false
+    end
+end
+
+local function unitTargetRequest(player, unit, tile)
+    local serverUnit = currentWorld.Units[unit.ID]
+    local pos = tile.Position
+    local serverTile = currentWorld.Tiles[pos.x][pos.y]
+
+    local ID = player.UserId
+
+    if ID == unit.OwnerID and ID == serverUnit.OwnerID 
+        and ID == tile.OwnerID and ID == serverTile.OwnerID then
+
+        return UnitController.setTarget(serverUnit, serverTile)
+    else
+        return false
+    end
 end
 
 
