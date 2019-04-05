@@ -79,9 +79,9 @@ function UnitController.setHome(unit, house)
 
 
     if not house.Member1 then
-        house.Member1 = unit
+        house.Member1 = unit.ID
     elseif not house.Member2 then
-        house.Member2 = unit
+        house.Member2 = unit.ID
     else
         return false
     end
@@ -99,7 +99,7 @@ function UnitController.setWork(unit, work)
         return end
 
     if unit.Work then
-        if unit.Work.Member1 == unit then
+        if unit.Work.Member1 == unit.ID then
             unit.Work.Member1 = nil
         else
             warn("Unit was assigned to a work but that work did not contain it as a member!")
@@ -107,7 +107,7 @@ function UnitController.setWork(unit, work)
     end
 
     if not work.Member1 then
-        work.Member1 = unit
+        work.Member1 = unit.ID
     else
         return false
     end
