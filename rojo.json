@@ -18,6 +18,10 @@
       "path": "TestEZ",
       "target": "ReplicatedStorage.TestEZ"
     },
+    "roact": {
+      "path": "Roact",
+      "target": "ReplicatedStorage.Roact"
+    },
     "tests": {
       "path": "src/tests",
       "target": "ReplicatedStorage.Pioneers.Tests"

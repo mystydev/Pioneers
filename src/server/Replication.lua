@@ -22,6 +22,10 @@ function Replication.pushStatsChange(stats)
     Network.StatsUpdate:FireAllClients(stats)
 end
 
+function Replication.pushTileChange(tile)
+    Network.TileUpdate:FireAllClients(tile)
+end
+
 local function worldStateRequest(player)
     return currentWorld
 end
@@ -30,7 +34,18 @@ local function statsRequest(player)
     return currentStats
 end
 
+local function tilePlacementRequest(player, tile, type)
+    local pos = tile.Position
+    local serverTile = currentWorld.Tiles[pos.x][pos.y]
+
+    serverTile.Type = type
+    Replication.pushTileChange(serverTile)
+
+    return true
+end
+
 Network.RequestWorldState.OnServerInvoke = worldStateRequest
 Network.RequestStats.OnServerInvoke = statsRequest
+Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
 
 return Replication

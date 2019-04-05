@@ -82,7 +82,7 @@ local function processUnit(unit)
         local produce = getTileOutput(onTile)
         UnitController.AddResource(unit, produce)
 
-        print("Unit has", unit.HeldResource.Amount, "of",  Resource.Localisation[unit.HeldResource.Type])
+        --print("Unit has", unit.HeldResource.Amount, "of",  Resource.Localisation[unit.HeldResource.Type])
 
         unit.Fatigue = unit.Fatigue + 1
 
@@ -99,7 +99,7 @@ local function processUnit(unit)
 
     elseif state == UnitState.STORING then 
         if onTile.Type == Tile.STORAGE then
-            print("Stored", unit.HeldResource.Amount, "of", Resource.Localisation[unit.HeldResource.Type])
+            --print("Stored", unit.HeldResource.Amount, "of", Resource.Localisation[unit.HeldResource.Type])
             StatsController.AddResource(nil, unit.HeldResource)
             unit.HeldResource = nil
 
@@ -112,7 +112,7 @@ local function processUnit(unit)
         end
     end
 
-    print("Unit:", unit.ID, "is", StateLocalisation[state])
+    --print("Unit:", unit.ID, "is", StateLocalisation[state])
 end 
 
 function ProcessRound.process()

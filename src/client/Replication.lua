@@ -3,6 +3,7 @@ local Replication = {}
 local Client = script.Parent
 local ViewUnit = require(Client.ViewUnit)
 local ViewStats = require(Client.ViewStats)
+local ViewTile = require(Client.ViewTile)
 local Network = game.ReplicatedStorage.Network
 
 local currentWorld
@@ -17,6 +18,15 @@ end
 function Replication.getUserStats()
     currentStats = Network.RequestStats:InvokeServer()
     return currentStats
+end
+
+function Replication.requestTilePlacement(tile, type)
+
+    local success = Network.RequestTilePlacement:InvokeServer(tile, type)
+
+    if not success then
+        print("Tile placement request failed!")
+    end
 end
 
 local function handleUnitUpdate(unit)
@@ -37,7 +47,21 @@ local function handleStatsUpdate(stats)
     currentStats.changed()
 end
 
+local function handleTileUpdate(tile)
+
+    local pos = tile.Position
+    local localTile = currentWorld.Tiles[pos.x][pos.y] 
+
+    for i, v in pairs(tile) do
+        print(i, v)
+        localTile[i] = v 
+    end
+
+    ViewTile.updateDisplay(localTile)
+end
+
 Network.UnitUpdate.OnClientEvent:Connect(handleUnitUpdate)
 Network.StatsUpdate.OnClientEvent:Connect(handleStatsUpdate)
+Network.TileUpdate.OnClientEvent:Connect(handleTileUpdate)
 
 return Replication

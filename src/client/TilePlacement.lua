@@ -7,6 +7,7 @@ local ViewTile  = require(Client.ViewTile)
 local ViewStats = require(Client.ViewStats)
 local Tile      = require(Common.Tile)
 local UserStats = require(Common.UserStats)
+local Replication = require(Client.Replication)
 
 local HIGHLIGHT_MATERIAL = "Neon"
 local lastSelected
@@ -57,9 +58,7 @@ local function placeTile(tile, type)
     local canMake = UserStats.hasEnoughResources(stats, requiredResources)
 
     if canMake then
-        tile.Type = type
-        ViewTile.updateDisplay(tile)
-        UserStats.removeResources(stats, requiredResources)
+        Replication.requestTilePlacement(tile, type)
     else
         print("Not enough resources to make a", Tile.Localisation[type])
     end
