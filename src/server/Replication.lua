@@ -44,8 +44,48 @@ local function tilePlacementRequest(player, tile, type)
     return true
 end
 
+local function unitHomeRequest(player, unit, home)
+    local serverUnit = currentWorld.Units[unit.ID]
+    local pos = home.Position
+    local serverHome = currentWorld.Tiles[pos.x][pos.y]
+
+    serverUnit.Home = serverHome
+    
+    print("Home set!", serverHome)
+
+    return true
+end
+
+local function unitWorkRequest(player, unit, work)
+    local serverUnit = currentWorld.Units[unit.ID]
+    local pos = work.Position
+    local serverWork = currentWorld.Tiles[pos.x][pos.y]
+
+    serverUnit.Work = serverWork
+    
+    print("Work set!", serverWork)
+
+    return true
+end
+
+local function unitTargetRequest(player, unit, target)
+    local serverUnit = currentWorld.Units[unit.ID]
+    local pos = target.Position
+    local serverTarget = currentWorld.Tiles[pos.x][pos.y]
+
+    serverUnit.Target = serverTarget
+    
+    print("Target set!", serverTarget)
+
+    return true
+end
+
+
 Network.RequestWorldState.OnServerInvoke = worldStateRequest
 Network.RequestStats.OnServerInvoke = statsRequest
 Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
+Network.RequestUnitHome.OnServerInvoke = unitHomeRequest
+Network.RequestUnitWork.OnServerInvoke = unitWorkRequest
+Network.RequestUnitTarget.OnServerInvoke = unitTargetRequest
 
 return Replication

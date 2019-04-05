@@ -1,4 +1,5 @@
-local TilePlacement = {}
+local UnitController = {}
+
 
 local Client = script.Parent
 local Common = game.ReplicatedStorage.Pioneers.Common
@@ -15,19 +16,6 @@ local lastMaterial
 
 local selectedObject
 
-local KeyCodeMap = {}
-KeyCodeMap[45] = 0
-KeyCodeMap[48] = 1
-KeyCodeMap[49] = 2
-KeyCodeMap[50] = 3
-KeyCodeMap[51] = 4
-KeyCodeMap[52] = 5
-KeyCodeMap[53] = 6
-KeyCodeMap[54] = 7
-KeyCodeMap[55] = 8
-KeyCodeMap[56] = 9
-KeyCodeMap[57] = 10
-
 local function selectObjectAtMouse()
     local mouse = game.Players.LocalPlayer:GetMouse()
 
@@ -42,7 +30,7 @@ local function selectObjectAtMouse()
         return 
     end
 
-    local object = ViewWorld.convertInstanceToTile(inst)
+    local object = ViewWorld.convertInstanceToUnit(inst)
 
     if object then
         lastSelected = inst
@@ -55,26 +43,33 @@ local function selectObjectAtMouse()
     end
 end
 
-local function placeTile(tile, type)
+local function findTileAtMouse()
+    local mouse = game.Players.LocalPlayer:GetMouse()
 
-    local requiredResources = Tile.ConstructionCosts[type]
-    local stats = ViewStats.CurrentStats
+    local inst = mouse.Target
 
-    local canMake = UserStats.hasEnoughResources(stats, requiredResources)
+    if not inst then 
+        return 
+    end
 
-    if canMake then
-        Replication.requestTilePlacement(tile, type)
-    else
-        print("Not enough resources to make a", Tile.Localisation[type])
+    local object = ViewWorld.convertInstanceToTile(inst)
+
+    if object then
+        return object
     end
 end
 
 local function processKeyboardInput(input)
 
-    local type = KeyCodeMap[input.KeyCode.Value]
+    if not selectedObject then
+        return end
 
-    if type and selectedObject then
-        placeTile(selectedObject, type)
+    if (input.KeyCode == Enum.KeyCode.H) then
+        Replication.requestUnitHome(selectedObject, findTileAtMouse())
+    elseif (input.KeyCode == Enum.KeyCode.J) then
+        Replication.requestUnitWork(selectedObject, findTileAtMouse())
+    elseif (input.KeyCode == Enum.KeyCode.K) then
+        Replication.requestUnitTarget(selectedObject, findTileAtMouse())
     end
 end
 
@@ -95,4 +90,4 @@ local UIS = game:GetService("UserInputService")
 UIS.InputBegan:Connect(processInput)
 
 
-return TilePlacement
+return UnitController

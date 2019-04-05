@@ -60,12 +60,12 @@ local DIRECTION_UP = 5
 local DIRECTION_DOWN = 6
 
 local KEY_MAPPINGS = {
-	[DIRECTION_LEFT] = {Enum.KeyCode.A, Enum.KeyCode.H},
-	[DIRECTION_RIGHT] = {Enum.KeyCode.D, Enum.KeyCode.K},
-	[DIRECTION_FORWARD] = {Enum.KeyCode.W, Enum.KeyCode.U},
-	[DIRECTION_BACKWARD] = {Enum.KeyCode.S, Enum.KeyCode.J},
-	[DIRECTION_UP] = {Enum.KeyCode.E, Enum.KeyCode.I},
-	[DIRECTION_DOWN] = {Enum.KeyCode.Q, Enum.KeyCode.Y},
+	[DIRECTION_LEFT] = {Enum.KeyCode.A},
+	[DIRECTION_RIGHT] = {Enum.KeyCode.D},
+	[DIRECTION_FORWARD] = {Enum.KeyCode.W},
+	[DIRECTION_BACKWARD] = {Enum.KeyCode.S},
+	[DIRECTION_UP] = {Enum.KeyCode.E},
+	[DIRECTION_DOWN] = {Enum.KeyCode.Q},
 }
 
 ------------------------------------------------

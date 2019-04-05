@@ -29,7 +29,32 @@ function Replication.requestTilePlacement(tile, type)
     end
 end
 
+function Replication.requestUnitHome(unit, tile)
+    local success = Network.RequestUnitHome:InvokeServer(unit, tile)
+
+    if not success then
+        print("Home request failed!")
+    end
+end
+
+function Replication.requestUnitWork(unit, tile)
+    local success = Network.RequestUnitWork:InvokeServer(unit, tile)
+
+    if not success then
+        print("Work request failed!")
+    end
+end
+
+function Replication.requestUnitTarget(unit, tile)
+    local success = Network.RequestUnitTarget:InvokeServer(unit, tile)
+
+    if not success then
+        print("Target request failed!")
+    end
+end
+
 local function handleUnitUpdate(unit)
+    repeat wait() until currentWorld
     local localUnit = currentWorld.Units[unit.ID]
     
     for i, v in pairs(unit) do

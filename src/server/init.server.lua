@@ -46,6 +46,7 @@ ProcessRound.assignWorld(world)
 local stats = UserStats.new(23, 10, 16, 0, 0, 0)
 Replication.tempAssignStats(stats)
 StatsController.tempAddStats(stats)
-while wait(1) do
+
+while wait(0.1) do
     ProcessRound.process()
 end

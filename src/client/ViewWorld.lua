@@ -9,6 +9,12 @@ local Util = require(Common.Util)
 
 local CurrentWorld
 
+local function isTile(inst)
+    if inst.Name == "Hexagon" then
+        return true
+    end
+end
+
 function ViewWorld.displayWorld(world)
 
     CurrentWorld = world
@@ -29,12 +35,18 @@ function ViewWorld.displayWorld(world)
     end
 end
 
-function ViewWorld.convertInstanceToObject(inst)
+function ViewWorld.convertInstanceToTile(inst)
 
-    local pos = Util.worldCoordToAxialCoord(inst.Position)
+    if isTile(inst) then
 
-    return CurrentWorld.Tiles[pos.x][pos.y]
+        local pos = Util.worldCoordToAxialCoord(inst.Position)
+        return CurrentWorld.Tiles[pos.x][pos.y]
+
+    end
 end
 
+function ViewWorld.convertInstanceToUnit(inst)
+    return ViewUnit.getUnitFromInst(inst)
+end
 
 return ViewWorld

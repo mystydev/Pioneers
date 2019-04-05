@@ -11,6 +11,7 @@ local ViewTile = require(Client.ViewTile)
 local ViewWorld = require(Client.ViewWorld)
 local ViewStats = require(Client.ViewStats)
 local TilePlacement = require(Client.TilePlacement)
+local UnitController = require(Client.UnitController)
 local Replication = require(Client.Replication)
 
 print("Pioneers client starting...")
