@@ -5,7 +5,7 @@ local Vector2 = Vector2
 local Common = game.ReplicatedStorage.Pioneers.Common
 local Tile = require(Common.Tile)
 
-World.SIZE = 200 --How big on each axis the world is
+World.SIZE = 20 --How big on each axis the world is
                 --For example 10 = 0->10 inclusive
                 --This uses the axial coordinate system
 

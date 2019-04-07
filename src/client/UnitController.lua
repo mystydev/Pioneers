@@ -9,37 +9,15 @@ local ViewStats = require(Client.ViewStats)
 local Tile      = require(Common.Tile)
 local UserStats = require(Common.UserStats)
 local Replication = require(Client.Replication)
-
-local HIGHLIGHT_MATERIAL = "Neon"
-local lastSelected
-local lastMaterial
+local ViewSelection = require(Client.ViewSelection)
+local ClientUtil = require(Client.ClientUtil)
 
 local selectedObject
 
-local function selectObjectAtMouse()
-    local mouse = game.Players.LocalPlayer:GetMouse()
-
-    if lastSelected then
-        lastSelected.Material = lastMaterial
-    end
-
-    local inst = mouse.Target
-
-    if not inst then 
+local function unselect()
+    if selectedObject then
         selectedObject = nil
-        return 
-    end
-
-    local object = ViewWorld.convertInstanceToUnit(inst)
-
-    if object then
-        lastSelected = inst
-        lastMaterial = inst.Material  
-        inst.Material = HIGHLIGHT_MATERIAL
-
-        selectedObject = object
-    else
-        selectedObject = nil
+        ClientUtil.unSelectUnit()
     end
 end
 
@@ -78,7 +56,9 @@ local function processInput(input, processed)
     if processed then return end
 
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        selectObjectAtMouse()
+        selectedObject = ClientUtil.selectUnitAtMouse()
+    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+        unselect()
     elseif input.UserInputType == Enum.UserInputType.Keyboard then
         processKeyboardInput(input)
     end
