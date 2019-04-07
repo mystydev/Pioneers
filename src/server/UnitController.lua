@@ -1,23 +1,23 @@
 local UnitController = {}
+local Server         = script.Parent
+local Common         = game.ReplicatedStorage.Pioneers.Common
 
-local Server = script.Parent
-local Common = game.ReplicatedStorage.Pioneers.Common
-local Replication = require(Server.Replication)
+local Replication     = require(Server.Replication)
 local StatsController = require(Server.StatsController)
-local Unit = require(Common.Unit)
-local Tile = require(Common.Tile)
-local Pathfinding = require(Common.Pathfinding)
-local Resource = require(Common.Resource)
+local Unit            = require(Common.Unit)
+local Tile            = require(Common.Tile)
+local Pathfinding     = require(Common.Pathfinding)
+local Resource        = require(Common.Resource)
 
 local unitCount = 5
 local currentWorld
 
-function UnitController.AssignPosition(unit, position)
+function UnitController.assignPosition(unit, position)
     unit.Position = position
     Replication.pushUnitChange(unit)
 end
 
-function UnitController.AddResource(unit, resource)
+function UnitController.addResource(unit, resource)
     local heldResource = unit.HeldResource
 
     if heldResource then
@@ -43,7 +43,7 @@ function UnitController.spawnUnit(ID, house)
     local unit = Unit.new(Unit.VILLAGER, tostring(ID)..":"..unitCount, ID, house.Position, 100, 0, nil, nil, nil, nil)
     
     if UnitController.setHome(unit, house) then
-        if StatsController.UseResource(unit.OwnerID, Resource.new(Resource.FOOD, 100)) then
+        if StatsController.useResource(unit.OwnerID, Resource.new(Resource.FOOD, 100)) then
 
             currentWorld.Units[unit.ID] = unit
             unitCount = unitCount + 1

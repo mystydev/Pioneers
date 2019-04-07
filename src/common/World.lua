@@ -1,8 +1,7 @@
 
-local World = {}
-local Vector2 = Vector2
-
+local World  = {}
 local Common = game.ReplicatedStorage.Pioneers.Common
+
 local Tile = require(Common.Tile)
 
 World.SIZE = 20 --How big on each axis the world is

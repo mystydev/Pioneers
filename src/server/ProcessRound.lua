@@ -1,11 +1,11 @@
 local ProcessRound = {}
+local Server       = script.Parent
+local Common       = game.ReplicatedStorage.Pioneers.Common
 
-local Server = script.Parent
-local Common = game.ReplicatedStorage.Pioneers.Common
-local Pathfinding = require(Common.Pathfinding)
-local Resource = require(Common.Resource)
-local Tile = require(Common.Tile)
-local UnitController = require(Server.UnitController)
+local Pathfinding     = require(Common.Pathfinding)
+local Resource        = require(Common.Resource)
+local Tile            = require(Common.Tile)
+local UnitController  = require(Server.UnitController)
 local StatsController = require(Server.StatsController)
 
 local MAX_FATIGUE = 10
@@ -89,11 +89,11 @@ local function processUnit(unit)
             print("Unit could not find a path!")
             return end
 
-        UnitController.AssignPosition(unit, path[1].Position)
+        UnitController.assignPosition(unit, path[1].Position)
 
     elseif state == UnitState.WORKING then
         local produce = getTileOutput(onTile)
-        UnitController.AddResource(unit, produce)
+        UnitController.addResource(unit, produce)
 
         --print("Unit has", unit.HeldResource.Amount, "of",  Resource.Localisation[unit.HeldResource.Type])
 
@@ -105,7 +105,7 @@ local function processUnit(unit)
     
     elseif state == UnitState.RESTING then
 
-        if StatsController.UseResource(unit.OwnerID, Resource.new(Resource.FOOD, 5)) then
+        if StatsController.useResource(unit.OwnerID, Resource.new(Resource.FOOD, 5)) then
 
             unit.Fatigue = unit.Fatigue - 5
             if unit.Fatigue <= 0 then
@@ -120,7 +120,7 @@ local function processUnit(unit)
     elseif state == UnitState.STORING then 
         if onTile.Type == Tile.STORAGE or onTile.Type == Tile.KEEP then
             --print("Stored", unit.HeldResource.Amount, "of", Resource.Localisation[unit.HeldResource.Type])
-            StatsController.AddResource(unit.OwnerID, unit.HeldResource)
+            StatsController.addResource(unit.OwnerID, unit.HeldResource)
             unit.HeldResource = nil
 
             if unit.Fatigue > 0 then

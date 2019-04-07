@@ -1,10 +1,10 @@
 local Replication = {}
 
-local Client = script.Parent
-local ViewUnit = require(Client.ViewUnit)
+local Client    = script.Parent
+local ViewUnit  = require(Client.ViewUnit)
 local ViewStats = require(Client.ViewStats)
-local ViewTile = require(Client.ViewTile)
-local Network = game.ReplicatedStorage.Network
+local ViewTile  = require(Client.ViewTile)
+local Network   = game.ReplicatedStorage.Network
 
 local currentWorld
 local currentStats

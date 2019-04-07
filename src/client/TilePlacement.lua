@@ -1,16 +1,18 @@
 local TilePlacement = {}
+local Client        = script.Parent
+local Common        = game.ReplicatedStorage.Pioneers.Common
 
-local Client = script.Parent
-local Common = game.ReplicatedStorage.Pioneers.Common
-local ViewWorld = require(Client.ViewWorld)
-local ViewTile  = require(Client.ViewTile)
-local ViewStats = require(Client.ViewStats)
-local Tile      = require(Common.Tile)
-local UserStats = require(Common.UserStats)
-local Replication = require(Client.Replication)
+local ViewWorld     = require(Client.ViewWorld)
+local ViewTile      = require(Client.ViewTile)
+local ViewStats     = require(Client.ViewStats)
+local Replication   = require(Client.Replication)
 local ViewSelection = require(Client.ViewSelection)
-local ClientUtil = require(Client.ClientUtil)
+local ClientUtil    = require(Client.ClientUtil)
+local Tile          = require(Common.Tile)
+local UserStats     = require(Common.UserStats)
 
+
+local UIS = game:GetService("UserInputService")
 local selectedObject
 
 local KeyCodeMap = {}
@@ -69,10 +71,6 @@ local function processInput(input, processed)
     end
 end
 
-
-local UIS = game:GetService("UserInputService")
-
 UIS.InputBegan:Connect(processInput)
-
 
 return TilePlacement

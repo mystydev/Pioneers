@@ -1,11 +1,11 @@
 local ClientUtil = {}
 
-local Client = script.Parent
+local Client        = script.Parent
 local ViewSelection = require(Client.ViewSelection)
-local ViewWorld = require(Client.ViewWorld)
+local ViewWorld     = require(Client.ViewWorld)
 
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
+local player  = Players.LocalPlayer
 
 local lastSelected
 local selectedObject

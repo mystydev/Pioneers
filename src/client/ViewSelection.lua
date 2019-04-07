@@ -1,35 +1,23 @@
 local ViewSelection = {}
+local Common        = game.ReplicatedStorage.Pioneers.Common
 
-local Common = game.ReplicatedStorage.Pioneers.Common
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
+local Players      = game:GetService("Players")
+local RunService   = game:GetService("RunService")
+local Lighting     = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
-local player = Players.LocalPlayer
 
-local cam = Instance.new("Camera")
-local blur = Instance.new("BlurEffect")
+local player     = Players.LocalPlayer
+local cam        = Instance.new("Camera")
+local blur       = Instance.new("BlurEffect")
 local desaturate = Instance.new("ColorCorrectionEffect")
 local viewport
 local managedinsts = {}
-local numinst = 0
-
+local numinst   = 0
 local tweenSlow = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local tweenFast = TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 blur.Size = 0
---blur.Enabled = false
 desaturate.Saturation = 0
---desaturate.Enabled = false
-
-local function updateCamera()
-    while true do
-
-
-        RunService.RenderStepped:Wait()
-    end
-end 
 
 function ViewSelection.createDisplay()
 

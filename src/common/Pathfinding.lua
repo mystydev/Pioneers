@@ -1,13 +1,13 @@
 local Pathfinding = {}
+local Common      = game.ReplicatedStorage.Pioneers.Common
 
-local Common = game.ReplicatedStorage.Pioneers.Common
 local World = require(Common.World)
-local Tile = require(Common.Tile)
+local Tile  = require(Common.Tile)
 
 local currentWorld
 local sign = math.sign
-local abs = math.abs
-local max = math.max
+local abs  = math.abs
+local max  = math.max
 
 --Manhatten distance
 local function costHeuristic(startTile, endTile)

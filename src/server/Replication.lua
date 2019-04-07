@@ -1,10 +1,10 @@
 local Replication = {}
+local Server      = script.Parent
+local Common      = game.ReplicatedStorage.Pioneers.Common
 
-local Server = script.Parent
-local Common = game.ReplicatedStorage.Pioneers.Common
-local Tile = require(Common.Tile)
-local Unit = require(Common.Unit)
-local World = require(Common.World)
+local Tile      = require(Common.Tile)
+local Unit      = require(Common.Unit)
+local World     = require(Common.World)
 local UserStats = require(Common.UserStats)
 
 local Network = game.ReplicatedStorage.Network
@@ -103,8 +103,6 @@ local function unitWorkRequest(player, unit, tile)
 
     local ID = player.UserId
 
-    print(ID, unit.OwnerID, serverUnit.OwnerID, tile.OwnerID, serverTile.OwnerID)
-
     if ID == unit.OwnerID and ID == serverUnit.OwnerID  
         and ID == tile.OwnerID and ID == serverTile.OwnerID then
 
@@ -130,12 +128,11 @@ local function unitTargetRequest(player, unit, tile)
     end
 end
 
-
-Network.RequestWorldState.OnServerInvoke = worldStateRequest
-Network.RequestStats.OnServerInvoke = statsRequest
+Network.RequestWorldState.OnServerInvoke    = worldStateRequest
+Network.RequestStats.OnServerInvoke         = statsRequest
 Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
-Network.RequestUnitHome.OnServerInvoke = unitHomeRequest
-Network.RequestUnitWork.OnServerInvoke = unitWorkRequest
-Network.RequestUnitTarget.OnServerInvoke = unitTargetRequest
+Network.RequestUnitHome.OnServerInvoke      = unitHomeRequest
+Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
+Network.RequestUnitTarget.OnServerInvoke    = unitTargetRequest
 
 return Replication

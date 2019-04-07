@@ -1,8 +1,9 @@
 local ViewStats = {}
-local Common = game.ReplicatedStorage.Pioneers.Common
+local Common    = game.ReplicatedStorage.Pioneers.Common
+
 local UserStats = require(Common.UserStats)
-local Resource = require(Common.Resource)
-local Roact = require(game.ReplicatedStorage.Roact)
+local Resource  = require(Common.Resource)
+local Roact     = require(game.ReplicatedStorage.Roact)
 
 local ResView = Roact.Component:extend("ResView")
 local DisplayHandle

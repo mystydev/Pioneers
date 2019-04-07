@@ -1,6 +1,6 @@
 local ViewTile = {}
+local Common   = game.ReplicatedStorage.Pioneers.Common
 
-local Common = game.ReplicatedStorage.Pioneers.Common
 local Tile = require(Common.Tile)
 local Util = require(Common.Util)
 

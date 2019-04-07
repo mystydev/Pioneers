@@ -1,11 +1,10 @@
 local StatsController = {}
+local Server          = script.Parent
+local Common          = game.ReplicatedStorage.Pioneers.Common
 
-local Common = game.ReplicatedStorage.Pioneers.Common
-local Server = script.Parent
-local Resource = require(Common.Resource)
-local UserStats = require(Common.UserStats)
 local Replication = require(Server.Replication)
-
+local Resource    = require(Common.Resource)
+local UserStats   = require(Common.UserStats)
 
 function StatsController.addNewPlayer(player)
     local stats = UserStats.new(500, 500, 500, player.UserId, 0, 0)
@@ -16,7 +15,7 @@ function StatsController.addNewPlayer(player)
     return stats
 end
 
-function StatsController.AddResource(ID, resource)
+function StatsController.addResource(ID, resource)
     local stats = UserStats.Store[ID]
 
     if resource.Type == Resource.FOOD then
@@ -30,7 +29,7 @@ function StatsController.AddResource(ID, resource)
     Replication.pushStatsChange(stats)
 end
 
-function StatsController.UseResource(ID, resource)
+function StatsController.useResource(ID, resource)
     local stats = UserStats.Store[ID]
 
     if resource.Type == Resource.FOOD and stats.Food > resource.Amount then

@@ -1,11 +1,11 @@
 local ViewWorld = {}
+local Client    = script.Parent
+local Common    = game.ReplicatedStorage.Pioneers.Common
 
-local Client = script.Parent
-local Common = game.ReplicatedStorage.Pioneers.Common
 local ViewTile = require(Client.ViewTile)
 local ViewUnit = require(Client.ViewUnit)
-local World = require(Common.World)
-local Util = require(Common.Util)
+local World    = require(Common.World)
+local Util     = require(Common.Util)
 
 local CurrentWorld
 
