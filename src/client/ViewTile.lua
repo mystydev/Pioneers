@@ -20,6 +20,12 @@ DisplayCol[Tile.BARRACKS] = Color3.fromRGB(220,20,60)
 DisplayCol[Tile.WALL]     = Color3.fromRGB(0,0,0)
 DisplayCol[Tile.GATE]     = Color3.fromRGB(188,143,143)
 
+local meshId = {}
+
+meshId[Tile.KEEP] = {mesh = "rbxassetid://3051772197", texture = "rbxgameasset://Images/KeepTexture", offset = Vector3.new(0, 11, 0)}
+meshId[Tile.HOUSE] = {mesh = "rbxassetid://3051012602", texture = "rbxgameasset://Images/HouseTexture", offset = Vector3.new(0, 5.5, 0)}
+
+
 function ViewTile.displayTile(tile)
     local model = TileModel:Clone()
 
@@ -28,13 +34,25 @@ function ViewTile.displayTile(tile)
     model.Position = Util.axialCoordToWorldCoord(tile.Position)
     model.Parent = Workspace
     model.Color = DisplayCol[tile.Type]
-    
+
+    if meshId[tile.Type] then
+        model.Color = Color3.new(1,1,1)
+        model.Mesh.MeshId = meshId[tile.Type].mesh
+        model.Mesh.TextureId = meshId[tile.Type].texture
+    end
 end
 
 function ViewTile.updateDisplay(tile)
     local model = TileToInstMap[tile]
 
     model.Color = DisplayCol[tile.Type]
+
+    if meshId[tile.Type] then
+        model.Color = Color3.new(1,1,1)
+        model.Mesh.MeshId = meshId[tile.Type].mesh
+        model.Mesh.TextureId = meshId[tile.Type].texture
+        model.Mesh.Offset = meshId[tile.Type].offset
+    end
 end
 
 return ViewTile

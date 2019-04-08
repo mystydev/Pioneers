@@ -31,6 +31,6 @@ Players.PlayerAdded:Connect(function(player)
     StatsController.addNewPlayer(player)
 end)
 
-while wait(2) do
+while wait(0.2) do
     ProcessRound.process()
 end
