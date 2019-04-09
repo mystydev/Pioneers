@@ -1,9 +1,11 @@
 local Replication = {}
+local Client      = script.Parent
+local Common      = game.ReplicatedStorage.Pioneers.Common
 
-local Client    = script.Parent
 local ViewUnit  = require(Client.ViewUnit)
 local ViewStats = require(Client.ViewStats)
 local ViewTile  = require(Client.ViewTile)
+local World     = require(Common.World)
 local Network   = game.ReplicatedStorage.Network
 
 local currentWorld
@@ -81,7 +83,7 @@ end
 local function handleTileUpdate(tile)
 
     local pos = tile.Position
-    local localTile = currentWorld.Tiles[pos.x][pos.y] 
+    local localTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
 
     for i, v in pairs(tile) do
         localTile[i] = v 

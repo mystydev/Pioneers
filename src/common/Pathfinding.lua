@@ -9,6 +9,8 @@ local sign = math.sign
 local abs  = math.abs
 local max  = math.max
 
+local getTile = World.getTile
+
 --Manhatten distance
 local function costHeuristic(startTile, endTile)
     local delt = endTile.Position - startTile.Position
@@ -24,15 +26,13 @@ local function getNeighbours(tile)
     local posx, posy = tile.Position.x, tile.Position.y
     local tiles = currentWorld.Tiles
 
-    if posx > 0 and posx < World.SIZE and posy > 0 and posy < World.SIZE then
-        return {
-            tiles[posx  ][posy+1],
-            tiles[posx+1][posy+1],
-            tiles[posx+1][posy  ],
-            tiles[posx  ][posy-1],
-            tiles[posx-1][posy-1],
-            tiles[posx-1][posy  ]}
-    end
+    return {
+        getTile(tiles,   posx, posy+1),
+        getTile(tiles, posx+1, posy+1),
+        getTile(tiles, posx+1, posy  ),
+        getTile(tiles, posx  , posy-1),
+        getTile(tiles, posx-1, posy-1),
+        getTile(tiles, posx-1, posy  )}
 end
 
 local function reversePath(path)

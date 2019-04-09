@@ -2,10 +2,11 @@ local ClientUtil = {}
 
 local Client        = script.Parent
 local ViewSelection = require(Client.ViewSelection)
-local ViewWorld     = require(Client.ViewWorld)
 
 local Players = game:GetService("Players")
 local player  = Players.LocalPlayer
+
+local camera = Workspace.CurrentCamera
 
 local lastSelected
 local selectedObject
@@ -94,6 +95,14 @@ function ClientUtil.unSelectUnit()
         lastSelected = nil
         selectedType = nil
     end
+end
+
+function ClientUtil.init()
+    ViewWorld = require(Client.ViewWorld)
+end
+
+function ClientUtil.getPlayerPosition()
+    return camera.CFrame.Position
 end
 
 return ClientUtil

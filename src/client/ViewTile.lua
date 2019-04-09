@@ -1,8 +1,15 @@
 local ViewTile = {}
+local Client   = script.Parent
 local Common   = game.ReplicatedStorage.Pioneers.Common
 
+local ClientUtil = require(Client.ClientUtil)
 local Tile = require(Common.Tile)
 local Util = require(Common.Util)
+
+local RunService = game:GetService("RunService")
+
+local clamp = math.clamp
+local floor = math.floor
 
 local TileModel = game.ReplicatedStorage.Pioneers.Assets.Hexagon
 local DisplayCol = {}
@@ -25,8 +32,43 @@ local meshId = {}
 meshId[Tile.KEEP] = {mesh = "rbxassetid://3051772197", texture = "rbxgameasset://Images/KeepTexture", offset = Vector3.new(0, 11, 0)}
 meshId[Tile.HOUSE] = {mesh = "rbxassetid://3051012602", texture = "rbxgameasset://Images/HouseTexture", offset = Vector3.new(0, 5.5, 0)}
 
+local function unload(tile, model) --TODO: fully unload from memory
+    model:Destroy()
+    TileToInstMap[tile] = nil
+end
+
+local function autoUnload() --TODO: fully unload from memory
+    local getPos = ClientUtil.getPlayerPosition
+    local dist
+    
+    repeat
+        for tile, model in pairs(TileToInstMap) do
+            local position = model.Position
+
+            dist = (position - getPos()).magnitude
+            model.Transparency = clamp((model.Transparency*20 + ((dist)/300)^2-1)/21, 0, 1)
+            local p = getPos()
+
+            if dist > 250 then
+                model.CFrame = CFrame.new(Vector3.new(position.x, model.Transparency*120, position.z), Vector3.new(p.x, -model.Transparency*2000, p.z))
+            else
+               model.CFrame = CFrame.new(Vector3.new(position.x, model.Transparency*140, position.z))
+            end
+
+            if dist > 1500 then
+                unload(tile, model)
+            end
+        end
+
+        RunService.Stepped:Wait()
+    until false
+end
 
 function ViewTile.displayTile(tile)
+
+    if TileToInstMap[tile] then
+        return end
+
     local model = TileModel:Clone()
 
     TileToInstMap[tile] = model
@@ -40,6 +82,7 @@ function ViewTile.displayTile(tile)
         model.Mesh.MeshId = meshId[tile.Type].mesh
         model.Mesh.TextureId = meshId[tile.Type].texture
     end
+
 end
 
 function ViewTile.updateDisplay(tile)
@@ -54,5 +97,7 @@ function ViewTile.updateDisplay(tile)
         model.Mesh.Offset = meshId[tile.Type].offset
     end
 end
+
+spawn(autoUnload)
 
 return ViewTile

@@ -4,20 +4,33 @@ local Common = game.ReplicatedStorage.Pioneers.Common
 
 local Tile = require(Common.Tile)
 
-World.SIZE = 200 --How big on each axis the world is
-                --For example 10 = 0->10 inclusive
-                --This uses the axial coordinate system
+local format = string.format
+local vec3 = Vector3.new
+
+local function setTile(tiles, tile, x, y)
+    tiles[format("%d,%d", x, y)] = tile
+end
+
+local function getTile(tiles, x, y)
+    local tile = tiles[format("%d,%d", x, y)]
+
+    if not tile then  
+        setTile(tiles, Tile.new(Tile.GRASS, nil, vec3(x, y, 0), nil), x, y)
+    end
+
+    return tiles[format("%d,%d", x, y)]
+end
 
 local function hasNeighour(tiles, tile, type)
     local posx, posy = tile.Position.x, tile.Position.y
 
-    return (tiles[posx  ][posy+1].Type == type
-            or tiles[posx  ][posy+1].Type == type
-            or tiles[posx+1][posy+1].Type == type
-            or tiles[posx+1][posy  ].Type == type
-            or tiles[posx  ][posy-1].Type == type
-            or tiles[posx-1][posy-1].Type == type
-            or tiles[posx-1][posy  ].Type == type)
+    return (getTile(tiles, posx, posy+1).Type == type
+            or getTile(tiles, posx, posy+1).Type == type
+            or getTile(tiles, posx+1, posy+1).Type == type
+            or getTile(tiles, posx+1, posy  ).Type == type
+            or getTile(tiles, posx  , posy-1).Type == type
+            or getTile(tiles, posx-1, posy-1).Type == type
+            or getTile(tiles, posx-1, posy  ).Type == type)
 end
 
 local function nearHostile(tiles, tile, ID)
@@ -27,22 +40,22 @@ local function nearHostile(tiles, tile, ID)
         local id
 
         for i = 0, radius-1 do
-            id = tiles[posx + i][posy + radius].OwnerID
+            id = getTile(tiles, posx + i, posy + radius).OwnerID
             if id and id ~= ID then return true end
 
-            id = tiles[posx + radius][posy + radius - i].OwnerID
+            id = getTile(tiles, posx + radius, posy + radius - i).OwnerID
             if id and id ~= ID then return true end
 
-            id = tiles[posx + radius - i][posy - i].OwnerID
+            id = getTile(tiles, posx + radius - i, posy - i).OwnerID
             if id and id ~= ID then return true end
 
-            id = tiles[posx - i][posy - radius].OwnerID
+            id = getTile(tiles, posx - i, posy - radius).OwnerID
             if id and id ~= ID then return true end
 
-            id = tiles[posx - radius][posy - radius + i].OwnerID
+            id = getTile(tiles, posx - radius, posy - radius + i).OwnerID
             if id and id ~= ID then return true end
 
-            id = tiles[posx - radius + i][posy + i].OwnerID
+            id = getTile(tiles, posx - radius + i, posy + i).OwnerID
             if id and id ~= ID then return true end
         end
     end
@@ -60,7 +73,7 @@ end
 function World.tileCanBePlaced(world, tile, type, ID)
     local tiles = world.Tiles
     local pos = tile.Position
-    local currentTile = tiles[pos.x][pos.y]
+    local currentTile = getTile(tiles, pos.x, pos.y)
 
     if nearHostile(tiles, currentTile, ID) then
         return false end
@@ -82,7 +95,7 @@ function World.computeHash(world)
 
     for x = 0, World.SIZE do
         for y = 0, World.SIZE do
-            tileHashValue = ((tileHashValue + 1) * (world.Tiles[x][y].Type + 1) * x * y) % 1677216
+            tileHashValue = ((tileHashValue + 1) * (getTile(world.Tiles, x, y).Type + 1) * x * y) % 1677216
         end
     end
 
@@ -96,5 +109,8 @@ function World.computeHash(world)
 
     return hash
 end
+
+World.getTile = getTile
+World.setTile = setTile
 
 return World

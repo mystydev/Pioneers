@@ -14,8 +14,11 @@ local ViewSelection  = require(Client.ViewSelection)
 local TilePlacement  = require(Client.TilePlacement)
 local UnitController = require(Client.UnitController)
 local Replication    = require(Client.Replication)
+local ClientUtil     = require(Client.ClientUtil)
 
 print("Pioneers client starting...")
+
+ClientUtil.init()
 
 local world = Replication.getWorldState()
 ViewWorld.displayWorld(world)
@@ -25,4 +28,4 @@ local stats = Replication.getUserStats()
 ViewStats.createDisplay(stats)
 ViewSelection.createDisplay()
 
---workspace.CurrentCamera.CFrame = CFrame.new(Vector3.new(1000, 50, 1000))
+workspace.CurrentCamera.CFrame = CFrame.new(Vector3.new(0, 30, 0))

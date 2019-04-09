@@ -18,15 +18,14 @@ return (function()
     local testTiles = {}
 
     for x = 0, World.SIZE do
-        testTiles[x] = {}
         for y = 0, World.SIZE do
-            testTiles[x][y] = Tile.new(Tile.GRASS)
+            World.setTile(testTiles, Tile.new(Tile.GRASS), x, y)
         end
     end
 
-    testTiles[80][70] = Tile.new(Tile.KEEP)
-    testTiles[58][37] = Tile.new(Tile.BARRACKS)
-    testTiles[73][63] = Tile.new(Tile.MINE)
+    World.setTile(testTiles, Tile.new(Tile.KEEP), 80, 70)
+    World.setTile(testTiles, Tile.new(Tile.BARRACKS), 58, 37)
+    World.setTile(testTiles, Tile.new(Tile.MINE), 73, 63)
     
     local testUnits = {}
 

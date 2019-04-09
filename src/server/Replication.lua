@@ -59,7 +59,7 @@ local function tilePlacementRequest(player, tile, type)
         return false end
 
     local pos = tile.Position
-    local serverTile = currentWorld.Tiles[pos.x][pos.y]
+    local serverTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
 
     StatsController.useRequirement(player.UserId, requiredResources)
 
@@ -83,7 +83,7 @@ end
 local function unitHomeRequest(player, unit, tile)
     local serverUnit = currentWorld.Units[unit.ID]
     local pos = tile.Position
-    local serverTile = currentWorld.Tiles[pos.x][pos.y]
+    local serverTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
 
     local ID = player.UserId
 
@@ -99,7 +99,7 @@ end
 local function unitWorkRequest(player, unit, tile)
     local serverUnit = currentWorld.Units[unit.ID]
     local pos = tile.Position
-    local serverTile = currentWorld.Tiles[pos.x][pos.y]
+    local serverTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
 
     local ID = player.UserId
 
@@ -115,7 +115,7 @@ end
 local function unitTargetRequest(player, unit, tile)
     local serverUnit = currentWorld.Units[unit.ID]
     local pos = tile.Position
-    local serverTile = currentWorld.Tiles[pos.x][pos.y]
+    local serverTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
 
     local ID = player.UserId
 

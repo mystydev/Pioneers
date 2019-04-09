@@ -10,17 +10,10 @@ local Unit            = require(Common.Unit)
 local UserStats       = require(Common.UserStats)
 
 local Players = game:GetService("Players")
+local format = string.format
 
 local tiles = {}
 local units = {}
-
-for x = 1, World.SIZE do
-    tiles[x] = {}
-
-    for y = 1, World.SIZE do
-        tiles[x][y] = Tile.new(Tile.GRASS, nil, Vector2.new(x, y), nil)
-    end
-end
 
 local world = World.new(tiles, units)
 

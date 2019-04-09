@@ -5,6 +5,7 @@ local Common       = game.ReplicatedStorage.Pioneers.Common
 local Pathfinding     = require(Common.Pathfinding)
 local Resource        = require(Common.Resource)
 local Tile            = require(Common.Tile)
+local World           = require(Common.World)
 local UnitController  = require(Server.UnitController)
 local StatsController = require(Server.StatsController)
 
@@ -29,7 +30,7 @@ StateLocalisation[UnitState.STORING] = "Storing"
 local currentWorld 
 
 local function establishUnitState(unit)
-    local onTile = currentWorld.Tiles[unit.Position.x][unit.Position.y]
+    local onTile = World.getTile(currentWorld.Tiles, unit.Position.x, unit.Position.y)
     local hasHome = unit.Home
     local hasWork = unit.Work
     local hasTarget = unit.Target
