@@ -9,35 +9,11 @@ local UserStats = require(Common.UserStats)
 
 local Network = game.ReplicatedStorage.Network
 local Players = game:GetService("Players")
+local Http    = game:GetService("HttpService")
 
 local currentWorld
 local UnitController
 local StatsController
-
-function Replication.assignWorld(w)
-    currentWorld = w
-
-    StatsController = require(Server.StatsController)
-    UnitController = require(Server.UnitController)
-
-    UnitController.assignWorld(w)
-end
-
-function Replication.pushUnitChange(unit)
-    Network.UnitUpdate:FireAllClients(unit)
-end
-
-function Replication.pushStatsChange(stats)
-    local player = game.Players:GetPlayerByUserId(stats.PlayerID)
-    
-    if player then
-        Network.StatsUpdate:FireClient(player, stats)
-    end
-end
-
-function Replication.pushTileChange(tile)
-    Network.TileUpdate:FireAllClients(tile)
-end
 
 local function worldStateRequest(player)
     return currentWorld
@@ -66,6 +42,8 @@ local function tilePlacementRequest(player, tile, type)
     serverTile.Type = type
     serverTile.OwnerID = player.UserId
     
+    local payload = Tile.serialise(serverTile)
+    Http:PostAsync("http://0.0.0.0:3000/pion/tileupdate", payload)
     Replication.pushTileChange(serverTile)
 
     if type == Tile.HOUSE then 
@@ -103,6 +81,9 @@ local function unitWorkRequest(player, unit, tile)
 
     local ID = player.UserId
 
+    print(tile)
+    print(ID, unit.OwnerID, serverUnit.OwnerID, tile.OwnerID, serverTile.OwnerID)
+
     if ID == unit.OwnerID and ID == serverUnit.OwnerID  
         and ID == tile.OwnerID and ID == serverTile.OwnerID then
 
@@ -128,11 +109,47 @@ local function unitTargetRequest(player, unit, tile)
     end
 end
 
-Network.RequestWorldState.OnServerInvoke    = worldStateRequest
-Network.RequestStats.OnServerInvoke         = statsRequest
-Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
-Network.RequestUnitHome.OnServerInvoke      = unitHomeRequest
-Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
-Network.RequestUnitTarget.OnServerInvoke    = unitTargetRequest
+function Replication.assignWorld(w)
+    currentWorld = w
+
+    StatsController = require(Server.StatsController)
+    UnitController = require(Server.UnitController)
+
+    UnitController.assignWorld(w)
+
+    Network.RequestWorldState.OnServerInvoke    = worldStateRequest
+    Network.RequestStats.OnServerInvoke         = statsRequest
+    Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
+    Network.RequestUnitHome.OnServerInvoke      = unitHomeRequest
+    Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
+    Network.RequestUnitTarget.OnServerInvoke    = unitTargetRequest
+    Network.Ready.OnServerInvoke = function() return true end
+end
+
+function Replication.pushUnitChange(unit)
+    local payload = Unit.serialise(unit)
+    Http:PostAsync("http://0.0.0.0:3000/pion/unitupdate", payload)
+
+    Network.UnitUpdate:FireAllClients(unit)
+end
+
+function Replication.pushStatsChange(stats)
+    local player = game.Players:GetPlayerByUserId(stats.PlayerID)
+    
+    if player then
+        Network.StatsUpdate:FireClient(player, stats)
+    end
+end
+
+function Replication.pushTileChange(tile)
+    Network.TileUpdate:FireAllClients(tile)
+end
+
+function Replication.tempSyncUnit(unit)
+    Network.UnitUpdate:FireAllClients(unit)
+end
+
+
+Network.Ready.OnServerInvoke = function() return false end
 
 return Replication

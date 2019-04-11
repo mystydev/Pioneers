@@ -8,17 +8,17 @@ local format = string.format
 local vec3 = Vector3.new
 
 local function setTile(tiles, tile, x, y)
-    tiles[format("%d,%d", x, y)] = tile
+    tiles[format("%d:%d", x, y)] = tile
 end
 
 local function getTile(tiles, x, y)
-    local tile = tiles[format("%d,%d", x, y)]
+    local tile = tiles[format("%d:%d", x, y)]
 
     if not tile then  
         setTile(tiles, Tile.new(Tile.GRASS, nil, vec3(x, y, 0), nil), x, y)
     end
 
-    return tiles[format("%d,%d", x, y)]
+    return tiles[format("%d:%d", x, y)]
 end
 
 local function hasNeighour(tiles, tile, type)

@@ -92,6 +92,10 @@ local function handleTileUpdate(tile)
     ViewTile.updateDisplay(localTile)
 end
 
+function Replication.ready()
+    return Network.Ready:InvokeServer()
+end
+
 Network.UnitUpdate.OnClientEvent:Connect(handleUnitUpdate)
 Network.StatsUpdate.OnClientEvent:Connect(handleStatsUpdate)
 Network.TileUpdate.OnClientEvent:Connect(handleTileUpdate)

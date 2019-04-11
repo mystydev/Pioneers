@@ -1,6 +1,8 @@
 
 local Tile = {}
 
+local HttpService = game:GetService("HttpService")
+
 Tile.GRASS = 0
 Tile.KEEP = 1
 Tile.PATH = 2
@@ -48,6 +50,29 @@ function Tile.new(Type, OwnerID, Position, Health)
     new.Health = Health
 
     return new
+end
+
+function Tile.serialise(tile)
+    local index = string.format("%d:%d", tile.Position.x, tile.Position.y)
+    local data = {}
+
+    data.Type = tile.Type
+    data.OwnerId = tile.OwnerID
+
+    return HttpService:JSONEncode({index = index, data = data})
+end
+
+function Tile.deserialise(index, data)
+    local data = HttpService:JSONDecode(data)
+    local tile = {}
+
+    local x, y = unpack(string.split(index, ':'))
+    tile.Type = data.Type
+    tile.OwnerID = data.OwnerId
+    tile.Position = Vector3.new(tonumber(x), tonumber(y), 0)
+    tile.Health = data.Health
+
+    return tile
 end
 
 return Tile

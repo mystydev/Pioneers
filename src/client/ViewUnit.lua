@@ -12,7 +12,7 @@ local TweenService = game:GetService("TweenService")
 local clamp      = math.clamp
 local UnitModel  = game.ReplicatedStorage.Pioneers.Assets.Capsule
 local DisplayCol = {}
-local tweenInfo  = TweenInfo.new(0.3, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+local tweenInfo  = TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 
 DisplayCol[Unit.NONE]     = Color3.fromRGB(0,0,0)
 DisplayCol[Unit.VILLAGER] = Color3.fromRGB(160,95,53)

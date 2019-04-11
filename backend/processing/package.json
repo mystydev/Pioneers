@@ -1,0 +1,16 @@
+{
+  "name": "pionprocessing",
+  "version": "1.0.0",
+  "description": "Calculation backend for the Pioneers backend server.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pionprocess": "node index.js"
+  },
+  "author": "Jonathan Glossop",
+  "license": "ISC",
+  "dependencies": {
+    "collections": "^5.1.8",
+    "ioredis": "^4.9.0"
+  }
+}

@@ -1,6 +1,8 @@
 
 local Unit = {}
 
+local HttpService = game:GetService("HttpService")
+
 Unit.NONE = 0
 Unit.VILLAGER = 1
 Unit.SOLDIER = 2
@@ -20,6 +22,49 @@ function Unit.new(Type, ID, OwnerID, Position, Health, Fatigue, Home, Work, Targ
     new.HeldResource = HeldResource
 
     return new
+end
+
+function Unit.serialise(unit)
+    local index = unit.ID
+    local data = {}
+
+    data.Type = unit.Type
+    data.ID = unit.ID
+    data.OwnerId = unit.OwnerID
+    data.Posx = unit.Position.x
+    data.Posy = unit.Position.y
+    data.Health = unit.Health 
+    data.Fatigue = unit.Fatigue
+    print(unit.Home)
+    data.Home = string.format("%d:%d", unit.Home.Position.x, unit.Home.Position.y)
+    if unit.Work then
+        data.Work = string.format("%d:%d", unit.Work.Position.x, unit.Work.Position.y)
+    end
+    if unit.Target then
+        data.Target = string.format("%d:%d", unit.Target.Position.x, unit.Target.Position.y)
+    end
+
+    return HttpService:JSONEncode({index = index, data = data})
+end
+
+function Unit.deserialise(index, data, tiles)
+    local data = HttpService:JSONDecode(data)
+    local unit = {}
+
+    unit.Type = data.Type
+    unit.ID = index
+    unit.OwnerID = data.OwnerId
+    unit.Position = Vector3.new(data.Posx, data.Posy, 0)
+    unit.Health = data.Health
+    unit.Fatigue = data.Fatigue
+    unit.Home = tiles[data.Home]
+    unit.Work = tiles[data.Work]
+    unit.Target = tiles[data.Target]
+
+    count = tonumber(string.split(index, ":")[2])
+    Unit.HighestCount = count
+
+    return unit
 end
 
 return Unit

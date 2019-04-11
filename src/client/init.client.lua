@@ -16,6 +16,10 @@ local UnitController = require(Client.UnitController)
 local Replication    = require(Client.Replication)
 local ClientUtil     = require(Client.ClientUtil)
 
+
+print("Pioneers client waiting for server to be ready")
+repeat wait() until Replication.ready()
+
 print("Pioneers client starting...")
 
 ClientUtil.init()
@@ -23,6 +27,7 @@ ClientUtil.init()
 local world = Replication.getWorldState()
 ViewWorld.displayWorld(world)
 
+--wait(2)
 local stats = Replication.getUserStats()
 
 ViewStats.createDisplay(stats)

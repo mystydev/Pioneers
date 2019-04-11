@@ -40,6 +40,7 @@ function UnitController.spawnUnit(ID, house)
     if not dist or dist > 10 then
         return end
 
+    unitCount = Unit.HighestCount + 1 --TEMP!
     local unit = Unit.new(Unit.VILLAGER, tostring(ID)..":"..unitCount, ID, house.Position, 100, 0, nil, nil, nil, nil)
     
     if UnitController.setHome(unit, house) then
@@ -87,6 +88,7 @@ function UnitController.setHome(unit, house)
     end
 
     unit.Home = house
+    Replication.pushUnitChange(unit)
 
     return true
 end
@@ -114,6 +116,7 @@ function UnitController.setWork(unit, work)
 
     unit.Work = work
     UnitController.setTarget(unit, work)
+    Replication.pushUnitChange(unit)
 
     return true
 end
