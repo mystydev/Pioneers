@@ -6,8 +6,7 @@ local Replication = require(Server.Replication)
 local Resource    = require(Common.Resource)
 local UserStats   = require(Common.UserStats)
 
-function StatsController.addNewPlayer(player)
-    local stats = UserStats.new(500, 500, 500, player.UserId, 0, 0)
+function StatsController.addNewPlayer(player, stats)
     UserStats.Store[player.UserId] = stats
 
     print("Added id:", player.UserId)

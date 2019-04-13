@@ -31,11 +31,12 @@ DisplayCol[Tile.GATE]     = Color3.fromRGB(188,143,143)
 
 local meshId = {}
 
-meshId[Tile.KEEP] = {mesh = "rbxassetid://3051772197", texture = "rbxgameasset://Images/KeepTexture", offset = Vector3.new(0, 11, 0)}
-meshId[Tile.HOUSE] = {mesh = "rbxassetid://3051012602", texture = "rbxgameasset://Images/HouseTexture", offset = Vector3.new(0, 5.5, 0)}
-meshId[Tile.PATH] = {mesh = "rbxassetid://3054365062", texture = "rbxgameasset://Images/PathTex", offset = Vector3.new(0, 0, 0)}
-meshId[Tile.FARM] = {mesh = "rbxassetid://3054440853", texture = "rbxgameasset://Images/FarmTex", offset = Vector3.new(0, 1.6, 0)}
-meshId[Tile.FORESTRY] = {mesh = "rbxassetid://3054515092", texture = "rbxgameasset://Images/ForestryTex", offset = Vector3.new(0, 7.7, 0.15)}
+meshId[Tile.KEEP] = {mesh = "rbxassetid://3051772197", texture = "rbxassetid://3051753777", offset = Vector3.new(0, 11, 0)}
+meshId[Tile.HOUSE] = {mesh = "rbxassetid://3051012602", texture = "rbxassetid://3051015865", offset = Vector3.new(0, 5.5, 0)}
+meshId[Tile.PATH] = {mesh = "rbxassetid://3054365062", texture = "rbxassetid://3054364701", offset = Vector3.new(0, 0, 0)}
+meshId[Tile.FARM] = {mesh = "rbxassetid://3054440853", texture = "rbxassetid://3054440951", offset = Vector3.new(0, 1.6, 0)}
+meshId[Tile.FORESTRY] = {mesh = "rbxassetid://3054515092", texture = "rbxassetid://3054515216", offset = Vector3.new(0, 7.7, 0.15)}
+meshId[Tile.MINE] = {mesh = "rbxassetid://3069462867", texture = "rbxassetid://3069463016", offset = Vector3.new(0, 1.795, 0)}
 
 local function unload(tile, model) --TODO: fully unload from memory
     model:Destroy()
@@ -47,26 +48,27 @@ local function autoUnload() --TODO: fully unload from memory
     local dist
     
     repeat
-        --for tile, model in pairs(TileToInstMap) do
-            --local position = model.Position
+        for tile, model in pairs(TileToInstMap) do
+            local position = model.Position
 
-            --dist = (position - getPos()).magnitude
+            dist = (position - getPos()).magnitude
+            --print(dist, (dist/100)^2)
+            --if dist > 300 or model.Mesh.Scale.x ~= 1 then
+                local n = clamp((((model.Mesh.Scale.x)*20) + (300/(dist))^2-1)/21, 0, 1)
+                model.Mesh.Scale = Vector3.new(n,n,n)
+            --end
+            local p = getPos()
 
-            --if dist > 300 or model.Transparency ~= 0 then
-                --model.Transparency = clamp((model.Transparency*20 + ((dist)/600)^2-1)/21, 0, 1)
-           -- end
-            --local p = getPos()
-
-            --if dist > 250 then
-            --    model.CFrame = CFrame.new(Vector3.new(position.x, model.Transparency*120, position.z), Vector3.new(p.x, -model.Transparency*2000, p.z))
+            --if dist > 200 then
+            --    model.CFrame = CFrame.new(Vector3.new(position.x, (1-model.Mesh.Scale.x)*50, position.z), Vector3.new(p.x, -(1-model.Mesh.Scale.x)*2000, p.z))
             --else
-            --   model.CFrame = CFrame.new(Vector3.new(position.x, model.Transparency*140, position.z))
+            --    model.CFrame = CFrame.new(Vector3.new(position.x, (1-model.Mesh.Scale.x)*50, position.z))
             --end
 
             --if dist > 1500 then
                 --unload(tile, model)
             --end
-        --end
+        end
 
         RunService.Stepped:Wait()
     until false
@@ -78,11 +80,10 @@ function ViewTile.displayTile(tile)
         return end
 
     local model = TileModel:Clone()
-    local tween = TweenService:Create(model, tweenInfo, {Transparency = 0})
-    tween:Play()
+    --local tween = TweenService:Create(model, tweenInfo, {Transparency = 0})
+    --tween:Play()
 
     TileToInstMap[tile] = model
-
     model.Position = Util.axialCoordToWorldCoord(tile.Position)
     model.Parent = Workspace
 
@@ -91,6 +92,10 @@ end
 
 function ViewTile.updateDisplay(tile)
     local model = TileToInstMap[tile]
+
+    if not model then
+        return ViewTile.displayTile(tile)
+    end
 
     model.Color = DisplayCol[tile.Type]
 

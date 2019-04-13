@@ -6,7 +6,6 @@ local ViewWorld     = require(Client.ViewWorld)
 local ViewTile      = require(Client.ViewTile)
 local ViewStats     = require(Client.ViewStats)
 local Replication   = require(Client.Replication)
-local ViewSelection = require(Client.ViewSelection)
 local ClientUtil    = require(Client.ClientUtil)
 local Tile          = require(Common.Tile)
 local UserStats     = require(Common.UserStats)
@@ -15,10 +14,12 @@ local UIS = game:GetService("UserInputService")
 local selectedObject
 
 local function unselect()
-    if selectedObject then
-        selectedObject = nil
-        ClientUtil.unSelectUnit()
-    end
+    selectedObject = nil
+    ClientUtil.unSelectUnit()
+end
+
+function UnitController.SelectUnit(unit)
+    selectedObject = unit
 end
 
 local function findTileAtMouse()

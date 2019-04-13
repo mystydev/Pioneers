@@ -24,7 +24,10 @@ print("Pioneers client starting...")
 
 ClientUtil.init()
 
+
+
 local world = Replication.getWorldState()
+ViewSelection.assignWorld(world)
 ViewWorld.displayWorld(world)
 
 --wait(2)

@@ -27,14 +27,14 @@ function ViewWorld.displayWorld(world)
 
     delay(0, function()
 
-        wait(0.5)
+        --wait(0.5)
 
         pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
         posx, posy = pos.x, pos.y
 
         ViewTile.displayTile(getTile(tiles, posx, posy))
 
-        for radius = 0, 50 do
+        for radius = 0, 25 do
             for i = 0, radius-1 do
                 ViewTile.displayTile(getTile(tiles, posx + i, posy + radius))
                 ViewTile.displayTile(getTile(tiles, posx + radius, posy + radius - i))
@@ -42,9 +42,9 @@ function ViewWorld.displayWorld(world)
                 ViewTile.displayTile(getTile(tiles, posx - i, posy - radius))
                 ViewTile.displayTile(getTile(tiles, posx - radius, posy - radius + i))
                 ViewTile.displayTile(getTile(tiles, posx - radius + i, posy + i))
-                RunService.Stepped:Wait()
+                --RunService.Stepped:Wait()
             end
-            RunService.Stepped:Wait()
+            --RunService.Stepped:Wait()
         end
 
         while true do
@@ -52,7 +52,7 @@ function ViewWorld.displayWorld(world)
 
             pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
             posx, posy = pos.x, pos.y
-            for radius = 45, 50 do
+            for radius = 0, 25 do
                 for i = 0, radius-1 do
                     ViewTile.displayTile(getTile(tiles, posx + i, posy + radius))
                     ViewTile.displayTile(getTile(tiles, posx + radius, posy + radius - i))

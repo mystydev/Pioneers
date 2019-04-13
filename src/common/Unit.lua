@@ -7,6 +7,8 @@ Unit.NONE = 0
 Unit.VILLAGER = 1
 Unit.SOLDIER = 2
 
+Unit.HighestCount = 2
+
 function Unit.new(Type, ID, OwnerID, Position, Health, Fatigue, Home, Work, Target, HeldResource)
     local new = {}
 
@@ -20,6 +22,9 @@ function Unit.new(Type, ID, OwnerID, Position, Health, Fatigue, Home, Work, Targ
     new.Work = Work
     new.Target = Target
     new.HeldResource = HeldResource
+
+    print(ID, Unit.HighestCount)
+    Unit.HighestCount = Unit.HighestCount + 1
 
     return new
 end
@@ -35,7 +40,7 @@ function Unit.serialise(unit)
     data.Posy = unit.Position.y
     data.Health = unit.Health 
     data.Fatigue = unit.Fatigue
-    print(unit.Home)
+
     data.Home = string.format("%d:%d", unit.Home.Position.x, unit.Home.Position.y)
     if unit.Work then
         data.Work = string.format("%d:%d", unit.Work.Position.x, unit.Work.Position.y)
@@ -60,9 +65,12 @@ function Unit.deserialise(index, data, tiles)
     unit.Home = tiles[data.Home]
     unit.Work = tiles[data.Work]
     unit.Target = tiles[data.Target]
+    unit.State = data.State
 
     count = tonumber(string.split(index, ":")[2])
-    Unit.HighestCount = count
+    if count and count > Unit.HighestCount then
+        Unit.HighestCount = count
+    end
 
     return unit
 end

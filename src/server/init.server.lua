@@ -20,10 +20,6 @@ local units = {}
 
 print("Pioneers server starting...")
 
-Players.PlayerAdded:Connect(function(player)
-    StatsController.addNewPlayer(player)
-end)
-
 local world = World.new(tiles, units)
 
 Sync.begin(world)

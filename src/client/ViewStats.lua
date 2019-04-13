@@ -43,7 +43,18 @@ end
 
 function ViewStats.createDisplay(stats)
     ViewStats.CurrentStats = stats
-    displayHandle = Roact.mount(Roact.createElement(ResView), game.Players.LocalPlayer.PlayerGui, "Resource View")
+
+    local display = game.StarterGui.Stats:Clone() --TODO: convert to roact!
+
+    display.Parent = game.Players.LocalPlayer.PlayerGui
+
+    function stats.changed() 
+        display.Food.Label.Text = stats.Food
+        display.Wood.Label.Text = stats.Wood
+        display.Stone.Label.Text = stats.Stone
+    end
+
+    --displayHandle = Roact.mount(Roact.createElement(ResView), game.Players.LocalPlayer.PlayerGui, "Resource View")
 end
 
 function ViewStats.removeDisplay()

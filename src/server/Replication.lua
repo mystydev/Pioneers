@@ -31,8 +31,8 @@ local function tilePlacementRequest(player, tile, type)
     local requiredResources = Tile.ConstructionCosts[type]
     local stats = UserStats.Store[player.UserId]
 
-    if not UserStats.hasEnoughResources(stats, requiredResources) then
-        return false end
+    --if not UserStats.hasEnoughResources(stats, requiredResources) then
+      --  return false end
 
     local pos = tile.Position
     local serverTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
@@ -43,7 +43,7 @@ local function tilePlacementRequest(player, tile, type)
     serverTile.OwnerID = player.UserId
     
     local payload = Tile.serialise(serverTile)
-    Http:PostAsync("http://0.0.0.0:3000/pion/tileupdate", payload)
+    Http:PostAsync("https://api.mysty.dev/pion/tileupdate", payload)
     Replication.pushTileChange(serverTile)
 
     if type == Tile.HOUSE then 
@@ -128,13 +128,13 @@ end
 
 function Replication.pushUnitChange(unit)
     local payload = Unit.serialise(unit)
-    Http:PostAsync("http://0.0.0.0:3000/pion/unitupdate", payload)
+    Http:PostAsync("https://api.mysty.dev/pion/unitupdate", payload)
 
     Network.UnitUpdate:FireAllClients(unit)
 end
 
 function Replication.pushStatsChange(stats)
-    local player = game.Players:GetPlayerByUserId(stats.PlayerID)
+    local player = game.Players:GetPlayerByUserId(stats.PlayerId)
     
     if player then
         Network.StatsUpdate:FireClient(player, stats)
@@ -148,7 +148,6 @@ end
 function Replication.tempSyncUnit(unit)
     Network.UnitUpdate:FireAllClients(unit)
 end
-
 
 Network.Ready.OnServerInvoke = function() return false end
 

@@ -1,16 +1,19 @@
 local ClientUtil = {}
 
 local Client        = script.Parent
-local ViewSelection = require(Client.ViewSelection)
+local ViewSelection
 
+local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local player  = Players.LocalPlayer
 
 local camera = Workspace.CurrentCamera
+local floor = math.floor
 
 local lastSelected
 local selectedObject
 local selectedType
+
 
 function ClientUtil.selectTileAtMouse()
     if selectedType == "Unit" then 
@@ -39,6 +42,7 @@ function ClientUtil.selectTileAtMouse()
         selectedType = "Tile"
 
         selectedObject = object
+        ViewSelection.displayTileInfo(object)
     else
         selectedObject = nil
     end
@@ -81,24 +85,53 @@ function ClientUtil.selectUnitAtMouse()
     return selectedObject
 end
 
+function ClientUtil.selectUnit(unit) --TODO: THIS IS HORRIFIC!
+    selectedObject = unit
+    selectedType = "Unit"
+end
+
 function ClientUtil.unSelectTile()
-    if selectedType == "Tile" then
+   -- if selectedType == "Tile" then
         ViewSelection.removeInst(lastSelected)
         lastSelected = nil
         selectedType = nil
-    end
+    --end
 end
 
 function ClientUtil.unSelectUnit()
-    if selectedType == "Unit" then
+    --if selectedType == "Unit" then
         ViewSelection.removeInst(lastSelected)
         lastSelected = nil
         selectedType = nil
-    end
+    --end
 end
 
 function ClientUtil.init()
     ViewWorld = require(Client.ViewWorld)
+    ViewSelection = require(Client.ViewSelection)
+end
+
+--Tweens the numbers showing in a text label
+local managedLabels = {}
+function ClientUtil.tweenLabelValue(label, newval)
+
+    if managedLabels[label]  then
+        managedLabels[label] = newval or 0
+    else
+        managedLabels[label] = newval or 0
+
+        spawn(function()
+            local currentVal = tonumber(label.Text) or 0
+
+            repeat
+                currentVal = currentVal + (managedLabels[label] - currentVal)*0.1
+                label.Text = tostring(floor(currentVal + 0.5))
+                
+                RunService.Stepped:Wait()
+                
+            until not managedLabels[label]
+        end)
+    end
 end
 
 function ClientUtil.getPlayerPosition()

@@ -7,7 +7,7 @@ const MAX_FATIGUE = 10
 const TileType = {GRASS:0,KEEP:1,PATH:2,HOUSE:3,FARM:4,MINE:5,FORESTRY:6,STORAGE:7,BARRACKS:8,WALL:9,GATE:10};
 const UnitType = {NONE:0,VILLAGER:1,SOLDIER:2};
 const UnitState = {IDLE:0, DEAD:1, MOVING:2, WORKING:3, RESTING:4, STORING:5};
-const ResourceType = {FOOD:0, WOOD:1, STONE:2};
+const ResourceType = {FOOD:"Food", WOOD:"Wood", STONE:"Stone"};
 
 Tiles = {};
 Units = {};
@@ -59,6 +59,7 @@ function addResource(id, resource){
     }
 
     stats[resource.Type] += resource.Amount;
+    redis.hset('stats', id, JSON.stringify(stats));
 }
 
 function useResource(id, resource){
@@ -70,6 +71,7 @@ function useResource(id, resource){
     }
 
     stats[resource.Type] -= resource.Amount;
+    redis.hset('stats', id, JSON.stringify(stats));
 }
 
 function getTileOutput(pos){
@@ -117,7 +119,8 @@ function toPosition(posString) {
 }
 
 function fCompare(obj1, obj2){
-    return obj1.f - obj2.f;
+    let val = obj1.f - obj2.f
+    return val != 0 ? val : -1;
 }
 
 function openSetEquals(obj1, obj2){
@@ -170,7 +173,7 @@ function findPath(start, target) {
     var gScore = {};
     var iterations = 0;
 
-    openSet.push({p:start,f:costHeuristic(start, target)});
+    openSet.push({p:start,f:0});
     gScore[start] = 0;
 
     while (iterations++ < 3000) {
@@ -266,12 +269,13 @@ async function process() {
         var unit = Units[id];
         var [state, pos, target] = establishUnitState(unit)
 
+        unit.State = state;
+
         switch(state){
             case UnitState.MOVING:
                 var path = findPath(pos, target);
                 if (!path) {console.warn("Unit could not find a path!");return;}
                 [unit.Posx, unit.Posy] = toPosition(path[0]);
-                unitpipe.hset('units', id, JSON.stringify(unit));
                 break;
 
             case UnitState.WORKING:
@@ -279,8 +283,6 @@ async function process() {
                 addProduceToUnit(unit, produce)
                 if (unit.Fatigue++ >= MAX_FATIGUE)
                     unit.Target = findClosestStorage(pos);
-                
-                unitpipe.hset('units', id, JSON.stringify(unit));
                 break;
 
             case UnitState.RESTING:
@@ -306,10 +308,10 @@ async function process() {
                 } else {
                     unit.Target = findClosestStorage(pos);
                 }
-
-                unitpipe.hset('units', id, JSON.stringify(unit));
                 break;
         }
+
+        unitpipe.hset('units', id, JSON.stringify(unit));
     }
 
     var t2 = performance.now();
@@ -322,6 +324,8 @@ async function process() {
     var t3 = performance.now();
     console.log("Redis pipeline executed in", Math.round((t3 - t2)*100)/100, "ms");
     console.log("Total round time took", Math.round((t3 - t1)*100)/100, "ms");
+
+    redis.set('lastprocess', Math.round(t3));
 }
 
 console.log("Pioneers processing backend starting....");

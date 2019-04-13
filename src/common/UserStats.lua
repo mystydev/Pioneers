@@ -3,13 +3,13 @@ local UserStats = {}
 
 UserStats.Store = {}
 
-function UserStats.new(Food, Wood, Stone, PlayerID, Population, MaxPopulation)
+function UserStats.new(Food, Wood, Stone, PlayerId, Population, MaxPopulation)
     local new = {}
 
     new.Food = Food
     new.Wood = Wood
     new.Stone = Stone
-    new.PlayerID = PlayerID
+    new.PlayerId = PlayerId
     new.Population = Population
     new.MaxPopulation = MaxPopulation
     new.changed = function() end

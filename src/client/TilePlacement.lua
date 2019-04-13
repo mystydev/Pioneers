@@ -6,8 +6,8 @@ local ViewWorld     = require(Client.ViewWorld)
 local ViewTile      = require(Client.ViewTile)
 local ViewStats     = require(Client.ViewStats)
 local Replication   = require(Client.Replication)
-local ViewSelection = require(Client.ViewSelection)
 local ClientUtil    = require(Client.ClientUtil)
+local UnitController = require(Client.UnitController)
 local Tile          = require(Common.Tile)
 local UserStats     = require(Common.UserStats)
 
@@ -29,10 +29,8 @@ KeyCodeMap[56] = 9
 KeyCodeMap[57] = 10
 
 local function unselect()
-    if selectedObject then
-        selectedObject = nil
-        ClientUtil.unSelectTile()
-    end
+    selectedObject = nil
+    ClientUtil.unSelectTile()
 end
 
 local function placeTile(tile, type)
@@ -47,6 +45,10 @@ local function placeTile(tile, type)
     else
         print("Not enough resources to make a", Tile.Localisation[type])
     end
+end
+
+function TilePlacement.buildTileAtSelection(type)
+    placeTile(selectedObject, type)
 end
 
 local function processKeyboardInput(input)

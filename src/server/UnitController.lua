@@ -35,27 +35,28 @@ end
 
 function UnitController.spawnUnit(ID, house)
     
-    local storage, dist = Pathfinding.findClosestStorage(house)
+    --local storage, dist = Pathfinding.findClosestStorage(house)
     
-    if not dist or dist > 10 then
-        return end
+    --if not dist or dist > 10 then
+    --    return end
 
     unitCount = Unit.HighestCount + 1 --TEMP!
+    Unit.HighestCount = Unit.HighestCount + 1
     local unit = Unit.new(Unit.VILLAGER, tostring(ID)..":"..unitCount, ID, house.Position, 100, 0, nil, nil, nil, nil)
     
     if UnitController.setHome(unit, house) then
-        if StatsController.useResource(unit.OwnerID, Resource.new(Resource.FOOD, 100)) then
+        --if StatsController.useResource(unit.OwnerID, Resource.new(Resource.FOOD, 100)) then
 
             currentWorld.Units[unit.ID] = unit
             unitCount = unitCount + 1
             Replication.pushUnitChange(unit)
 
             return true
-        else
-            print("Not enough food to spawn a new unit")
-            UnitController.setHome(unit, nil) --TODO: memory leak?
-            return false
-        end
+        --else
+        --    print("Not enough food to spawn a new unit")
+        --    UnitController.setHome(unit, nil) --TODO: memory leak?
+        --    return false
+        --end
     else
         return false
     end
@@ -64,9 +65,9 @@ end
 function UnitController.setHome(unit, house)
 
     if unit.Home then
-        if unit.Home.Member1 == unit then
+        if unit.Home.Member1 == unit.ID then
             unit.Home.Member1 = nil
-        elseif unit.Home.Member2 == unit then
+        elseif unit.Home.Member2 == unit.ID then
             unit.Home.Member2 = nil
         else
             warn("Unit was assigned to a home but that home did not contain it as a member!")
