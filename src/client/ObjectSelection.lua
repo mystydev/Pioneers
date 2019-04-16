@@ -2,6 +2,7 @@ local ObjectSelection = {}
 local Client = script.Parent
 local Roact  = require(game.ReplicatedStorage.Roact)
 
+local ViewTile        = require(Client.ViewTile)
 local ViewWorld       = require(Client.ViewWorld)
 local Replication     = require(Client.Replication)
 
@@ -54,6 +55,9 @@ end
 function ObjectSelection.buildTileAtSelection(tileType)
     if not selectedObject then return warn("Attempted to place tile when a tile is not selected!") end
     if selectedObject.ID then return warn("Attempted to place tile on a unit!") end
+
+    selectedObject.Type = tileType
+    ViewTile.updateDisplay(selectedObject) --Predict build is ok
 
     Replication.requestTilePlacement(selectedObject, tileType)
 end

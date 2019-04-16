@@ -11,6 +11,10 @@ var certificate = fs.readFileSync('/certs/public.pem', 'utf8');
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = https.createServer(credentials, app);
 
+const Actions = {PLACE_TILE:0,SET_WORK:1};
+//PLACE_TILE = user id, action enum, tile type enum, tile as position string
+//SET_WORK   = user id, action enum, unitid, tile as position string
+
 const PORT = 443;
 
 app.use(bodyParser.json())
@@ -19,6 +23,30 @@ httpsServer.listen(PORT, () => {
     console.log("Pioneers HTTP API is now running on port "+PORT+"!");
 });
 
+app.post("/pion/actionRequest", (req, res) => {
+    let id = req.body.id;
+    let action = req.body.action;
+    let tileLoc, tileType, unit;
+
+    switch(action){
+        case Actions.PLACE_TILE:
+            tileType = req.body.type;
+            tileLoc = req.body.position;
+            redis.rpush('actionQueue', JSON.stringify({id:id, action:action, type:tileType, position:tileLoc}));
+            res.json({status:"Ok"})
+            break;
+        case Actions.SET_WORK:
+            unit = req.body.unitId;
+            tileLoc = req.body.position;
+            redis.rpush('actionQueue', JSON.stringify({id:id, action:action, unit:unit, position:tileLoc}))
+            res.json({status:"Ok"})
+            break;
+        default:
+            res.json({status:"Fail"})
+    };
+});
+
+///OLD-------------------------------------------------------------------------
 app.get("/pion/alltiles", (req, res) => {
     redis.hgetall('tiles').then(tiles => {
         res.json(tiles);
@@ -87,3 +115,5 @@ app.post("/pion/longpollunit", (req, res) => {
         });
     });
 });
+
+//OLD----------------------------------------------------------------------------------

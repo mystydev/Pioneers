@@ -4,23 +4,30 @@ var Redis = require('ioredis');
 var redis = new Redis();
 
 const MAX_FATIGUE = 10
+const SPAWN_TIME = 10
 const TileType = {GRASS:0,KEEP:1,PATH:2,HOUSE:3,FARM:4,MINE:5,FORESTRY:6,STORAGE:7,BARRACKS:8,WALL:9,GATE:10};
 const UnitType = {NONE:0,VILLAGER:1,SOLDIER:2};
 const UnitState = {IDLE:0, DEAD:1, MOVING:2, WORKING:3, RESTING:4, STORING:5};
 const ResourceType = {FOOD:"Food", WOOD:"Wood", STONE:"Stone"};
+const Actions = {PLACE_TILE:0,SET_WORK:1};
+//PLACE_TILE = user id, action enum, tile type enum, tile as position string
+//SET_WORK   = user id, action enum, unitid, tile as position string
+
+const DefaultTile = [
+    {}, //GRASS
+    {Type:TileType.KEEP, Health:1000},
+    {Type:TileType.PATH, Health:100},
+    {Type:TileType.HOUSE, Health:200},
+    {Type:TileType.FARM, Health:100},
+    {Type:TileType.MINE, Health:100},
+    {Type:TileType.FORESTRY, Health:100},
+    {Type:TileType.STORAGE, Health:300},
+]
 
 Tiles = {};
 Units = {};
 UserStats = {};
-
-//UserStats[32983] = {0:500,1:500,2:500,PlayerID:32983,Population:0,MaxPopulation:0};
-
-//Tiles["1:1"] = {Type:TileType.KEEP,OwnerId:32983,Health:100};
-///Tiles["1:2"] = {Type:TileType.PATH,OwnerId:32983};
-//Tiles["1:3"] = {Type:TileType.HOUSE,OwnerId:32983};
-//Tiles["2:2"] = {Type:TileType.FARM,OwnerId:32983};
-
-//Units["Dev:1"] = {Type:UnitType.VILLAGER,ID:"Dev:1",OwnerId:32983,Posx:1,Posy:3,Health:100,Fatigue:0,Home:"1:3",Work:"2:2",Target:"2:2",HeldResource:undefined};
+UnitCount = 0;
 
 async function fetchRedisData(){
     tiles = await redis.hgetall('tiles');
@@ -48,6 +55,60 @@ async function fetchRedisData(){
     }
     console.log("Loaded", num, "stats!");
 
+    UnitCount = await redis.get('unitcount');
+
+    if (!UnitCount){
+        UnitCount = 1;
+    }
+}
+
+function verifyTilePlacement(redispipe, id, position, type){
+    let tile = Tiles[position];
+    
+    if (tile == undefined){ //If the tile is grass TODO:Full verification
+        
+        tile = JSON.parse(JSON.stringify(DefaultTile[type]));
+        tile.OwnerId = id;
+
+        Tiles[position] = tile;
+        redispipe.hset('tiles', position, JSON.stringify(tile));
+
+        if (type == TileType.HOUSE){
+            redispipe.rpush('needsunits', JSON.stringify({p:position, i:0}));
+        }
+    }
+}
+
+function verifyWorkAssignment(redispipe, id, unitid, position){
+    let unit = Units[unitid];
+    let tile = Tiles[position];
+
+    if (unit && tile && unit.OwnerId == id && tile.OwnerId == id){
+        unit.Work = position;
+        unit.Target = position;
+        redispipe.hset('units', unitid, JSON.stringify(unit));
+    }
+}
+
+async function processActionQueue(redispipe){
+    let actions = await redis.lrange('actionQueue', 0, -1);
+    redis.ltrim('actionQueue', actions.length, -1);
+
+    console.log("Processing", actions.length, "actions.");
+    for (index in actions) {
+        let action = JSON.parse(actions[index]);
+
+        switch(action.action){
+            case Actions.PLACE_TILE:
+                verifyTilePlacement(redispipe, action.id, action.position, action.type);
+                break;
+            case Actions.SET_WORK:
+                verifyWorkAssignment(redispipe, action.id, action.unit, action.position);
+                break;
+            default:
+                console.log("Unknown action!", action);
+        }
+    }
 }
 
 function addResource(id, resource){
@@ -254,15 +315,60 @@ function establishUnitState(unit) {
 
     else
         return [UnitState.IDLE, pos, hasTarget];
-}   
+}  
+
+function spawnUnit(redispipe, position){
+
+    let tile = Tiles[position];
+    let id = UnitCount++
+    let [x, y] = toPosition(position)
+
+    let unit = {
+        Type:1,
+        ID:id,
+        OwnerId:tile.OwnerId,
+        Posx:x,
+        Posy:y,
+        Health:200,
+        Fatigue:0,
+        Home:position,
+    };
+
+    Units[id] = unit;
+    redispipe.hset('units', id, JSON.stringify(unit));
+    redispipe.set('unitcount', UnitCount);
+}
+
+async function processUnitSpawns(redispipe){
+    let spawns = await redis.lrange('needsunits', 0, -1); //TODO: read cache and send updates back
+    redis.ltrim('needsunits', spawns.length, -1);
+
+    for (index in spawns) {
+        let spawn = JSON.parse(spawns[index]);
+
+        if (spawn.i < SPAWN_TIME){
+            redispipe.rpush('needsunits', JSON.stringify({p:spawn.p,i:(spawn.i+1)}));
+        } else {
+            spawnUnit(redispipe, spawn.p); //TODO: Fix this more!
+            spawnUnit(redispipe, spawn.p);
+        }
+    }
+}
 
 async function process() {
     var t1 = performance.now();
     var processed = 0;
+    let redispipe = redis.pipeline();
 
-    await fetchRedisData();
+    await processActionQueue(redispipe)
 
-    let unitpipe = redis.pipeline();
+    var t2 = performance.now();
+    console.log("Processed actions in", Math.round((t2 - t1)*100)/100, "ms");
+
+    await processUnitSpawns(redispipe);
+
+    var t3 = performance.now();
+    console.log("Processed unit spawns in", Math.round((t3 - t2)*100)/100, "ms");
 
     for (var id in Units){
         processed++;
@@ -311,21 +417,22 @@ async function process() {
                 break;
         }
 
-        unitpipe.hset('units', id, JSON.stringify(unit));
+        redispipe.hset('units', id, JSON.stringify(unit));
     }
 
-    var t2 = performance.now();
-    console.log("Processed", processed, "units in", Math.round((t2 - t1)*100)/100, "ms");
+    var t4 = performance.now();
+    console.log("Processed", processed, "units in", Math.round((t4 - t3)*100)/100, "ms");
 
-    unitpipe.exec((err, results) => {
-        if (err) console.warn("Error executing redis unit pipeline! ", err);
+    redispipe.exec((err, results) => {
+        if (err) console.warn("Error executing redis pipeline! ", err);
     });
 
-    var t3 = performance.now();
-    console.log("Redis pipeline executed in", Math.round((t3 - t2)*100)/100, "ms");
-    console.log("Total round time took", Math.round((t3 - t1)*100)/100, "ms");
+    var t5 = performance.now();
+    console.log("Redis pipeline executed in", Math.round((t5 - t4)*100)/100, "ms");
+    console.log("Total round time took", Math.round((t5 - t1)*100)/100, "ms");
+    console.log("-----------------------------------------------------------");
 
-    redis.set('lastprocess', Math.round(t3));
+    redis.set('lastprocess', Math.round(t5));
 }
 
 console.log("Pioneers processing backend starting....");

@@ -11,6 +11,9 @@ local Network = game.ReplicatedStorage.Network
 local Players = game:GetService("Players")
 local Http    = game:GetService("HttpService")
 
+local API_URL = "https://api.mysty.dev/pion/"
+local Actions = {PLACE_TILE = 0, SET_WORK = 1}
+
 local currentWorld
 local UnitController
 local StatsController
@@ -25,37 +28,17 @@ end
 
 local function tilePlacementRequest(player, tile, type)
     
-    if not World.tileCanBePlaced(currentWorld, tile, type, player.UserId) then
-        return false end
-    
-    local requiredResources = Tile.ConstructionCosts[type]
-    local stats = UserStats.Store[player.UserId]
+    local payload = {
+        id = player.UserId,
+        action = Actions.PLACE_TILE,
+        type = type,
+        position = Tile.getIndex(tile)
+    }
 
-    --if not UserStats.hasEnoughResources(stats, requiredResources) then
-      --  return false end
+    local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
+    res = Http:JSONDecode(res)
 
-    local pos = tile.Position
-    local serverTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
-
-    StatsController.useRequirement(player.UserId, requiredResources)
-
-    serverTile.Type = type
-    serverTile.OwnerID = player.UserId
-    
-    local payload = Tile.serialise(serverTile)
-    Http:PostAsync("https://api.mysty.dev/pion/tileupdate", payload)
-    Replication.pushTileChange(serverTile)
-
-    if type == Tile.HOUSE then 
-        delay(5, function()
-            UnitController.spawnUnit(player.UserId, serverTile)
-            while wait(20) do
-                UnitController.spawnUnit(player.UserId, serverTile)
-            end
-        end)
-    end
-
-    return true
+    return res.status == "Ok"
 end
 
 local function unitHomeRequest(player, unit, tile)
@@ -75,22 +58,18 @@ local function unitHomeRequest(player, unit, tile)
 end
 
 local function unitWorkRequest(player, unit, tile)
-    local serverUnit = currentWorld.Units[unit.ID]
-    local pos = tile.Position
-    local serverTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
+    
+    local payload = {
+        id = player.UserId,
+        action = Actions.SET_WORK,
+        unitId = unit.ID,
+        position = Tile.getIndex(tile)
+    }
 
-    local ID = player.UserId
+    local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
+    res = Http:JSONDecode(res)
 
-    print(tile)
-    print(ID, unit.OwnerID, serverUnit.OwnerID, tile.OwnerID, serverTile.OwnerID)
-
-    if ID == unit.OwnerID and ID == serverUnit.OwnerID  
-        and ID == tile.OwnerID and ID == serverTile.OwnerID then
-
-        return UnitController.setWork(serverUnit, serverTile)
-    else
-        return false
-    end
+    return res.status == "Ok"
 end
 
 local function unitTargetRequest(player, unit, tile)

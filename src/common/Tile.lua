@@ -77,4 +77,8 @@ function Tile.deserialise(index, data)
     return tile
 end
 
+function Tile.getIndex(tile)
+    return string.format("%d:%d", tile.Position.x, tile.Position.y)
+end
+
 return Tile
