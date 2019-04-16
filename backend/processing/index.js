@@ -214,6 +214,7 @@ function costHeuristic(start, end){
         return Math.max(Math.abs(dx), Math.abs(dy));
 }
 
+
 function reconstructPath(start, end, cameFrom){
     var path = []
     var current = end
@@ -237,11 +238,13 @@ function findPath(start, target) {
     openSet.push({p:start,f:0});
     gScore[start] = 0;
 
-    while (iterations++ < 3000) {
+    while (iterations++ < 1000) {
         var current = openSet.min();
 
         if (!openSet.remove(current)) return false;
-        if (current.p == target) return reconstructPath(start, target, cameFrom);
+        if (current.p == target) {
+            return reconstructPath(start, target, cameFrom);
+        }
 
         closedSet.add(current)
 
@@ -272,18 +275,24 @@ function findClosestStorage(pos) {
     var current;
 
     while (current = searchQueue.shift()){
-        var neighbours = getNeighbours(current);
-        var neighbour, type;
+        let neighbours = getNeighbours(current);
+        let checked    = new Set();
+        let neighbour, type;
 
-        for (var i in neighbours) {
+        for (let i in neighbours) {
+
             neighbour = neighbours[i];
+
+            if (checked.has(neighbour)) continue;
+
             type = safeType(neighbour);
 
-            if (type == TileType.STORAGE || type == TileType.KEEP)
+            if (type == TileType.STORAGE || type == TileType.KEEP){
                 return neighbour;
-            else if (type == TileType.PATH)
+            }else if (type == TileType.PATH) {
                 searchQueue.push(neighbour);
-            
+                checked.add(neighbour);
+            }
         }
     }
 }
@@ -325,7 +334,7 @@ function spawnUnit(redispipe, position){
 
     let unit = {
         Type:1,
-        ID:id,
+        Id:id,
         OwnerId:tile.OwnerId,
         Posx:x,
         Posy:y,
@@ -392,7 +401,7 @@ async function process() {
                 break;
 
             case UnitState.RESTING:
-                useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:5});
+                //useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:5});
 
                 unit.Fatigue -= 5;
 
@@ -406,7 +415,7 @@ async function process() {
                 var t = safeType(pos);
 
                 if (t == TileType.STORAGE || t == TileType.KEEP){
-                    addResource(unit.OwnerId, unit.HeldResource);
+                    //addResource(unit.OwnerId, unit.HeldResource);
                     unit.HeldResource = undefined;
 
                     if (unit.Fatigue > 0)

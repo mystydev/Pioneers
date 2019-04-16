@@ -26,9 +26,9 @@ local function ObjectInfoPanel(props)
 
     local elements = {}
 
-    props.Owner = props.Obj.OwnerID
+    props.Owner = props.Obj.OwnerId
 
-    if not props.Obj.ID then --Tile
+    if not props.Obj.Id then --Tile
         props.Title = Tile.Localisation[props.Obj.Type]
 
         if props.Obj.Type == Tile.GRASS then

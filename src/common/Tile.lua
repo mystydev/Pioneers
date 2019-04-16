@@ -43,23 +43,12 @@ Tile.ConstructionCosts = {
     {Stone = 1000, Wood = 400}  -- gate
 }   
 
-function Tile.new(Type, OwnerID, Position, Health)
-    local new = {}
-
-    new.Type = Type
-    new.OwnerID = OwnerID
-    new.Position = Position
-    new.Health = Health
-
-    return new
-end
-
 function Tile.serialise(tile)
     local index = string.format("%d:%d", tile.Position.x, tile.Position.y)
     local data = {}
 
     data.Type = tile.Type
-    data.OwnerId = tile.OwnerID
+    data.OwnerId = tile.OwnerId
 
     return HttpService:JSONEncode({index = index, data = data})
 end
@@ -70,8 +59,8 @@ function Tile.deserialise(index, data)
 
     local x, y = unpack(string.split(index, ':'))
     tile.Type = data.Type
-    tile.OwnerID = data.OwnerId
-    tile.Position = Vector3.new(tonumber(x), tonumber(y), 0)
+    tile.OwnerId = data.OwnerId
+    tile.Position = Vector2.new(tonumber(x), tonumber(y))
     tile.Health = data.Health
 
     return tile

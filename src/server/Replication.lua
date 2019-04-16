@@ -4,7 +4,6 @@ local Common      = game.ReplicatedStorage.Pioneers.Common
 
 local Tile      = require(Common.Tile)
 local Unit      = require(Common.Unit)
-local World     = require(Common.World)
 local UserStats = require(Common.UserStats)
 
 local Network = game.ReplicatedStorage.Network
@@ -15,8 +14,6 @@ local API_URL = "https://api.mysty.dev/pion/"
 local Actions = {PLACE_TILE = 0, SET_WORK = 1}
 
 local currentWorld
-local UnitController
-local StatsController
 
 local function worldStateRequest(player)
     return currentWorld
@@ -41,28 +38,12 @@ local function tilePlacementRequest(player, tile, type)
     return res.status == "Ok"
 end
 
-local function unitHomeRequest(player, unit, tile)
-    local serverUnit = currentWorld.Units[unit.ID]
-    local pos = tile.Position
-    local serverTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
-
-    local ID = player.UserId
-
-    if ID == unit.OwnerID and ID == serverUnit.OwnerID  
-        and ID == tile.OwnerID and ID == serverTile.OwnerID then
-
-        return UnitController.setHome(serverUnit, serverTile)
-    else
-        return false
-    end
-end
-
 local function unitWorkRequest(player, unit, tile)
     
     local payload = {
         id = player.UserId,
         action = Actions.SET_WORK,
-        unitId = unit.ID,
+        unitId = unit.Id,
         position = Tile.getIndex(tile)
     }
 
@@ -72,36 +53,15 @@ local function unitWorkRequest(player, unit, tile)
     return res.status == "Ok"
 end
 
-local function unitTargetRequest(player, unit, tile)
-    local serverUnit = currentWorld.Units[unit.ID]
-    local pos = tile.Position
-    local serverTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
-
-    local ID = player.UserId
-
-    if ID == unit.OwnerID and ID == serverUnit.OwnerID 
-        and ID == tile.OwnerID and ID == serverTile.OwnerID then
-
-        return UnitController.setTarget(serverUnit, serverTile)
-    else
-        return false
-    end
-end
-
 function Replication.assignWorld(w)
     currentWorld = w
-
-    StatsController = require(Server.StatsController)
-    UnitController = require(Server.UnitController)
-
-    UnitController.assignWorld(w)
 
     Network.RequestWorldState.OnServerInvoke    = worldStateRequest
     Network.RequestStats.OnServerInvoke         = statsRequest
     Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
-    Network.RequestUnitHome.OnServerInvoke      = unitHomeRequest
+    Network.RequestUnitHome.OnServerInvoke      = unitWorkRequest --TODO: change this
     Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
-    Network.RequestUnitTarget.OnServerInvoke    = unitTargetRequest
+    Network.RequestUnitTarget.OnServerInvoke    = unitWorkRequest
     Network.Ready.OnServerInvoke = function() return true end
 end
 
@@ -113,7 +73,7 @@ function Replication.pushUnitChange(unit)
 end
 
 function Replication.pushStatsChange(stats)
-    local player = game.Players:GetPlayerByUserId(stats.PlayerId)
+    local player = Players:GetPlayerByUserId(stats.PlayerId)
     
     if player then
         Network.StatsUpdate:FireClient(player, stats)

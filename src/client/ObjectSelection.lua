@@ -8,14 +8,12 @@ local Replication     = require(Client.Replication)
 
 local UIS          = game:GetService("UserInputService")
 local Players      = game:GetService("Players")
-local RunService   = game:GetService("RunService")
 local Lighting     = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 
 local player     = Players.LocalPlayer
 local sgui       = Instance.new("ScreenGui", player.PlayerGui)
 local viewport   = Instance.new("ViewportFrame", sgui)
-local cam        = Instance.new("Camera")
 local blur       = Instance.new("BlurEffect")
 local desaturate = Instance.new("ColorCorrectionEffect")
 local tweenSlow  = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -36,66 +34,6 @@ local function getObjectAtMouse()
     return ViewWorld.convertInstanceToObject(inst), inst
 end
 
-function ObjectSelection.init(world)
-    ObjectInfoPanel = require(Client.ui.ObjectInfoPanel)
-    handle = Roact.mount(Roact.createElement(ObjectInfoPanel), sgui)
-
-    currentWorld = world
-
-    blur.Size = 0
-    blur.Parent = Lighting
-    desaturate.Saturation = 0
-    desaturate.Parent = Lighting
-    viewport.Size = UDim2.new(1, 0, 1, 36)
-    viewport.Position = UDim2.new(0, 0, 0, -36)
-    viewport.BackgroundTransparency = 1
-    viewport.CurrentCamera = workspace.CurrentCamera
-end
-
-function ObjectSelection.buildTileAtSelection(tileType)
-    if not selectedObject then return warn("Attempted to place tile when a tile is not selected!") end
-    if selectedObject.ID then return warn("Attempted to place tile on a unit!") end
-
-    selectedObject.Type = tileType
-    ViewTile.updateDisplay(selectedObject) --Predict build is ok
-
-    Replication.requestTilePlacement(selectedObject, tileType)
-end
-
---Async!
-function ObjectSelection.startUnitTileSelectPrompt()
-    TweenService:Create(blur, tweenSlow, {Size = 5}):Play()
-
-    local object
-
-    inPrompt = function()
-        obj = getObjectAtMouse()
-
-        if obj and not obj.ID then 
-            object = obj
-        end
-    end
-
-    repeat wait(0.1)
-    until object or not inPrompt
-
-    if inPrompt then
-        TweenService:Create(blur, tweenSlow, {Size = 20}):Play()
-        inPrompt = nil
-        return object
-    else
-        return nil
-    end
-end
-
-function ObjectSelection.assignWorkPrompt()
-    local tile = ObjectSelection.startUnitTileSelectPrompt()
-
-    if tile then
-        Replication.requestUnitWork(selectedObject,tile)
-    end
-end
-
 local function focusInst(inst)
     inst.Parent = viewport
     focusedInsts[inst] = true
@@ -109,7 +47,7 @@ local function unselect(dontunmount)
     end
 
     TweenService:Create(blur, tweenFast, {Size = 0}):Play()
-    TweenService:Create(desaturate, tweenFast, {Saturation = 0}):Play()
+    TweenService:Create(desaturate, tweenFast, {Saturation = 0.5}):Play()
 
     if not dontunmount then
         handle = Roact.reconcile(handle, ObjectInfoPanel{Obj = nil, World = currentWorld})
@@ -153,6 +91,66 @@ local function processInput(input, processed)
         mouseClicked()
     elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
         unselect()
+    end
+end
+
+function ObjectSelection.init(world)
+    ObjectInfoPanel = require(Client.ui.ObjectInfoPanel)
+    handle = Roact.mount(Roact.createElement(ObjectInfoPanel), sgui)
+
+    currentWorld = world
+
+    blur.Size = 0
+    blur.Parent = Lighting
+    desaturate.Saturation = 0.5
+    desaturate.Parent = Lighting
+    viewport.Size = UDim2.new(1, 0, 1, 36)
+    viewport.Position = UDim2.new(0, 0, 0, -36)
+    viewport.BackgroundTransparency = 1
+    viewport.CurrentCamera = workspace.CurrentCamera
+end
+
+function ObjectSelection.buildTileAtSelection(tileType)
+    if not selectedObject then return warn("Attempted to place tile when a tile is not selected!") end
+    if selectedObject.Id then return warn("Attempted to place tile on a unit!") end
+
+    selectedObject.Type = tileType
+    ViewTile.updateDisplay(selectedObject) --Predict build is ok
+
+    Replication.requestTilePlacement(selectedObject, tileType)
+end
+
+--Async!
+function ObjectSelection.startUnitTileSelectPrompt()
+    TweenService:Create(blur, tweenSlow, {Size = 5}):Play()
+
+    local object
+
+    inPrompt = function()
+        obj = getObjectAtMouse()
+
+        if obj and not obj.Id then 
+            object = obj
+        end
+    end
+
+    repeat wait(0.1)
+    until object or not inPrompt
+
+    if inPrompt then
+        TweenService:Create(blur, tweenSlow, {Size = 20}):Play()
+        inPrompt = nil
+        return object
+    else
+        return nil
+    end
+end
+
+function ObjectSelection.assignWorkPrompt()
+    local tile = ObjectSelection.startUnitTileSelectPrompt()
+
+    if tile then
+        Replication.requestUnitWork(selectedObject,tile)
     end
 end
 

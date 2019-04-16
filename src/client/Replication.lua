@@ -3,7 +3,6 @@ local Client      = script.Parent
 local Common      = game.ReplicatedStorage.Pioneers.Common
 
 local ViewUnit  = require(Client.ViewUnit)
-local ViewStats = require(Client.ViewStats)
 local ViewTile  = require(Client.ViewTile)
 local World     = require(Common.World)
 local Network   = game.ReplicatedStorage.Network
@@ -57,10 +56,10 @@ end
 
 local function handleUnitUpdate(unit)
     repeat wait() until currentWorld
-    local localUnit = currentWorld.Units[unit.ID]
+    local localUnit = currentWorld.Units[unit.Id]
 
     if not localUnit then
-        currentWorld.Units[unit.ID] = unit
+        currentWorld.Units[unit.Id] = unit
         ViewUnit.displayUnit(unit)
     else
 

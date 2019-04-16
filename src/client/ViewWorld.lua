@@ -11,12 +11,11 @@ local Util       = require(Common.Util)
 local RunService = game:GetService("RunService")
 
 local CurrentWorld
-local getTile = World.getTile
 
 local function isTile(inst)
     if not inst then return end
     
-    if inst.Name == "Hexagon" then
+    if inst.Name == "Hexagon" then --TODO: this
         return true
     end
 end
@@ -28,42 +27,18 @@ function ViewWorld.displayWorld(world)
     local units = world.Units
 
     delay(0, function()
-
-        --wait(0.5)
-
-        pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
-        posx, posy = pos.x, pos.y
-
-        ViewTile.displayTile(getTile(tiles, posx, posy))
-
-        for radius = 0, 25 do
-            for i = 0, radius-1 do
-                ViewTile.displayTile(getTile(tiles, posx + i, posy + radius))
-                ViewTile.displayTile(getTile(tiles, posx + radius, posy + radius - i))
-                ViewTile.displayTile(getTile(tiles, posx + radius - i, posy - i))
-                ViewTile.displayTile(getTile(tiles, posx - i, posy - radius))
-                ViewTile.displayTile(getTile(tiles, posx - radius, posy - radius + i))
-                ViewTile.displayTile(getTile(tiles, posx - radius + i, posy + i))
-                --RunService.Stepped:Wait()
-            end
-            --RunService.Stepped:Wait()
-        end
-
         while true do
             local pos, posx, posy
 
             pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
             posx, posy = pos.x, pos.y
-            for radius = 0, 25 do
-                for i = 0, radius-1 do
-                    ViewTile.displayTile(getTile(tiles, posx + i, posy + radius))
-                    ViewTile.displayTile(getTile(tiles, posx + radius, posy + radius - i))
-                    ViewTile.displayTile(getTile(tiles, posx + radius - i, posy - i))
-                    ViewTile.displayTile(getTile(tiles, posx - i, posy - radius))
-                    ViewTile.displayTile(getTile(tiles, posx - radius, posy - radius + i))
-                    ViewTile.displayTile(getTile(tiles, posx - radius + i, posy + i))
-                end
+
+            local area = Util.circularCollection(tiles, posx, posy, 0, 25)
+
+            for _, tile in pairs(area) do
+                ViewTile.displayTile(tile)
             end
+
             RunService.Stepped:Wait()
         end
     end)
