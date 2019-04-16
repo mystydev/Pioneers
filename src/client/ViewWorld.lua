@@ -14,6 +14,8 @@ local CurrentWorld
 local getTile = World.getTile
 
 local function isTile(inst)
+    if not inst then return end
+    
     if inst.Name == "Hexagon" then
         return true
     end
@@ -83,6 +85,14 @@ end
 
 function ViewWorld.convertInstanceToUnit(inst)
     return ViewUnit.getUnitFromInst(inst)
+end
+
+function ViewWorld.convertInstanceToObject(inst)
+    return ViewWorld.convertInstanceToTile(inst) or ViewWorld.convertInstanceToUnit(inst)
+end
+
+function ViewWorld.convertObjectToInst(object)
+    return ViewTile.getTileFromInst(inst) or ViewUnit.getInstFromUnit(object)
 end
 
 return ViewWorld

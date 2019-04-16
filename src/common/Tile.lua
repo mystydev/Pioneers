@@ -15,6 +15,8 @@ Tile.BARRACKS = 8
 Tile.WALL = 9
 Tile.GATE = 10
 
+Tile.NumberTypes = 10
+
 Tile.Localisation = {}
 Tile.Localisation[Tile.GRASS]    = "Grass"
 Tile.Localisation[Tile.KEEP]     = "Keep"

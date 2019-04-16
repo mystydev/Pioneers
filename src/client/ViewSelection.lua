@@ -186,8 +186,8 @@ function ViewSelection.createDisplay()
     viewport.Position = UDim2.new(0, 0, 0, -36)
     viewport.BackgroundTransparency = 1
 
-    infoui.Enabled = false
-    infoui.Parent = player.PlayerGui
+    --infoui.Enabled = false
+    --infoui.Parent = player.PlayerGui
 
     blur.Parent = Lighting
     desaturate.Parent = Lighting

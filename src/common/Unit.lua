@@ -9,6 +9,27 @@ Unit.SOLDIER = 2
 
 Unit.HighestCount = 2
 
+Unit.Localisation = {}
+Unit.Localisation[Unit.NONE] = "Unknown Unit"
+Unit.Localisation[Unit.VILLAGER] = "Villager"
+Unit.Localisation[Unit.SOLDIER] = "Soldier"
+
+Unit.UnitState = {}
+Unit.UnitState.IDLE = 0
+Unit.UnitState.DEAD = 1
+Unit.UnitState.MOVING = 2
+Unit.UnitState.WORKING = 3
+Unit.UnitState.RESTING = 4
+Unit.UnitState.STORING = 5
+
+Unit.StateLocalisation = {}
+Unit.StateLocalisation[Unit.UnitState.IDLE] = "Idle"
+Unit.StateLocalisation[Unit.UnitState.DEAD] = "Dead"
+Unit.StateLocalisation[Unit.UnitState.MOVING] = "Moving"
+Unit.StateLocalisation[Unit.UnitState.WORKING] = "Working"
+Unit.StateLocalisation[Unit.UnitState.RESTING] = "Resting"
+Unit.StateLocalisation[Unit.UnitState.STORING] = "Storing"
+
 function Unit.new(Type, ID, OwnerID, Position, Health, Fatigue, Home, Work, Target, HeldResource)
     local new = {}
 

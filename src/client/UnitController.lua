@@ -65,6 +65,6 @@ local function processInput(input, processed)
     end
 end
 
-UIS.InputBegan:Connect(processInput)
+--UIS.InputBegan:Connect(processInput)
 
 return UnitController

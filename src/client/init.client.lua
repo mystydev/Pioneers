@@ -10,30 +10,31 @@ local Resource       = require(Common.Resource)
 local ViewTile       = require(Client.ViewTile)
 local ViewWorld      = require(Client.ViewWorld)
 local ViewStats      = require(Client.ViewStats)
-local ViewSelection  = require(Client.ViewSelection)
-local TilePlacement  = require(Client.TilePlacement)
+--local ViewSelection  = require(Client.ViewSelection)
+--local TilePlacement  = require(Client.TilePlacement)
 local UnitController = require(Client.UnitController)
 local Replication    = require(Client.Replication)
 local ClientUtil     = require(Client.ClientUtil)
 
+
+local ObjectSelection = require(Client.ObjectSelection)
 
 print("Pioneers client waiting for server to be ready")
 repeat wait() until Replication.ready()
 
 print("Pioneers client starting...")
 
+
 ClientUtil.init()
 
 
 
 local world = Replication.getWorldState()
-ViewSelection.assignWorld(world)
+ObjectSelection.init(world)
 ViewWorld.displayWorld(world)
 
---wait(2)
 local stats = Replication.getUserStats()
 
 ViewStats.createDisplay(stats)
-ViewSelection.createDisplay()
 
 workspace.CurrentCamera.CFrame = CFrame.new(Vector3.new(0, 30, 0))
