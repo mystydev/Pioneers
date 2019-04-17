@@ -95,6 +95,7 @@ local function processInput(input, processed)
 end
 
 function ObjectSelection.init(world)
+    sgui.Name = "Object selection view"
     ObjectInfoPanel = require(Client.ui.ObjectInfoPanel)
     handle = Roact.mount(Roact.createElement(ObjectInfoPanel), sgui)
 

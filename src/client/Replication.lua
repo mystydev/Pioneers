@@ -75,8 +75,6 @@ local function handleStatsUpdate(stats)
     for i, v in pairs(stats) do
         currentStats[i] = v
     end
-
-    currentStats.changed()
 end
 
 local function handleTileUpdate(tile)

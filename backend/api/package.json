@@ -1,6 +1,6 @@
 {
   "name": "pionapi",
-  "version": "1.1.38",
+  "version": "1.1.39",
   "description": "HTTP Api for interacting with the pioneers backend.",
   "main": "index.js",
   "scripts": {

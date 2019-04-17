@@ -46,6 +46,42 @@ app.post("/pion/actionRequest", (req, res) => {
     };
 });
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+let lastProcess = 0;
+
+async function processTimeUpdate(){
+    redis.get('lastprocess').then((t) => {
+        lastProcess = Math.round(t);
+    });
+}
+
+setInterval(processTimeUpdate, 20);
+
+async function waitForProcess(n) {
+    while (n == lastProcess){
+        await sleep(100);
+    }
+}
+
+app.post("/pion/longpollunit", (req, res) => {
+    waitForProcess(req.body.time).then(() => {
+        redis.hgetall('units').then(units => {
+            res.json({time:lastProcess, data:units});
+        });
+    });
+});
+
+app.post("/pion/longpolluserstats", (req, res) => {
+    waitForProcess(req.body.time).then(() => {
+        redis.hget('stats', req.body.userId).then(stats => {
+            res.json({time:lastProcess, data:stats});
+        });
+    });
+});
+
 ///OLD-------------------------------------------------------------------------
 app.get("/pion/alltiles", (req, res) => {
     redis.hgetall('tiles').then(tiles => {
@@ -87,33 +123,6 @@ app.post("/pion/userjoin", (req, res) => {
     })
 });
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
 
-let lastProcess = 0;
-
-async function processTimeUpdate(){
-    redis.get('lastprocess').then((t) => {
-        lastProcess = Math.round(t);
-    });
-}
-
-setInterval(processTimeUpdate, 20);
-
-async function waitForProcess(n) {
-    while (n == lastProcess){
-        await sleep(20);
-    }
-}
-
-app.post("/pion/longpollunit", (req, res) => {
-    waitForProcess(req.body.time).then(() => {
-
-        redis.hgetall('units').then(units => {
-            res.json({time:lastProcess, data:units});
-        });
-    });
-});
 
 //OLD----------------------------------------------------------------------------------

@@ -401,7 +401,7 @@ async function process() {
                 break;
 
             case UnitState.RESTING:
-                //useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:5});
+                useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:5});
 
                 unit.Fatigue -= 5;
 
@@ -415,7 +415,7 @@ async function process() {
                 var t = safeType(pos);
 
                 if (t == TileType.STORAGE || t == TileType.KEEP){
-                    //addResource(unit.OwnerId, unit.HeldResource);
+                    addResource(unit.OwnerId, unit.HeldResource);
                     unit.HeldResource = undefined;
 
                     if (unit.Fatigue > 0)

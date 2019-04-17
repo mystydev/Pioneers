@@ -1,5 +1,4 @@
 local Replication = {}
-local Server      = script.Parent
 local Common      = game.ReplicatedStorage.Pioneers.Common
 
 local Tile      = require(Common.Tile)
