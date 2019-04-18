@@ -4,6 +4,7 @@ local Common      = game.ReplicatedStorage.Pioneers.Common
 local Tile      = require(Common.Tile)
 local Unit      = require(Common.Unit)
 local UserStats = require(Common.UserStats)
+local Util      = require(Common.Util)
 
 local Network = game.ReplicatedStorage.Network
 local Players = game:GetService("Players")
@@ -52,6 +53,10 @@ local function unitWorkRequest(player, unit, tile)
     return res.status == "Ok"
 end
 
+local function getCircularTiles(player, pos, radius)
+    return Util.circularCollection(currentWorld.Tiles, pos.x, pos.y, 0, radius)
+end
+
 function Replication.assignWorld(w)
     currentWorld = w
 
@@ -61,6 +66,7 @@ function Replication.assignWorld(w)
     Network.RequestUnitHome.OnServerInvoke      = unitWorkRequest --TODO: change this
     Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
     Network.RequestUnitTarget.OnServerInvoke    = unitWorkRequest
+    Network.GetCircularTiles.OnServerInvoke     = getCircularTiles
     Network.Ready.OnServerInvoke = function() return true end
 end
 

@@ -28,6 +28,10 @@ function Util.circularCollection(tiles, posx, posy, startRadius, endRadius)
 
     local collection = {}
 
+    if startRadius == 0 then
+        table.insert(collection, getTile(tiles, posx, posy))
+    end
+
     for radius = startRadius, endRadius do
         for i = 0, radius-1 do
             table.insert(collection, getTile(tiles, posx +          i, posy +     radius))

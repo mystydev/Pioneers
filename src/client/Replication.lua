@@ -2,18 +2,31 @@ local Replication = {}
 local Client      = script.Parent
 local Common      = game.ReplicatedStorage.Pioneers.Common
 
-local ViewUnit  = require(Client.ViewUnit)
-local ViewTile  = require(Client.ViewTile)
-local World     = require(Common.World)
-local Network   = game.ReplicatedStorage.Network
+local ViewUnit   = require(Client.ViewUnit)
+local ViewTile   = require(Client.ViewTile)
+local ClientUtil = require(Client.ClientUtil)
+local World      = require(Common.World)
+local Tile       = require(Common.Tile)
+local Util       = require(Common.Util)
+local Network    = game.ReplicatedStorage.Network
 
 local currentWorld
 local currentStats
+local syncing = true
 
-function Replication.getWorldState()
-    print("Getting world state")
-    currentWorld = Network.RequestWorldState:InvokeServer()
-    return currentWorld
+local function tileSync()
+    while syncing do
+        local pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
+        local dist = ClientUtil.getCurrentViewDistance()
+        Replication.updateTiles(pos, dist)
+        wait(1)
+    end
+end
+
+function Replication.init(world)
+    currentWorld = world
+
+    spawn(tileSync)
 end
 
 function Replication.getUserStats()
@@ -87,6 +100,14 @@ local function handleTileUpdate(tile)
     end
 
     ViewTile.updateDisplay(localTile)
+end
+
+function Replication.updateTiles(pos, radius)
+    local tiles = Network.GetCircularTiles:InvokeServer(pos, radius)
+
+    for _, tile in pairs(tiles) do
+        handleTileUpdate(tile)
+    end
 end
 
 function Replication.ready()

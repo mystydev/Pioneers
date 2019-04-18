@@ -1,3 +1,4 @@
+const process = require('process');
 var performance = require('perf_hooks').performance;
 var SortedSet = require("collections/sorted-set");
 var Redis = require('ioredis');
@@ -94,7 +95,7 @@ async function processActionQueue(redispipe){
     let actions = await redis.lrange('actionQueue', 0, -1);
     redis.ltrim('actionQueue', actions.length, -1);
 
-    console.log("Processing", actions.length, "actions.");
+    //process.stdout.write(actions.length + " actions ");
     for (index in actions) {
         let action = JSON.parse(actions[index]);
 
@@ -109,6 +110,8 @@ async function processActionQueue(redispipe){
                 console.log("Unknown action!", action);
         }
     }
+
+    return actions.length
 }
 
 function addResource(id, resource){
@@ -227,9 +230,26 @@ function reconstructPath(start, end, cameFrom){
     return path;
 }
 
+function getMin(set){
+    let min = 999999;
+    let minV, index;
+
+    for (i in set) {
+        let c = set[i];
+
+        if (c.f < min){
+            min = c.f;
+            minV = c;
+            index = i;
+        }
+    }
+
+    return [index, minV];
+}
+
 //A* implementation
 function findPath(start, target) {
-    var openSet = new SortedSet([], openSetEquals, fCompare);
+    var openSet = [];
     var closedSet = new Set();
     var cameFrom = {};
     var gScore = {};
@@ -239,9 +259,17 @@ function findPath(start, target) {
     gScore[start] = 0;
 
     while (iterations++ < 1000) {
-        var current = openSet.min();
+        //var current = openSet.min();
+        let [ind, current] = getMin(openSet);
 
-        if (!openSet.remove(current)) return false;
+        if (!current) {
+            console.log("Unable to get min from openset!"); 
+            return;
+        }
+
+        openSet.splice(ind, 1);
+
+        //if (!openSet.remove(current)) return false;
         if (current.p == target) {
             return reconstructPath(start, target, cameFrom);
         }
@@ -273,8 +301,9 @@ function findPath(start, target) {
 function findClosestStorage(pos) {
     var searchQueue = [pos];
     var current;
+    let index = 0;
 
-    while (current = searchQueue.shift()){
+    while (current = searchQueue[index++]){
         let neighbours = getNeighbours(current);
         let checked    = new Set();
         let neighbour, type;
@@ -364,20 +393,20 @@ async function processUnitSpawns(redispipe){
     }
 }
 
-async function process() {
+async function processRound() {
     var t1 = performance.now();
     var processed = 0;
     let redispipe = redis.pipeline();
 
-    await processActionQueue(redispipe)
+    let pactions = await processActionQueue(redispipe);
 
     var t2 = performance.now();
-    console.log("Processed actions in", Math.round((t2 - t1)*100)/100, "ms");
+    //process.stdout.write(Math.round((t2 - t1)*100)/100 + " ms/");
 
     await processUnitSpawns(redispipe);
 
     var t3 = performance.now();
-    console.log("Processed unit spawns in", Math.round((t3 - t2)*100)/100, "ms");
+    //process.stdout.write("spawns " + Math.round((t3 - t2)*100)/100 + " ms/");
 
     for (var id in Units){
         processed++;
@@ -430,20 +459,28 @@ async function process() {
     }
 
     var t4 = performance.now();
-    console.log("Processed", processed, "units in", Math.round((t4 - t3)*100)/100, "ms");
+    //process.stdout.write(processed + " units " + Math.round((t4 - t3)*100)/100 + " ms/");
 
     redispipe.exec((err, results) => {
         if (err) console.warn("Error executing redis pipeline! ", err);
     });
 
     var t5 = performance.now();
-    console.log("Redis pipeline executed in", Math.round((t5 - t4)*100)/100, "ms");
-    console.log("Total round time took", Math.round((t5 - t1)*100)/100, "ms");
-    console.log("-----------------------------------------------------------");
+    //process.stdout.write("Redis " + Math.round((t5 - t4)*100)/100 + " ms/");
+    //process.stdout.write("Total:" + Math.round((t5 - t1)*100)/100 + "ms\r");
+
+    let atime = (t2 - t1).toFixed(1).toString().padStart(3, " ");
+    let stime = (t3 - t2).toFixed(1).toString().padStart(3, " ");
+    let utime = (t4 - t3).toFixed(1).toString().padStart(6, " ");
+    let rtime = (t5 - t4).toFixed(1).toString().padStart(3, " ");
+    let ttime = (t5 - t1).toFixed(1).toString().padStart(6, " ");
+
+    let outInfo = `Total: ${ttime}ms (${pactions} actions ${atime}, ${processed} units ${utime}, redis ${rtime}, spawn ${stime})`;
+    console.log(outInfo);
 
     redis.set('lastprocess', Math.round(t5));
 }
 
 console.log("Pioneers processing backend starting....");
 fetchRedisData();
-setInterval(process, 2000);
+setInterval(processRound, 2000);

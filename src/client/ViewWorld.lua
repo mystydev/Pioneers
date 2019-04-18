@@ -33,7 +33,7 @@ function ViewWorld.displayWorld(world)
             pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
             posx, posy = pos.x, pos.y
 
-            local area = Util.circularCollection(tiles, posx, posy, 0, 25)
+            local area = Util.circularCollection(tiles, posx, posy, 0, ClientUtil.getCurrentViewDistance())
 
             for _, tile in pairs(area) do
                 ViewTile.displayTile(tile)

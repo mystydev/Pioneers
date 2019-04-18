@@ -50,6 +50,29 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function toPosition(posString) {
+    var [x, y] = posString.split(":");
+    return [parseInt(x), parseInt(y)];
+}
+
+function getCircularRegion(pos, radius){
+    let tiles = [];
+    let [x, y] = toPosition(pos);
+
+    for (let r = 1; r <= radius; r++) {
+        for (let i = 0; i <= r - 1; i++) {
+            tiles.push((x +     i) + ":" + (y +     r));
+            tiles.push((x +     r) + ":" + (y + r - i));
+            tiles.push((x + r - i) + ":" + (y -     i));
+            tiles.push((x -     i) + ":" + (y -     r));
+            tiles.push((x -     r) + ":" + (y - r + i));
+            tiles.push((x - r + i) + ":" + (y +     i));
+        }
+    }
+
+    return tiles;
+}
+
 let lastProcess = 0;
 
 async function processTimeUpdate(){
@@ -81,6 +104,21 @@ app.post("/pion/longpolluserstats", (req, res) => {
         });
     });
 });
+
+// {pos:radius, pos:radius, pos:radius...} -> {tile, tile, tile, tile...}
+app.post("/pion/tileregion", (req, res) => {
+    let list = req.body.list;
+    let tiles = []
+
+    for (pos in list) {
+        console.log(pos, list[pos]);
+        tiles = tiles.concat(getCircularRegion(pos, list[pos]));
+    }
+
+    redis.hmget('tiles', tiles).then(collection => {
+        res.json(collection);
+    });
+})
 
 ///OLD-------------------------------------------------------------------------
 app.get("/pion/alltiles", (req, res) => {
