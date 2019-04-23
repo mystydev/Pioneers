@@ -5,6 +5,7 @@ local Tile      = require(Common.Tile)
 local Unit      = require(Common.Unit)
 local UserStats = require(Common.UserStats)
 local Util      = require(Common.Util)
+local World     = require(Common.World)
 
 local Network = game.ReplicatedStorage.Network
 local Players = game:GetService("Players")
@@ -25,6 +26,14 @@ end
 
 local function tilePlacementRequest(player, tile, type)
     
+    local stile = World.getTile(currentWorld.Tiles, tile.Position.x, tile.Position.y)
+
+    for i, v in pairs(tile) do --TODO: bad!
+        stile[i] = v
+    end
+
+    stile.OwnerId = player.UserId
+
     local payload = {
         id = player.UserId,
         action = Actions.PLACE_TILE,

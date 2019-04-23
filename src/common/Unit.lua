@@ -3,14 +3,20 @@ local Unit = {}
 
 local HttpService = game:GetService("HttpService")
 
-Unit.NONE     = 0
-Unit.VILLAGER = 1
-Unit.SOLDIER  = 2
+Unit.NONE       = 0
+Unit.VILLAGER   = 1
+Unit.FARMER     = 2
+Unit.LUMBERJACK = 3
+Unit.MINER      = 4
+Unit.SOLDIER    = 5
 
 Unit.Localisation = {}
-Unit.Localisation[Unit.NONE]     = "Unknown Unit"
-Unit.Localisation[Unit.VILLAGER] = "Villager"
-Unit.Localisation[Unit.SOLDIER]  = "Soldier"
+Unit.Localisation[Unit.NONE]       = "Unknown Unit"
+Unit.Localisation[Unit.VILLAGER]   = "Villager"
+Unit.Localisation[Unit.FARMER]     = "Farmer"
+Unit.Localisation[Unit.LUMBERJACK] = "Lumberjack"
+Unit.Localisation[Unit.MINER]      = "Miner"
+Unit.Localisation[Unit.SOLDIER]    = "Soldier"
 
 Unit.UnitState = {}
 Unit.UnitState.IDLE    = 0
@@ -67,6 +73,7 @@ function Unit.deserialise(index, sdata, tiles)
     unit.Work     = tiles[data.Work]
     unit.Target   = tiles[data.Target]
     unit.State    = data.State
+    unit.HeldResource = data.HeldResource
 
     return unit
 end

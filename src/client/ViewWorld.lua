@@ -67,7 +67,7 @@ function ViewWorld.convertInstanceToObject(inst)
 end
 
 function ViewWorld.convertObjectToInst(object)
-    return ViewTile.getTileFromInst(inst) or ViewUnit.getInstFromUnit(object)
+    return ViewTile.getInstFromTile(object) or ViewUnit.getInstFromUnit(object)
 end
 
 return ViewWorld

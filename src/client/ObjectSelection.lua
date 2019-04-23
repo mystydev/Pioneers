@@ -1,11 +1,14 @@
 local ObjectSelection = {}
 local Client = script.Parent
+local Common = game.ReplicatedStorage.Pioneers.Common
 local Roact  = require(game.ReplicatedStorage.Roact)
 
 local ViewTile        = require(Client.ViewTile)
 local ViewWorld       = require(Client.ViewWorld)
 local Replication     = require(Client.Replication)
+local Tile            = require(Common.Tile)
 
+local RunService   = game:GetService("RunService")
 local UIS          = game:GetService("UserInputService")
 local Players      = game:GetService("Players")
 local Lighting     = game:GetService("Lighting")
@@ -22,8 +25,10 @@ local tweenFast  = TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirectio
 local ObjectInfoPanel
 local handle
 local currentWorld
+local currentStats
 local selectedObject
 local focusedInsts = {}
+local wiggleinsts = {}
 local inPrompt
 
 local function getObjectAtMouse()
@@ -31,19 +36,33 @@ local function getObjectAtMouse()
 
     local inst = mouse.Target
 
+    if inst and inst.Parent.Name == "Dummy" then --TODO: more robust!
+        inst = inst.Parent
+    end
+
     return ViewWorld.convertInstanceToObject(inst), inst
 end
 
 local function focusInst(inst)
-    inst.Parent = viewport
     focusedInsts[inst] = true
+
+    if inst:IsA("BasePart") then
+        inst.Parent = viewport
+    end
 end
 
 local function unselect(dontunmount)
     
     for inst, _ in pairs(focusedInsts) do
-        inst.Parent = workspace
         focusedInsts[inst] = nil
+
+        if wiggleinsts[inst] then
+            wiggleinsts[inst]:Destroy()
+        end
+
+        if inst.Parent == viewport then
+            inst.Parent = workspace
+        end
     end
 
     TweenService:Create(blur, tweenFast, {Size = 0}):Play()
@@ -64,7 +83,16 @@ local function select(object, inst)
     focusInst(inst or ViewWorld.convertObjectToInst(object))
 
     selectedObject = object
-    handle = Roact.reconcile(handle, ObjectInfoPanel{Obj = object, World = currentWorld})
+
+    if selectedObject.Home then
+        focusInst(ViewWorld.convertObjectToInst(currentWorld.Tiles[Tile.getIndex(selectedObject.Home)]))
+    end
+
+    if selectedObject.Work then
+        focusInst(ViewWorld.convertObjectToInst(currentWorld.Tiles[Tile.getIndex(selectedObject.Work)]))
+    end
+
+    handle = Roact.reconcile(handle, ObjectInfoPanel{Obj = object, World = currentWorld, stats = currentStats})
 end
 
 local function selectObjectAtMouse()
@@ -94,12 +122,32 @@ local function processInput(input, processed)
     end
 end
 
-function ObjectSelection.init(world)
+
+local function updateWiggle()
+    
+    while RunService.Stepped:Wait() do
+        for inst, _ in pairs(focusedInsts) do
+            if inst.ClassName == "Model" then
+
+                if wiggleinsts[inst] then
+                    wiggleinsts[inst]:Destroy()
+                end
+
+                wiggleinsts[inst] = inst:Clone()
+                wiggleinsts[inst].Parent = viewport
+                
+            end
+        end
+    end
+end
+
+function ObjectSelection.init(world, stats)
     sgui.Name = "Object selection view"
     ObjectInfoPanel = require(Client.ui.ObjectInfoPanel)
     handle = Roact.mount(Roact.createElement(ObjectInfoPanel), sgui)
 
     currentWorld = world
+    currentStats = stats
 
     blur.Size = 0
     blur.Parent = Lighting
@@ -109,6 +157,8 @@ function ObjectSelection.init(world)
     viewport.Position = UDim2.new(0, 0, 0, -36)
     viewport.BackgroundTransparency = 1
     viewport.CurrentCamera = workspace.CurrentCamera
+
+    spawn(updateWiggle)
 end
 
 function ObjectSelection.buildTileAtSelection(tileType)

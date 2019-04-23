@@ -13,6 +13,7 @@ local TweenService = game:GetService("TweenService")
 local BuildListButton = Roact.Component:extend("BuildListButton")
 local uitween = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
+local BuildList = {}
 
 function BuildListButton:init(props)
     self:setState(props)
@@ -31,6 +32,7 @@ function BuildListButton:render()
         Position = self.Position or UDim2.new(0,0,0,0),
         [Roact.Ref] = self.instRef,
         [Roact.Event.MouseButton1Click] = function() ObjectSelection.buildTileAtSelection(self.state.Type) end,
+        [Roact.Event.InputChanged] = function() self.state.call(self.state.Type) end,
     }, {
         Label = Roact.createElement(Label, {
             Text = Tile.Localisation[self.state.Type],
@@ -43,10 +45,15 @@ function BuildListButton:didMount()
     self.Position = UDim2.new(0, -10, 0, -48 * self.state.Type -12)
 end
 
-local buttons = {}
+function BuildList.generate(callback)
 
-for i = 1, Tile.NumberTypes do 
-    table.insert(buttons, Roact.createElement(BuildListButton, {Type = i}))
+    local buttons = {}
+
+    for i = 1, Tile.NumberTypes do 
+        table.insert(buttons, Roact.createElement(BuildListButton, {Type = i, call=callback}))
+    end
+
+    return buttons
 end
 
-return buttons
+return BuildList

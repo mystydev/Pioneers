@@ -15,11 +15,11 @@ print("Pioneers client starting...")
 
 local world = World.new()
 Replication.init(world)
-ObjectSelection.init(world)
 ViewWorld.displayWorld(world)
 
 local stats = Replication.getUserStats()
 
+ObjectSelection.init(world, stats)
 ViewStats.init(stats)
 
 workspace.CurrentCamera.CFrame = CFrame.new(Vector3.new(0, 30, 0))

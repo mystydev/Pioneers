@@ -8,6 +8,7 @@ local ClientUtil = require(Client.ClientUtil)
 local World      = require(Common.World)
 local Tile       = require(Common.Tile)
 local Util       = require(Common.Util)
+local UserStats  = require(Common.UserStats)
 local Network    = game.ReplicatedStorage.Network
 
 local currentWorld
@@ -31,12 +32,23 @@ end
 
 function Replication.getUserStats()
     currentStats = Network.RequestStats:InvokeServer()
+    currentStats.Offset = {}
     return currentStats
 end
 
 function Replication.requestTilePlacement(tile, type)
 
-    local success = Network.RequestTilePlacement:InvokeServer(tile, type)
+    local success
+    local reqs = Tile.ConstructionCosts[type]
+
+    if UserStats.hasEnoughResources(currentStats, reqs) then
+        for res, amount in pairs(reqs) do
+            currentStats[res] = currentStats[res] - amount
+            currentStats.Offset[res] = amount
+        end
+
+        success = Network.RequestTilePlacement:InvokeServer(tile, type)
+    end
 
     if not success then
         print("Tile placement request failed!")
@@ -86,7 +98,12 @@ end
 
 local function handleStatsUpdate(stats)
     for i, v in pairs(stats) do
-        currentStats[i] = v
+        if currentStats.Offset[i] then
+            currentStats[i] = v - currentStats.Offset[i]
+            currentStats.Offset[i] = nil
+        else
+            currentStats[i] = v
+        end
     end
 end
 
@@ -96,7 +113,7 @@ local function handleTileUpdate(tile)
     local localTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
 
     for i, v in pairs(tile) do
-        localTile[i] = v 
+        localTile[i] = v
     end
 
     ViewTile.updateDisplay(localTile)

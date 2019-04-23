@@ -7,12 +7,24 @@ var redis = new Redis();
 const MAX_FATIGUE = 10
 const SPAWN_TIME = 10
 const TileType = {GRASS:0,KEEP:1,PATH:2,HOUSE:3,FARM:4,MINE:5,FORESTRY:6,STORAGE:7,BARRACKS:8,WALL:9,GATE:10};
-const UnitType = {NONE:0,VILLAGER:1,SOLDIER:2};
+const UnitType = {NONE:0,VILLAGER:1,FARMER:2,LUMBERJACK:3,MINER:4,SOLDIER:5};
 const UnitState = {IDLE:0, DEAD:1, MOVING:2, WORKING:3, RESTING:4, STORING:5};
 const ResourceType = {FOOD:"Food", WOOD:"Wood", STONE:"Stone"};
 const Actions = {PLACE_TILE:0,SET_WORK:1};
 //PLACE_TILE = user id, action enum, tile type enum, tile as position string
 //SET_WORK   = user id, action enum, unitid, tile as position string
+
+const TileConstructionCosts = {}
+TileConstructionCosts[TileType.KEEP]     = {Stone:0,    Wood:0};
+TileConstructionCosts[TileType.PATH]     = {Stone:30,   Wood:0};
+TileConstructionCosts[TileType.HOUSE]    = {Stone:30,   Wood:60};
+TileConstructionCosts[TileType.FARM]     = {Stone:20,   Wood:40};
+TileConstructionCosts[TileType.MINE]     = {Stone:0,    Wood:60};
+TileConstructionCosts[TileType.FORESTRY] = {Stone:60,   Wood:0};
+TileConstructionCosts[TileType.STORAGE]  = {Stone:200,  Wood:200};
+TileConstructionCosts[TileType.BARRACKS] = {Stone:10000,Wood:10000};
+TileConstructionCosts[TileType.WALL]     = {Stone:1000, Wood:200};
+TileConstructionCosts[TileType.GATE]     = {Stone:1000, Wood:400};
 
 const DefaultTile = [
     {}, //GRASS
@@ -25,10 +37,10 @@ const DefaultTile = [
     {Type:TileType.STORAGE, Health:300},
 ]
 
-Tiles = {};
-Units = {};
-UserStats = {};
-UnitCount = 0;
+let Tiles = {};
+let Units = {};
+let UserStats = {};
+let UnitCount = 0;
 
 async function fetchRedisData(){
     tiles = await redis.hgetall('tiles');
@@ -63,11 +75,53 @@ async function fetchRedisData(){
     }
 }
 
+function addResource(id, resource, redispipe){
+    var stats = UserStats[id];
+
+    if (!stats){
+        console.warn("Attempted to alter unknown users stats:", id, resource);
+        return;
+    }
+
+    stats[resource.Type] += resource.Amount;
+    //redispipe.hset('stats', id, JSON.stringify(stats));
+}
+
+function useResource(id, resource, redispipe){
+    var stats = UserStats[id];
+
+    if (!stats){
+        console.warn("Attempted to alter unknown users stats:", id, resource);
+        return;
+    }
+    console.log("Used", resource.Amount, resource.Type, stats[resource.Type])
+    stats[resource.Type] -= resource.Amount;
+    //redispipe.hset('stats', id, JSON.stringify(stats));
+}
+
+function canBuild(id, type){
+    let stats = UserStats[id];
+    let req = TileConstructionCosts[type];
+
+    for (res in req) 
+        if (stats[res] < req[res])
+            return false;
+
+    return true;
+}
+
 function verifyTilePlacement(redispipe, id, position, type){
     let tile = Tiles[position];
     
-    if (tile == undefined){ //If the tile is grass TODO:Full verification
+    if (tile == undefined && canBuild(id, type)){ //If the tile is grass TODO:Full verification
         
+        let req = TileConstructionCosts[type];
+
+        for (res in req){
+            console.log("Using", req[res], res);
+            useResource(id, {Type:res, Amount:req[res]}, redispipe);
+        }
+
         tile = JSON.parse(JSON.stringify(DefaultTile[type]));
         tile.OwnerId = id;
 
@@ -87,6 +141,15 @@ function verifyWorkAssignment(redispipe, id, unitid, position){
     if (unit && tile && unit.OwnerId == id && tile.OwnerId == id){
         unit.Work = position;
         unit.Target = position;
+
+        if (tile.Type == TileType.FARM){
+            unit.Type = UnitType.FARMER;
+        } else if (tile.Type == TileType.FORESTRY) {
+            unit.Type = UnitType.LUMBERJACK;
+        } else if (tile.Type == TileType.MINE){
+            unit.Type = UnitType.MINER;
+        }
+
         redispipe.hset('units', unitid, JSON.stringify(unit));
     }
 }
@@ -114,41 +177,29 @@ async function processActionQueue(redispipe){
     return actions.length
 }
 
-function addResource(id, resource){
-    var stats = UserStats[id];
-
-    if (!stats){
-        console.warn("Attempted to alter unknown users stats:", id, resource);
-        return;
-    }
-
-    stats[resource.Type] += resource.Amount;
-    redis.hset('stats', id, JSON.stringify(stats));
-}
-
-function useResource(id, resource){
-    var stats = UserStats[id];
-
-    if (!stats){
-        console.warn("Attempted to alter unknown users stats:", id, resource);
-        return;
-    }
-
-    stats[resource.Type] -= resource.Amount;
-    redis.hset('stats', id, JSON.stringify(stats));
-}
-
 function getTileOutput(pos){
-    var tile = getTile(pos);
+    let tile = getTile(pos);
+    let neighbours = getNeighbours(pos);
+
+    console.log(neighbours);
+
+    let produce = 1;
+
+    for (n in neighbours) {
+        let neighbour = getTile(neighbours[n]);
+
+        if (neighbour && neighbour.Type == tile.Type)
+            produce++;
+    }
 
     if (tile)
         switch (tile.Type){
             case TileType.FARM:
-                return {Type: ResourceType.FOOD, Amount: 1};
+                return {Type: ResourceType.FOOD, Amount: produce};
             case TileType.MINE:
-                return {Type: ResourceType.STONE, Amount: 1};
+                return {Type: ResourceType.STONE, Amount: produce};
             case TileType.FORESTRY:
-                return {Type: ResourceType.WOOD, Amount: 1};
+                return {Type: ResourceType.WOOD, Amount: produce};
             default:
                 return false;
         }
@@ -401,12 +452,14 @@ async function processRound() {
     let pactions = await processActionQueue(redispipe);
 
     var t2 = performance.now();
-    //process.stdout.write(Math.round((t2 - t1)*100)/100 + " ms/");
 
+    //stats = await redis.hgetall('stats');
+    //for (key in stats) {
+        //UserStats[key] = JSON.parse(stats[key]);
+    //}
     await processUnitSpawns(redispipe);
 
     var t3 = performance.now();
-    //process.stdout.write("spawns " + Math.round((t3 - t2)*100)/100 + " ms/");
 
     for (var id in Units){
         processed++;
@@ -430,7 +483,7 @@ async function processRound() {
                 break;
 
             case UnitState.RESTING:
-                useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:5});
+                useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:5}, redispipe);
 
                 unit.Fatigue -= 5;
 
@@ -444,7 +497,7 @@ async function processRound() {
                 var t = safeType(pos);
 
                 if (t == TileType.STORAGE || t == TileType.KEEP){
-                    addResource(unit.OwnerId, unit.HeldResource);
+                    addResource(unit.OwnerId, unit.HeldResource, redispipe);
                     unit.HeldResource = undefined;
 
                     if (unit.Fatigue > 0)
@@ -459,15 +512,17 @@ async function processRound() {
     }
 
     var t4 = performance.now();
-    //process.stdout.write(processed + " units " + Math.round((t4 - t3)*100)/100 + " ms/");
+
+    for (id in UserStats) {
+        let stats = UserStats[id];
+        redispipe.hset('stats', id, JSON.stringify(stats));
+    }
 
     redispipe.exec((err, results) => {
         if (err) console.warn("Error executing redis pipeline! ", err);
     });
 
     var t5 = performance.now();
-    //process.stdout.write("Redis " + Math.round((t5 - t4)*100)/100 + " ms/");
-    //process.stdout.write("Total:" + Math.round((t5 - t1)*100)/100 + "ms\r");
 
     let atime = (t2 - t1).toFixed(1).toString().padStart(3, " ");
     let stime = (t3 - t2).toFixed(1).toString().padStart(3, " ");

@@ -14,6 +14,7 @@ local UnitActionButton = require(ui.UnitActionButton)
 
 local Tile = require(Common.Tile)
 local Unit = require(Common.Unit)
+local UserStats = require(Common.UserStats)
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
@@ -32,7 +33,8 @@ local function ObjectInfoPanel(props)
         props.Title = Tile.Localisation[props.Obj.Type]
 
         if props.Obj.Type == Tile.GRASS then
-            elements.BuildButton = Roact.createElement(BuildButton, {Position = UDim2.new(-0.098, 0, 0.875, 0)})
+            print(props.stats)
+            elements.BuildButton = Roact.createElement(BuildButton, {Position = UDim2.new(-0.098, 0, 0.875, 0), stats = props.stats})
         end
 
         elements.UnitList = Roact.createElement(UnitList, props)

@@ -81,8 +81,8 @@ function ViewTile.updateDisplay(tile)
     end
 end
 
-function ViewTile.getTileFromInst(inst)
-    return TileToInstMap[inst]
+function ViewTile.getInstFromTile(tile)
+    return TileToInstMap[tile]
 end
 
 spawn(autoUnload)

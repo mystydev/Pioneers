@@ -34,7 +34,7 @@ function UnitInfoLabel:render()
         Image = StateDisplay[self.state.Unit.State],
         [Roact.Event.MouseButton1Click] = function() ObjectSelection.select(self.state.Unit) end
     }, {
-        Label = Roact.createElement(Label, {Text = "Villager - " .. state})
+        Label = Roact.createElement(Label, {Text = Unit.Localisation[self.state.Unit.Type] .. " - " .. state})
     })
 end
 
