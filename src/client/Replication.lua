@@ -12,7 +12,7 @@ local UserStats  = require(Common.UserStats)
 local Network    = game.ReplicatedStorage.Network
 
 local currentWorld
-local currentStats
+local currentStats = {}
 local syncing = true
 
 local function tileSync()
@@ -26,12 +26,18 @@ end
 
 function Replication.init(world)
     currentWorld = world
-
+    _G.updateLoadStatus("Fetching map data...")
     spawn(tileSync)
 end
 
 function Replication.getUserStats()
-    currentStats = Network.RequestStats:InvokeServer()
+
+    _G.updateLoadStatus("Fetching user stats...")
+
+    repeat
+        currentStats = Network.RequestStats:InvokeServer()
+    until currentStats
+
     currentStats.Offset = {}
     return currentStats
 end
@@ -98,7 +104,7 @@ end
 
 local function handleStatsUpdate(stats)
     for i, v in pairs(stats) do
-        if currentStats.Offset[i] then
+        if currentStats.Offset and currentStats.Offset[i] then
             currentStats[i] = v - currentStats.Offset[i]
             currentStats.Offset[i] = nil
         else
@@ -128,6 +134,7 @@ function Replication.updateTiles(pos, radius)
 end
 
 function Replication.ready()
+    _G.updateLoadStatus("Waiting for server to be ready...")
     return Network.Ready:InvokeServer()
 end
 

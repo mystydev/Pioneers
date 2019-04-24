@@ -52,7 +52,7 @@ local function autoUnload() --TODO: fully unload from memory
     local getPos = ClientUtil.getPlayerPosition
     local dist
     
-    repeat
+    --[[repeat
         for tile, model in pairs(unitToInstMap) do
             local position = model.HumanoidRootPart.Position
             dist = (position - getPos()).magnitude
@@ -65,7 +65,7 @@ local function autoUnload() --TODO: fully unload from memory
         end
 
         RunService.Stepped:Wait()
-    until false
+    until false]]--
 end
 
 function ViewUnit.getUnitFromInst(inst)
@@ -105,6 +105,9 @@ local gatherStatus = {}
 function ViewUnit.updateDisplay(unit)
     local model = unitToInstMap[unit]
 
+    if not model then
+        return end
+    
     local currentItem = equipped[unit]
 
     if not unit.HeldResource then
@@ -130,6 +133,7 @@ function ViewUnit.updateDisplay(unit)
 
             local p = Assets.Pickaxe:Clone()
             p.Parent = model
+            p.CFrame = model.LeftHand.LeftGripAttachment.WorldCFrame
             p.AlignPosition.Attachment1 = model.LeftHand.LeftGripAttachment
             p.AlignOrientation.Attachment1 = model.LeftHand.LeftGripAttachment
     
@@ -148,6 +152,7 @@ function ViewUnit.updateDisplay(unit)
 
             local p = Assets.Axe:Clone()
             p.Parent = model
+            p.CFrame = model.LeftHand.LeftGripAttachment.WorldCFrame
             p.AlignPosition.Attachment1 = model.LeftHand.LeftGripAttachment
             p.AlignOrientation.Attachment1 = model.LeftHand.LeftGripAttachment
     
@@ -165,6 +170,7 @@ function ViewUnit.updateDisplay(unit)
 
             local p = Assets.Hoe:Clone()
             p.Parent = model
+            p.CFrame = model.LeftHand.LeftGripAttachment.WorldCFrame
             p.AlignPosition.Attachment1 = model.LeftHand.LeftGripAttachment
             p.AlignOrientation.Attachment1 = model.LeftHand.LeftGripAttachment
     
@@ -181,7 +187,7 @@ function ViewUnit.updateDisplay(unit)
             if onBack[model] then
                 onBack[model] = false
                 animGetTool[model]:Play(0.5)
-                spawn(function()
+                spawn(function() ypcall(function()
                     wait(1)
                     currentItem.AlignPosition.Attachment1 = model.LeftHand.LeftGripAttachment
                     currentItem.AlignOrientation.Attachment1 = model.LeftHand.LeftGripAttachment
@@ -189,13 +195,13 @@ function ViewUnit.updateDisplay(unit)
                     animGetTool[model].Stopped:Wait()
                     currentItem.AlignPosition.RigidityEnabled = false
                     currentItem.AlignPosition.RigidityEnabled = true
-                end)
+                end) end)
             end
         else
             if not onBack[model] then
                 onBack[model] = true
                 animPutTool[model]:Play(0.5)
-                spawn(function()
+                spawn(function() ypcall(function()
                     wait(1)
                     currentItem.AlignPosition.Attachment1 = model.UpperTorso.ToolBackAttach
                     currentItem.AlignOrientation.Attachment1 = model.UpperTorso.ToolBackAttach
@@ -203,7 +209,7 @@ function ViewUnit.updateDisplay(unit)
                     animPutTool[model].Stopped:Wait()
                     currentItem.AlignPosition.RigidityEnabled = false
                     currentItem.AlignPosition.RigidityEnabled = true
-                end)
+                end) end)
             end
         end
     end

@@ -35,6 +35,9 @@ const DefaultTile = [
     {Type:TileType.MINE, Health:100},
     {Type:TileType.FORESTRY, Health:100},
     {Type:TileType.STORAGE, Health:300},
+    {Type:TileType.BARRACKS, Health:1000},
+    {Type:TileType.WALL, Health:10000},
+    {Type:TileType.GATE, Health:10000},
 ]
 
 let Tiles = {};
@@ -94,7 +97,7 @@ function useResource(id, resource, redispipe){
         console.warn("Attempted to alter unknown users stats:", id, resource);
         return;
     }
-    console.log("Used", resource.Amount, resource.Type, stats[resource.Type])
+
     stats[resource.Type] -= resource.Amount;
     //redispipe.hset('stats', id, JSON.stringify(stats));
 }
@@ -118,7 +121,6 @@ function verifyTilePlacement(redispipe, id, position, type){
         let req = TileConstructionCosts[type];
 
         for (res in req){
-            console.log("Using", req[res], res);
             useResource(id, {Type:res, Amount:req[res]}, redispipe);
         }
 
@@ -180,8 +182,6 @@ async function processActionQueue(redispipe){
 function getTileOutput(pos){
     let tile = getTile(pos);
     let neighbours = getNeighbours(pos);
-
-    console.log(neighbours);
 
     let produce = 1;
 

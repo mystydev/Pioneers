@@ -15,6 +15,6 @@ local world = World.new()
 
 Sync.begin(world)
 
-print("Still starting...")
+print("Server synced and ready!")
 
 Replication.assignWorld(world)

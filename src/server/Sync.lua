@@ -102,7 +102,7 @@ function Sync.begin(world)
 
     globalSync(world)
     --delay(2, function() syncprocess(world) end)
-    delay(2, function() tempSyncAll(world) end)
+    delay(0, function() tempSyncAll(world) end)
 end
 
 local function playerJoined(player)
@@ -113,6 +113,10 @@ local function playerJoined(player)
 end
 
 Players.PlayerAdded:Connect(playerJoined)
+
+for _, player in pairs(Players:GetChildren()) do
+    playerJoined(player)
+end
 
 
 return Sync
