@@ -26,8 +26,19 @@ end
 
 function Replication.init(world)
     currentWorld = world
+
+    unitupdate = Network.UnitUpdate.OnClientEvent:Connect(handleUnitUpdate)
+    statsupdate = Network.StatsUpdate.OnClientEvent:Connect(handleStatsUpdate)
+    tileupdate = Network.TileUpdate.OnClientEvent:Connect(handleTileUpdate)
+
     _G.updateLoadStatus("Fetching map data...")
     spawn(tileSync)
+end
+
+function Replication.worldDied()
+    unitupdate:Disconnect()
+    statsupdate:Disconnect()
+    tileupdate:Disconnect()
 end
 
 function Replication.getUserStats()
@@ -85,7 +96,7 @@ function Replication.requestUnitTarget(unit, tile)
     end
 end
 
-local function handleUnitUpdate(unit)
+function handleUnitUpdate(unit)
     repeat wait() until currentWorld
     local localUnit = currentWorld.Units[unit.Id]
 
@@ -102,7 +113,7 @@ local function handleUnitUpdate(unit)
     end
 end
 
-local function handleStatsUpdate(stats)
+function handleStatsUpdate(stats)
     for i, v in pairs(stats) do
         if currentStats.Offset and currentStats.Offset[i] then
             currentStats[i] = v - currentStats.Offset[i]
@@ -113,7 +124,7 @@ local function handleStatsUpdate(stats)
     end
 end
 
-local function handleTileUpdate(tile)
+function handleTileUpdate(tile)
 
     local pos = tile.Position
     local localTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
@@ -137,9 +148,5 @@ function Replication.ready()
     _G.updateLoadStatus("Waiting for server to be ready...")
     return Network.Ready:InvokeServer()
 end
-
-Network.UnitUpdate.OnClientEvent:Connect(handleUnitUpdate)
-Network.StatsUpdate.OnClientEvent:Connect(handleStatsUpdate)
-Network.TileUpdate.OnClientEvent:Connect(handleTileUpdate)
 
 return Replication

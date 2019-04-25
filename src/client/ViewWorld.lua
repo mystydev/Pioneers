@@ -15,7 +15,7 @@ local CurrentWorld
 local function isTile(inst)
     if not inst then return end
     
-    if inst.Name == "Hexagon" then --TODO: this
+    if inst:IsA("MeshPart") then
         return true
     end
 end
@@ -51,7 +51,7 @@ end
 function ViewWorld.convertInstanceToTile(inst)
 
     if isTile(inst) then
-
+        
         local pos = Util.worldCoordToAxialCoord(inst.Position)
         return World.getTile(CurrentWorld.Tiles, pos.x, pos.y)
 

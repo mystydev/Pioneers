@@ -1,6 +1,6 @@
 {
   "name": "pionprocessing",
-  "version": "1.0.76",
+  "version": "1.0.77",
   "description": "Calculation backend for the Pioneers backend server.",
   "main": "index.js",
   "scripts": {

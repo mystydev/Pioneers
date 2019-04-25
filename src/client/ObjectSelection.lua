@@ -38,7 +38,7 @@ local function getObjectAtMouse()
 
     local inst = mouse.Target
 
-    if inst and inst.Parent.Name == "Dummy" then --TODO: more robust!
+    if inst and inst.Parent.ClassName == "Model" then
         inst = inst.Parent
     end
 
@@ -47,43 +47,35 @@ end
 
 local function focusInst(inst)
     focusedInsts[inst] = true
-
-    if inst:IsA("BasePart") then
-        inst.Parent = viewport
-    end
 end
 
 local tempinsts = {}
 local function tempUnfocusInsts()
 
     for inst, _ in pairs(focusedInsts) do
-        if inst.Parent == viewport and inst.Name == "Hexagon" then --TODO: Yuck
-            inst.Parent = workspace
+        if inst:IsA("MeshPart") then
+            tempinsts[inst] = true
+            focusedInsts[inst] = nil
         end
     end
 end
 
 local function refocusTempInsts()
-    for inst, _ in pairs(focusedInsts) do
-        inst.Parent = viewport
+    for inst, _ in pairs(tempinsts) do
+        tempinsts[inst] = nil
+        focusedInsts[inst] = true
     end
 end
 
 local function unselect(dontunmount)
-
     currentSelectionInfo.Obj = Roact.None
     
+    refocusTempInsts()
+
     for inst, _ in pairs(focusedInsts) do
         focusedInsts[inst] = nil
-
-        if wiggleinsts[inst] then
-            wiggleinsts[inst]:Destroy()
-        end
-
-        if inst.Parent == viewport then
-            inst.Parent = workspace
-        end
     end
+
 
     TweenService:Create(blur, tweenFast, {Size = 0}):Play()
     TweenService:Create(desaturate, tweenFast, {Saturation = 0.5}):Play()
@@ -141,7 +133,7 @@ local function mouseClicked()
 end
 
 local function processInput(input, processed)
-
+    if currentWorld.Dead then return end
     if processed then return end
 
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -155,17 +147,15 @@ end
 local function updateWiggle()
     
     while RunService.Stepped:Wait() do
+
+        for inst, _ in pairs(wiggleinsts) do
+            wiggleinsts[inst]:Destroy()
+        end
+
         for inst, _ in pairs(focusedInsts) do
-            if inst.ClassName == "Model" then
 
-                if wiggleinsts[inst] then
-                    wiggleinsts[inst]:Destroy()
-                end
-
-                wiggleinsts[inst] = inst:Clone()
-                wiggleinsts[inst].Parent = viewport
-                
-            end
+            wiggleinsts[inst] = inst:Clone()
+            wiggleinsts[inst].Parent = viewport 
         end
     end
 end
@@ -214,7 +204,11 @@ function ObjectSelection.startUnitTileSelectPrompt()
     local tempFocused = {}
 
     for index, tile in pairs(currentWorld.Tiles) do
-        if tile.Type == Tile.FARM and #tile.unitlist == 0 then
+        if (tile.Type == Tile.FARM
+            or tile.Type == Tile.FORESTRY
+            or tile.Type == Tile.MINE) 
+            and #tile.unitlist == 0 then
+
             local inst = ViewWorld.convertObjectToInst(tile)
             focusInst(inst)
             tempFocused[inst] = true
@@ -239,12 +233,6 @@ function ObjectSelection.startUnitTileSelectPrompt()
         focusedInsts[inst] = nil
     end
 
-    refocusTempInsts()
-
-    if object then
-        focusInst(ViewWorld.convertObjectToInst(object))
-    end
-
     if inPrompt then
         TweenService:Create(blur, tweenSlow, {Size = 20}):Play()
         inPrompt = nil
@@ -259,6 +247,7 @@ function ObjectSelection.assignWorkPrompt()
 
     if tile then
         Replication.requestUnitWork(selectedObject, tile)
+        unselect()
     end
 end
 

@@ -155,6 +155,13 @@ function verifyWorkAssignment(redispipe, id, unitid, position){
     let tile = Tiles[position];
 
     if (unit && tile && unit.OwnerId == id && tile.OwnerId == id && tile.unitlist.length == 0){
+
+        if (unit.Work) {
+            let work = Tiles[unit.Work];
+            work.unitlist = [];
+            redispipe.hset('tiles', unit.Work, JSON.stringify(work));
+        }
+
         unit.Work = position;
         unit.Target = position;
 

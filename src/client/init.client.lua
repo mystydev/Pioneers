@@ -8,7 +8,7 @@ local function start()
 
     local ViewWorld       = require(Client.ViewWorld)
     local ViewStats       = require(Client.ViewStats)
-    local Replication     = require(Client.Replication)
+    Replication     = require(Client.Replication)
     local ObjectSelection = require(Client.ObjectSelection)
     local World           = require(Common.World)
 
@@ -38,6 +38,8 @@ LogService.MessageOut:Connect(function(message, type)
     if string.find(message, "Pion unrecoverable") then
         print("Pioneers client experienced an unrecoverable error... Automatically restarting!")
 
+        Replication.worldDied()
+
         for i, v in pairs(workspace:GetChildren()) do
             if (v:IsA("BasePart") or v:IsA("Model")) and v.Name ~= "Terrain" then
                 v:Destroy()
@@ -47,7 +49,11 @@ LogService.MessageOut:Connect(function(message, type)
         if world then
             world.Tiles = {}
             world.Units = {}
+            world.Dead = true
         end
+
+        game.Lighting.ColorCorrection:Destroy()
+        game.Lighting.Blur:Destroy()
 
         script:Clone().Parent = script.Parent
         script:Destroy()

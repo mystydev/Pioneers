@@ -29,16 +29,16 @@ meshId[Tile.BARRACKS] = {mesh = "rbxassetid://3105724031", texture = "rbxassetid
 meshId[Tile.WALL]     = {mesh = "rbxassetid://3105142037", texture = "rbxassetid://3105142120", offset = Vector3.new(0, 12.5, 0)}
 
 local meshes = {}
-meshId[Tile.GRASS]    = {Assets.Hexagon, offset = Vector3.new(0,     0,    0)}
-meshId[Tile.KEEP]     = {Assets.Keep, offset = Vector3.new(0, 11.007, 0)}
-meshId[Tile.HOUSE]    = {Assets.House, offset = Vector3.new(0, 5.479, 0)}
-meshId[Tile.PATH]     = {Assets.Path, offset = Vector3.new(0,     0,    0)}
-meshId[Tile.FARM]     = {Assets.Farm, offset = Vector3.new(-0.015, 1.594, 0.059)}
-meshId[Tile.FORESTRY] = {Assets.Forestry, offset = Vector3.new(0, 7.682, 0.131)}
-meshId[Tile.MINE]     = {Assets.Mine, offset = Vector3.new(0, 1.795,    0)}
-meshId[Tile.STORAGE]  = {Assets.Storage, offset = Vector3.new(0, 16.842, -0.459)}
-meshId[Tile.BARRACKS] = {Assets.Barracks, offset = Vector3.new(0, 5.407, -0)}
-meshId[Tile.WALL]     = {Assets.Wall, offset = Vector3.new(0, 12.5, 0)}
+meshes[Tile.GRASS]    = {mesh = Assets.Hexagon,  offset = Vector3.new(0,     0,    0)}
+meshes[Tile.KEEP]     = {mesh = Assets.Keep,     offset = Vector3.new(0, 11.007, 0)}
+meshes[Tile.HOUSE]    = {mesh = Assets.House,    offset = Vector3.new(0, 5.479, 0)}
+meshes[Tile.PATH]     = {mesh = Assets.Path,     offset = Vector3.new(0,     0,    0)}
+meshes[Tile.FARM]     = {mesh = Assets.Farm,     offset = Vector3.new(-0.015, 1.594, 0.059)}
+meshes[Tile.FORESTRY] = {mesh = Assets.Forestry, offset = Vector3.new(0, 7.682, 0.131)}
+meshes[Tile.MINE]     = {mesh = Assets.Mine,     offset = Vector3.new(0, 1.795,    0)}
+meshes[Tile.STORAGE]  = {mesh = Assets.Storage,  offset = Vector3.new(0, 16.842, -0.459)}
+meshes[Tile.BARRACKS] = {mesh = Assets.Barracks, offset = Vector3.new(0, 5.407, -0)}
+meshes[Tile.WALL]     = {mesh = Assets.Wall,     offset = Vector3.new(0, 12.5, 0)}
 
 local function unload(tile, model) --TODO: fully unload from memory
     model:Destroy()
@@ -49,7 +49,7 @@ local function autoUnload() --TODO: fully unload from memory
     local getPos = ClientUtil.getPlayerPosition
     local dist
     
-    repeat
+    --[[repeat
         for tile, model in pairs(TileToInstMap) do
             if model and model.Parent ~= nil then
 
@@ -57,13 +57,13 @@ local function autoUnload() --TODO: fully unload from memory
 
                 dist = (position - getPos()).magnitude
 
-                local n = clamp((((model.Mesh.Scale.x)*20) + (300/(dist))^2-1)/21, 0, 1)
+                --local n = clamp((((model.Mesh.Scale.x)*20) + (300/(dist))^2-1)/21, 0, 1)
 
-                model.Mesh.Scale = Vector3.new(n,n,n)
+                --model.Mesh.Scale = Vector3.new(n,n,n)
 
-                if dist > CUTOFF_DIST then
-                    unload(tile, model)
-                end
+                --if dist > CUTOFF_DIST then
+                    --unload(tile, model)
+                --end
 
             else
                 TileToInstMap[tile] = nil
@@ -71,7 +71,7 @@ local function autoUnload() --TODO: fully unload from memory
         end
 
         RunService.Stepped:Wait()
-    until false
+    until false]]--
 end
 
 function ViewTile.displayTile(tile)
@@ -79,10 +79,11 @@ function ViewTile.displayTile(tile)
     if TileToInstMap[tile] then
         return end
 
-    local model = TileModel:Clone()
+    local meshInfo = meshes[tile.Type]
+    local model = meshInfo.mesh:Clone()
 
     TileToInstMap[tile] = model
-    model.Position = Util.axialCoordToWorldCoord(tile.Position)
+    model.Position = Util.axialCoordToWorldCoord(tile.Position) + meshInfo.offset
     model.Parent = Workspace
 
     ViewTile.updateDisplay(tile)
@@ -95,11 +96,10 @@ function ViewTile.updateDisplay(tile)
         return ViewTile.displayTile(tile)
     end
 
-    if meshId[tile.Type] then
-        model.Color = Color3.new(1,1,1)
-        model.Mesh.MeshId = meshId[tile.Type].mesh
-        model.Mesh.TextureId = meshId[tile.Type].texture
-        model.Mesh.Offset = meshId[tile.Type].offset
+    if model.Name ~= meshes[tile.Type].mesh.Name then
+        TileToInstMap[tile]:Destroy()
+        TileToInstMap[tile] = nil
+        ViewTile.displayTile(tile)
     end
 end
 
