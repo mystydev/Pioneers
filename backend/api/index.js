@@ -11,7 +11,7 @@ var certificate = fs.readFileSync('/certs/public.pem', 'utf8');
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = https.createServer(credentials, app);
 
-const Actions = {PLACE_TILE:0,SET_WORK:1};
+const Actions = {PLACE_TILE:0,SET_WORK:1,NEW_PLAYER:2};
 //PLACE_TILE = user id, action enum, tile type enum, tile as position string
 //SET_WORK   = user id, action enum, unitid, tile as position string
 
@@ -143,17 +143,14 @@ app.post("/pion/unitupdate", (req, res) => {
     res.json({status:"ok"})
 });
 
-const starterStats = {Food:500, Wood:500, Stone:500};
-
 app.post("/pion/userjoin", (req, res) => {
     redis.hget('stats', req.body.Id).then((stats) => {
         if (stats)
             res.json(JSON.parse(stats));
         else {
             console.log("New user Id:", req.body.Id);
-            let stats = {Food:500, Wood:500, Stone:500, PlayerId:req.body.Id}
-            redis.hset('stats', req.body.Id, JSON.stringify(stats));
-            res.json(stats);
+            redis.rpush('actionQueue', JSON.stringify({id:req.body.Id, action:Actions.NEW_PLAYER}));
+            res.json({status:"NewUser"});
         }
     }).catch((error) => {
         console.log("Error on userjoin:", error);

@@ -69,6 +69,9 @@ local function autoUnload() --TODO: fully unload from memory
 end
 
 function ViewUnit.getUnitFromInst(inst)
+    if not inst then
+        return end
+
     return instToUnitMap[inst] or instToUnitMap[inst.Parent]
 end
 

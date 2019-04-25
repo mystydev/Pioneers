@@ -49,6 +49,10 @@ function UnitInfoLabel:didMount()
     end)
 end
 
+function UnitInfoLabel.getDerivedStateFromProps(nextProps, lastState)
+    return nextProps
+end
+
 function UnitInfoLabel:willUnmount()
     self.running = false
 end

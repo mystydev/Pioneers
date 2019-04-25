@@ -31,6 +31,8 @@ local focusedInsts = {}
 local wiggleinsts = {}
 local inPrompt
 
+local currentSelectionInfo = {Obj = object, World = currentWorld, stats = currentStats}
+
 local function getObjectAtMouse()
     local mouse = player:GetMouse()
 
@@ -51,7 +53,25 @@ local function focusInst(inst)
     end
 end
 
+local tempinsts = {}
+local function tempUnfocusInsts()
+
+    for inst, _ in pairs(focusedInsts) do
+        if inst.Parent == viewport and inst.Name == "Hexagon" then --TODO: Yuck
+            inst.Parent = workspace
+        end
+    end
+end
+
+local function refocusTempInsts()
+    for inst, _ in pairs(focusedInsts) do
+        inst.Parent = viewport
+    end
+end
+
 local function unselect(dontunmount)
+
+    currentSelectionInfo.Obj = Roact.None
     
     for inst, _ in pairs(focusedInsts) do
         focusedInsts[inst] = nil
@@ -69,7 +89,8 @@ local function unselect(dontunmount)
     TweenService:Create(desaturate, tweenFast, {Saturation = 0.5}):Play()
 
     if not dontunmount then
-        handle = Roact.reconcile(handle, ObjectInfoPanel{Obj = nil, World = currentWorld})
+        local panel = Roact.createElement(ObjectInfoPanel, {info = currentSelectionInfo})
+        handle = Roact.reconcile(handle, panel)
         inPrompt = nil
     end
 end
@@ -83,6 +104,7 @@ local function select(object, inst)
     focusInst(inst or ViewWorld.convertObjectToInst(object))
 
     selectedObject = object
+    currentSelectionInfo.Obj = object
 
     if selectedObject.Home then
         focusInst(ViewWorld.convertObjectToInst(currentWorld.Tiles[Tile.getIndex(selectedObject.Home)]))
@@ -92,7 +114,14 @@ local function select(object, inst)
         focusInst(ViewWorld.convertObjectToInst(currentWorld.Tiles[Tile.getIndex(selectedObject.Work)]))
     end
 
-    handle = Roact.reconcile(handle, ObjectInfoPanel{Obj = object, World = currentWorld, stats = currentStats})
+    if selectedObject.unitlist then
+        for _, unitid in pairs(selectedObject.unitlist) do
+            focusInst(ViewWorld.convertObjectToInst(currentWorld.Units[unitid]))
+        end
+    end
+
+    local panel = Roact.createElement(ObjectInfoPanel, {info = currentSelectionInfo})
+    handle = Roact.reconcile(handle, panel)
 end
 
 local function selectObjectAtMouse()
@@ -144,10 +173,15 @@ end
 function ObjectSelection.init(world, stats)
     sgui.Name = "Object selection view"
     ObjectInfoPanel = require(Client.ui.ObjectInfoPanel)
-    handle = Roact.mount(Roact.createElement(ObjectInfoPanel), sgui)
-
+    
     currentWorld = world
     currentStats = stats
+
+    currentSelectionInfo.World = world
+    currentSelectionInfo.stats = stats
+
+    local panel = Roact.createElement(ObjectInfoPanel, {info = currentSelectionInfo})
+    handle = Roact.mount(panel, sgui, "Object info panel")
 
     blur.Size = 0
     blur.Parent = Lighting
@@ -175,6 +209,18 @@ end
 function ObjectSelection.startUnitTileSelectPrompt()
     TweenService:Create(blur, tweenSlow, {Size = 5}):Play()
 
+    tempUnfocusInsts()
+
+    local tempFocused = {}
+
+    for index, tile in pairs(currentWorld.Tiles) do
+        if tile.Type == Tile.FARM and #tile.unitlist == 0 then
+            local inst = ViewWorld.convertObjectToInst(tile)
+            focusInst(inst)
+            tempFocused[inst] = true
+        end
+    end
+
     local object
 
     inPrompt = function()
@@ -187,6 +233,17 @@ function ObjectSelection.startUnitTileSelectPrompt()
 
     repeat wait(0.1)
     until object or not inPrompt
+
+    for inst, _ in pairs(tempFocused) do
+        inst.Parent = workspace
+        focusedInsts[inst] = nil
+    end
+
+    refocusTempInsts()
+
+    if object then
+        focusInst(ViewWorld.convertObjectToInst(object))
+    end
 
     if inPrompt then
         TweenService:Create(blur, tweenSlow, {Size = 20}):Play()
@@ -201,7 +258,7 @@ function ObjectSelection.assignWorkPrompt()
     local tile = ObjectSelection.startUnitTileSelectPrompt()
 
     if tile then
-        Replication.requestUnitWork(selectedObject,tile)
+        Replication.requestUnitWork(selectedObject, tile)
     end
 end
 

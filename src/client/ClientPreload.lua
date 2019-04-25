@@ -68,7 +68,7 @@ local function load()
     TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 0.25}):Play()
     TweenService:Create(loadingGui.Spinner, spinnerTween, {Rotation = 360}):Play()
     
-    wait(5)
+    wait(10)
 
     if not preload.Loaded then
         updateInfo("Looks like something is taking a while...", true)

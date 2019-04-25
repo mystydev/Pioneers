@@ -4,15 +4,18 @@ var SortedSet = require("collections/sorted-set");
 var Redis = require('ioredis');
 var redis = new Redis();
 
-const MAX_FATIGUE = 10
-const SPAWN_TIME = 10
+const MAX_FATIGUE = 10;
+const HOUSE_UNIT_NUMBER = 2;
+const SPAWN_TIME = 10;
+const SPAWN_REQUIRED_FOOD = 100;
 const TileType = {GRASS:0,KEEP:1,PATH:2,HOUSE:3,FARM:4,MINE:5,FORESTRY:6,STORAGE:7,BARRACKS:8,WALL:9,GATE:10};
 const UnitType = {NONE:0,VILLAGER:1,FARMER:2,LUMBERJACK:3,MINER:4,SOLDIER:5};
 const UnitState = {IDLE:0, DEAD:1, MOVING:2, WORKING:3, RESTING:4, STORING:5};
 const ResourceType = {FOOD:"Food", WOOD:"Wood", STONE:"Stone"};
-const Actions = {PLACE_TILE:0,SET_WORK:1};
+const Actions = {PLACE_TILE:0,SET_WORK:1,NEW_PLAYER:2};
 //PLACE_TILE = user id, action enum, tile type enum, tile as position string
 //SET_WORK   = user id, action enum, unitid, tile as position string
+//NEW_PLAYER = user id, action enum, playerid
 
 const TileConstructionCosts = {}
 TileConstructionCosts[TileType.KEEP]     = {Stone:0,    Wood:0};
@@ -30,10 +33,10 @@ const DefaultTile = [
     {}, //GRASS
     {Type:TileType.KEEP, Health:1000},
     {Type:TileType.PATH, Health:100},
-    {Type:TileType.HOUSE, Health:200},
-    {Type:TileType.FARM, Health:100},
-    {Type:TileType.MINE, Health:100},
-    {Type:TileType.FORESTRY, Health:100},
+    {Type:TileType.HOUSE, Health:200, unitlist:[]},
+    {Type:TileType.FARM, Health:100, unitlist:[]},
+    {Type:TileType.MINE, Health:100, unitlist:[]},
+    {Type:TileType.FORESTRY, Health:100, unitlist:[]},
     {Type:TileType.STORAGE, Health:300},
     {Type:TileType.BARRACKS, Health:1000},
     {Type:TileType.WALL, Health:10000},
@@ -44,6 +47,7 @@ let Tiles = {};
 let Units = {};
 let UserStats = {};
 let UnitCount = 0;
+let UnitSpawns = {};
 
 async function fetchRedisData(){
     tiles = await redis.hgetall('tiles');
@@ -72,6 +76,15 @@ async function fetchRedisData(){
     console.log("Loaded", num, "stats!");
 
     UnitCount = await redis.get('unitcount');
+
+    spawns = await redis.get('unitspawns');
+
+    num = 0
+    for (pos in spawns) {
+        UnitSpawns[pos] = JSON.parse(spawns[pos]);
+        num++;
+    }
+    console.log("Loaded", num, "spawns!");
 
     if (!UnitCount){
         UnitCount = 1;
@@ -131,7 +144,8 @@ function verifyTilePlacement(redispipe, id, position, type){
         redispipe.hset('tiles', position, JSON.stringify(tile));
 
         if (type == TileType.HOUSE){
-            redispipe.rpush('needsunits', JSON.stringify({p:position, i:0}));
+            redispipe.hset('unitspawns', position, 0);
+            UnitSpawns[position] = 0;
         }
     }
 }
@@ -140,7 +154,7 @@ function verifyWorkAssignment(redispipe, id, unitid, position){
     let unit = Units[unitid];
     let tile = Tiles[position];
 
-    if (unit && tile && unit.OwnerId == id && tile.OwnerId == id){
+    if (unit && tile && unit.OwnerId == id && tile.OwnerId == id && tile.unitlist.length == 0){
         unit.Work = position;
         unit.Target = position;
 
@@ -152,8 +166,16 @@ function verifyWorkAssignment(redispipe, id, unitid, position){
             unit.Type = UnitType.MINER;
         }
 
+        tile.unitlist.push(unit.Id);
         redispipe.hset('units', unitid, JSON.stringify(unit));
+        redispipe.hset('tiles', position, JSON.stringify(tile));
     }
+}
+
+function handleNewPlayer(redispipe, id){
+    let stats = {Food:500, Wood:500, Stone:500, PlayerId:id};
+    UserStats[id] = stats;
+    redispipe.hset('stats', id, JSON.stringify(stats));
 }
 
 async function processActionQueue(redispipe){
@@ -171,6 +193,9 @@ async function processActionQueue(redispipe){
             case Actions.SET_WORK:
                 verifyWorkAssignment(redispipe, action.id, action.unit, action.position);
                 break;
+            case Actions.NEW_PLAYER:
+                handleNewPlayer(redispipe, action.id);
+                break
             default:
                 console.log("Unknown action!", action);
         }
@@ -409,7 +434,7 @@ function establishUnitState(unit) {
 function spawnUnit(redispipe, position){
 
     let tile = Tiles[position];
-    let id = UnitCount++
+    let id = (UnitCount++).toString()
     let [x, y] = toPosition(position)
 
     let unit = {
@@ -426,20 +451,33 @@ function spawnUnit(redispipe, position){
     Units[id] = unit;
     redispipe.hset('units', id, JSON.stringify(unit));
     redispipe.set('unitcount', UnitCount);
+
+    return unit;
 }
 
 async function processUnitSpawns(redispipe){
-    let spawns = await redis.lrange('needsunits', 0, -1); //TODO: read cache and send updates back
-    redis.ltrim('needsunits', spawns.length, -1);
 
-    for (index in spawns) {
-        let spawn = JSON.parse(spawns[index]);
+    for (pos in UnitSpawns) {
+        let tile = getTile(pos);
+        let checkNum = UnitSpawns[pos];
 
-        if (spawn.i < SPAWN_TIME){
-            redispipe.rpush('needsunits', JSON.stringify({p:spawn.p,i:(spawn.i+1)}));
+        if (UserStats[tile.OwnerId][ResourceType.FOOD] < SPAWN_REQUIRED_FOOD) continue;
+
+        if (checkNum < SPAWN_TIME) {
+            UnitSpawns[pos]++;
         } else {
-            spawnUnit(redispipe, spawn.p); //TODO: Fix this more!
-            spawnUnit(redispipe, spawn.p);
+            let unit = spawnUnit(redispipe, pos);
+            tile.unitlist.push(unit.Id);
+
+            redispipe.hset('tiles', pos, JSON.stringify(tile))
+
+            if (tile.unitlist.length >= HOUSE_UNIT_NUMBER) {
+                delete UnitSpawns[pos];
+                redispipe.hdel('unitspawns', pos);
+            } else {
+                UnitSpawns[pos] = 0;
+                redispipe.hset('unitspawns', pos, UnitSpawns[pos])
+            }
         }
     }
 }
@@ -453,10 +491,6 @@ async function processRound() {
 
     var t2 = performance.now();
 
-    //stats = await redis.hgetall('stats');
-    //for (key in stats) {
-        //UserStats[key] = JSON.parse(stats[key]);
-    //}
     await processUnitSpawns(redispipe);
 
     var t3 = performance.now();

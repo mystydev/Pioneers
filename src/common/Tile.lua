@@ -62,6 +62,7 @@ function Tile.deserialise(index, data)
     tile.OwnerId = data.OwnerId
     tile.Position = Vector2.new(tonumber(x), tonumber(y))
     tile.Health = data.Health
+    tile.unitlist = data.unitlist
 
     return tile
 end

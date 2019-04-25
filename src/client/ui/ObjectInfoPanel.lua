@@ -16,54 +16,65 @@ local Tile = require(Common.Tile)
 local Unit = require(Common.Unit)
 local UserStats = require(Common.UserStats)
 
+local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 
-local function ObjectInfoPanel(props)
+local ObjectInfoPanel = Roact.Component:extend("ObjectInfoPanel")
 
-    if not props.Obj then
+local infoTable
+
+function ObjectInfoPanel:init(props)
+    infoTable = props.info
+    self:setState(props.info)
+end
+
+function ObjectInfoPanel:render()
+
+    local state = self.state
+
+    if not state.Obj then
         return Roact.createElement("Frame")
     end
 
     local elements = {}
 
-    props.Owner = props.Obj.OwnerId
+    state.Owner = state.Obj.OwnerId
 
-    if not props.Obj.Id then --Tile
-        props.Title = Tile.Localisation[props.Obj.Type]
+    if not state.Obj.Id then --Tile
+        state.Title = Tile.Localisation[state.Obj.Type]
 
-        if props.Obj.Type == Tile.GRASS then
-            print(props.stats)
-            elements.BuildButton = Roact.createElement(BuildButton, {Position = UDim2.new(-0.098, 0, 0.875, 0), stats = props.stats})
+        if state.Obj.Type == Tile.GRASS then
+            elements.BuildButton = Roact.createElement(BuildButton, {Position = UDim2.new(-0.098, 0, 0.875, 0), stats = state.stats})
         end
 
-        elements.UnitList = Roact.createElement(UnitList, props)
+        elements.UnitList = Roact.createElement(UnitList, {info = infoTable})
     else
-        props.Title = Unit.Localisation[props.Obj.Type]
+        state.Title = Unit.Localisation[state.Obj.Type]
 
-        if props.Owner == Player.userId then
+        if state.Owner == Player.userId then
             elements.UnitActionButton = Roact.createElement(UnitActionButton, {Position = UDim2.new(-0.098, 0, 0.875, 0)})
         end
     end
 
     
 
-    elements.Title = Roact.createElement(Title, props)
-    elements.Owner = Roact.createElement(OwnerLabel, props)
+    elements.Title = Roact.createElement(Title, state)
+    elements.Owner = Roact.createElement(OwnerLabel, state)
     elements.CloseButton = Roact.createElement(CloseButton, 
                             {Position = UDim2.new(0.049, 0, 0.852, 0)})
     
-    if props.Owner == Player.userId then
+    if state.Owner == Player.userId then
         elements.DemolishButton = Roact.createElement(DemolishButton, 
                             {Position = UDim2.new(0.613, 0, 0.852, 0)})
     end
 
-    if props.Obj.Health then
+    if state.Obj.Health then
         elements.HealthBar = Roact.createElement(HealthBar, 
                             {Position     = UDim2.new(0.35, 0, 0.82, 0),
                             Size          = UDim2.new(0.5, 0, 0, 8), 
                             HealthPercent = 1,
-                            Health        = props.Obj.Health})
+                            Health        = state.Obj.Health})
 
         elements.HealthLabel = Roact.createElement(Label, {
                             Text          = "Health",
@@ -83,6 +94,21 @@ local function ObjectInfoPanel(props)
         Image                  = "rbxassetid://3063744675",
         AnchorPoint            = Vector2.new(1,1)
     }, elements)
+end
+
+function ObjectInfoPanel:didMount()
+    self.running = true
+
+    spawn(function()
+        while self.running do
+            self:setState(infoTable)
+            RunService.Stepped:Wait()
+        end
+    end)
+end
+
+function ObjectInfoPanel:willUnmount()
+    self.running = false
 end
 
 return ObjectInfoPanel

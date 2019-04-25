@@ -1,6 +1,7 @@
 local ViewTile = {}
 local Client   = script.Parent
 local Common   = game.ReplicatedStorage.Pioneers.Common
+local Assets   = game.ReplicatedStorage.Pioneers.Assets
 
 local ClientUtil = require(Client.ClientUtil)
 local Tile = require(Common.Tile)
@@ -26,6 +27,18 @@ meshId[Tile.MINE]     = {mesh = "rbxassetid://3069462867", texture = "rbxassetid
 meshId[Tile.STORAGE]  = {mesh = "rbxassetid://3104986356", texture = "rbxassetid://3104986465", offset = Vector3.new(0, 16.842, -0.459)}
 meshId[Tile.BARRACKS] = {mesh = "rbxassetid://3105724031", texture = "rbxassetid://3105721152", offset = Vector3.new(0, 5.407, -0)}
 meshId[Tile.WALL]     = {mesh = "rbxassetid://3105142037", texture = "rbxassetid://3105142120", offset = Vector3.new(0, 12.5, 0)}
+
+local meshes = {}
+meshId[Tile.GRASS]    = {Assets.Hexagon, offset = Vector3.new(0,     0,    0)}
+meshId[Tile.KEEP]     = {Assets.Keep, offset = Vector3.new(0, 11.007, 0)}
+meshId[Tile.HOUSE]    = {Assets.House, offset = Vector3.new(0, 5.479, 0)}
+meshId[Tile.PATH]     = {Assets.Path, offset = Vector3.new(0,     0,    0)}
+meshId[Tile.FARM]     = {Assets.Farm, offset = Vector3.new(-0.015, 1.594, 0.059)}
+meshId[Tile.FORESTRY] = {Assets.Forestry, offset = Vector3.new(0, 7.682, 0.131)}
+meshId[Tile.MINE]     = {Assets.Mine, offset = Vector3.new(0, 1.795,    0)}
+meshId[Tile.STORAGE]  = {Assets.Storage, offset = Vector3.new(0, 16.842, -0.459)}
+meshId[Tile.BARRACKS] = {Assets.Barracks, offset = Vector3.new(0, 5.407, -0)}
+meshId[Tile.WALL]     = {Assets.Wall, offset = Vector3.new(0, 12.5, 0)}
 
 local function unload(tile, model) --TODO: fully unload from memory
     model:Destroy()

@@ -34,7 +34,8 @@ local function globalSync(world)
     n = 0
 
     for i, unit in pairs(units) do
-        world.Units[i] = Unit.deserialise(i, unit, world.Tiles)
+        local index = tostring(i)
+        world.Units[index] = Unit.deserialise(index, unit, world.Tiles)
         n = n + 1
     end
 
@@ -71,8 +72,10 @@ local function tempSyncAll(world)
         syncTime = res.time
 
         for i, unit in pairs(res.data) do
-            world.Units[i] = Unit.deserialise(i, unit, world.Tiles)
-            Replication.tempSyncUnit(world.Units[i])
+            local index = tostring(i)
+
+            world.Units[index] = Unit.deserialise(index, unit, world.Tiles)
+            Replication.tempSyncUnit(world.Units[index])
         end
 
         wait(math.random()) --Slightly spread out load on http api
@@ -101,13 +104,19 @@ function Sync.begin(world)
     currentWorld = world
 
     globalSync(world)
-    --delay(2, function() syncprocess(world) end)
+    delay(2, function() syncprocess(world) end)
     delay(0, function() tempSyncAll(world) end)
 end
 
 local function playerJoined(player)
     local jsonStats = HttpService:PostAsync(API_URL.."userjoin", HttpService:JSONEncode({Id=player.userId}))
-    UserStats.Store[player.UserId] = HttpService:JSONDecode(jsonStats)
+    local stats = HttpService:JSONDecode(jsonStats)
+
+    if stats.status and stats.status == "NewUser" then
+        UserStats.Store[player.UserId] = {Food = 0, Wood = 0, Stone = 0}
+    else
+        UserStats.Store[player.UserId] = stats
+    end
 
     delay(2, function() syncStats(player, currentWorld) end)
 end
