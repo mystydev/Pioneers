@@ -36,9 +36,11 @@ function Replication.init(world)
 end
 
 function Replication.worldDied()
-    unitupdate:Disconnect()
-    statsupdate:Disconnect()
-    tileupdate:Disconnect()
+    if unitupdate then
+        unitupdate:Disconnect()
+        statsupdate:Disconnect()
+        tileupdate:Disconnect()
+    end
 end
 
 function Replication.getUserStats()
@@ -72,14 +74,6 @@ function Replication.requestTilePlacement(tile, type)
     end
 end
 
-function Replication.requestUnitHome(unit, tile)
-    local success = Network.RequestUnitHome:InvokeServer(unit, tile)
-
-    if not success then
-        print("Home request failed!")
-    end
-end
-
 function Replication.requestUnitWork(unit, tile)
     local success = Network.RequestUnitWork:InvokeServer(unit, tile)
 
@@ -88,11 +82,11 @@ function Replication.requestUnitWork(unit, tile)
     end
 end
 
-function Replication.requestUnitTarget(unit, tile)
-    local success = Network.RequestUnitTarget:InvokeServer(unit, tile)
+function Replication.requestUnitAttack(unit, tile)
+    local success = Network.RequestUnitAttack:InvokeServer(unit, tile)
 
     if not success then
-        print("Target request failed!")
+        print("Attack request failed!")
     end
 end
 

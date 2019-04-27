@@ -11,7 +11,7 @@ var certificate = fs.readFileSync('/certs/public.pem', 'utf8');
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = https.createServer(credentials, app);
 
-const Actions = {PLACE_TILE:0,SET_WORK:1,NEW_PLAYER:2};
+const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3};
 //PLACE_TILE = user id, action enum, tile type enum, tile as position string
 //SET_WORK   = user id, action enum, unitid, tile as position string
 
@@ -30,17 +30,29 @@ app.post("/pion/actionRequest", (req, res) => {
 
     switch(action){
         case Actions.PLACE_TILE:
+
             tileType = req.body.type;
             tileLoc = req.body.position;
             redis.rpush('actionQueue', JSON.stringify({id:id, action:action, type:tileType, position:tileLoc}));
             res.json({status:"Ok"})
             break;
+
         case Actions.SET_WORK:
+
             unit = req.body.unitId;
             tileLoc = req.body.position;
             redis.rpush('actionQueue', JSON.stringify({id:id, action:action, unit:unit, position:tileLoc}))
             res.json({status:"Ok"})
             break;
+
+        case Actions.ATTACK:
+
+            unit = req.body.unitId;
+            tileLoc = req.body.position;
+            redis.rpush('actionQueue', JSON.stringify({id:id, action:action, unit:unit, position:tileLoc}))
+            res.json({status:"Ok"})
+            break;
+
         default:
             res.json({status:"Fail"})
     };

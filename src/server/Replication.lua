@@ -12,7 +12,7 @@ local Players = game:GetService("Players")
 local Http    = game:GetService("HttpService")
 
 local API_URL = "https://api.mysty.dev/pion/"
-local Actions = {PLACE_TILE = 0, SET_WORK = 1}
+local Actions = {NEW_PLAYER = 0, PLACE_TILE = 1, SET_WORK = 2, ATTACK = 3}
 
 local currentWorld
 
@@ -56,8 +56,27 @@ local function unitWorkRequest(player, unit, tile)
         position = Tile.getIndex(tile)
     }
 
+    print("WorkRequest:", Actions.SET_WORK, Tile.getIndex(tile))
+
     local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
     res = Http:JSONDecode(res)
+
+    return res.status == "Ok"
+end
+
+local function unitAttackRequest(player, unit, tile)
+
+    local payload = {
+        id = player.UserId,
+        action = Actions.ATTACK,
+        unitId = unit.Id,
+        position = Tile.getIndex(tile)
+    }
+
+    local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
+    res = Http:JSONDecode(res)
+
+    print("Attack:", res.status)
 
     return res.status == "Ok"
 end
@@ -72,9 +91,8 @@ function Replication.assignWorld(w)
     Network.RequestWorldState.OnServerInvoke    = worldStateRequest
     Network.RequestStats.OnServerInvoke         = statsRequest
     Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
-    Network.RequestUnitHome.OnServerInvoke      = unitWorkRequest --TODO: change this
     Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
-    Network.RequestUnitTarget.OnServerInvoke    = unitWorkRequest
+    Network.RequestUnitAttack.OnServerInvoke    = unitAttackRequest
     Network.GetCircularTiles.OnServerInvoke     = getCircularTiles
     Network.Ready.OnServerInvoke = function() return true end
 end

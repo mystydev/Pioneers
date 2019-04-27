@@ -8,7 +8,8 @@ Unit.VILLAGER   = 1
 Unit.FARMER     = 2
 Unit.LUMBERJACK = 3
 Unit.MINER      = 4
-Unit.SOLDIER    = 5
+Unit.APPRENTICE = 5
+Unit.SOLDIER    = 6
 
 Unit.Localisation = {}
 Unit.Localisation[Unit.NONE]       = "Unknown Unit"
@@ -16,6 +17,7 @@ Unit.Localisation[Unit.VILLAGER]   = "Villager"
 Unit.Localisation[Unit.FARMER]     = "Farmer"
 Unit.Localisation[Unit.LUMBERJACK] = "Lumberjack"
 Unit.Localisation[Unit.MINER]      = "Miner"
+Unit.Localisation[Unit.APPRENTICE] = "Apprentice"
 Unit.Localisation[Unit.SOLDIER]    = "Soldier"
 
 Unit.UnitState = {}
@@ -25,6 +27,7 @@ Unit.UnitState.MOVING  = 2
 Unit.UnitState.WORKING = 3
 Unit.UnitState.RESTING = 4
 Unit.UnitState.STORING = 5
+Unit.UnitState.COMBAT  = 6
 
 Unit.StateLocalisation = {}
 Unit.StateLocalisation[Unit.UnitState.IDLE]    = "Idle"
@@ -33,6 +36,7 @@ Unit.StateLocalisation[Unit.UnitState.MOVING]  = "Moving"
 Unit.StateLocalisation[Unit.UnitState.WORKING] = "Working"
 Unit.StateLocalisation[Unit.UnitState.RESTING] = "Resting"
 Unit.StateLocalisation[Unit.UnitState.STORING] = "Storing"
+Unit.StateLocalisation[Unit.UnitState.COMBAT]  = "In Combat"
 
 function Unit.serialise(unit)
     local index = unit.Id
@@ -70,12 +74,16 @@ function Unit.deserialise(index, sdata, tiles)
     unit.Health   = data.Health
     unit.Fatigue  = data.Fatigue
     unit.Home     = tiles[data.Home]
-    unit.Work     = tiles[data.Work]
+    unit.Work     = tiles[data.Work] or {Type = 0}
     unit.Target   = tiles[data.Target]
     unit.State    = data.State
     unit.HeldResource = data.HeldResource
 
     return unit
+end
+
+function Unit.isMilitary(unit)
+    return unit.Type == Unit.APPRENTICE or unit.Type == Unit.SOLDIER
 end
 
 return Unit

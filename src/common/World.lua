@@ -5,6 +5,13 @@ local Tile = require(Common.Tile)
 
 local format = string.format
 
+World.Actions = {NEW_PLAYER = 0, PLACE_TILE = 1, SET_WORK = 2, ATTACK = 3}
+World.UnitActions = {World.Actions.SET_WORK, World.Actions.ATTACK}
+
+World.ActionLocalisation = {}
+World.ActionLocalisation[World.Actions.SET_WORK] = "Assign work"
+World.ActionLocalisation[World.Actions.ATTACK]   = "Attack"
+
 function World.new(Tiles, Units)
     local new = {}
 

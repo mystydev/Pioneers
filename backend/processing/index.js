@@ -8,11 +8,11 @@ const MAX_FATIGUE = 10;
 const HOUSE_UNIT_NUMBER = 2;
 const SPAWN_TIME = 10;
 const SPAWN_REQUIRED_FOOD = 100;
-const TileType = {GRASS:0,KEEP:1,PATH:2,HOUSE:3,FARM:4,MINE:5,FORESTRY:6,STORAGE:7,BARRACKS:8,WALL:9,GATE:10};
-const UnitType = {NONE:0,VILLAGER:1,FARMER:2,LUMBERJACK:3,MINER:4,SOLDIER:5};
-const UnitState = {IDLE:0, DEAD:1, MOVING:2, WORKING:3, RESTING:4, STORING:5};
+const TileType = {DESTROYED:-1,GRASS:0,KEEP:1,PATH:2,HOUSE:3,FARM:4,MINE:5,FORESTRY:6,STORAGE:7,BARRACKS:8,WALL:9,GATE:10};
+const UnitType = {NONE:0,VILLAGER:1,FARMER:2,LUMBERJACK:3,MINER:4, APPRENTICE:5, SOLDIER:6};
+const UnitState = {IDLE:0, DEAD:1, MOVING:2, WORKING:3, RESTING:4, STORING:5, COMBAT:6};
 const ResourceType = {FOOD:"Food", WOOD:"Wood", STONE:"Stone"};
-const Actions = {PLACE_TILE:0,SET_WORK:1,NEW_PLAYER:2};
+const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3};
 //PLACE_TILE = user id, action enum, tile type enum, tile as position string
 //SET_WORK   = user id, action enum, unitid, tile as position string
 //NEW_PLAYER = user id, action enum, playerid
@@ -38,7 +38,7 @@ const DefaultTile = [
     {Type:TileType.MINE, Health:100, unitlist:[]},
     {Type:TileType.FORESTRY, Health:100, unitlist:[]},
     {Type:TileType.STORAGE, Health:300},
-    {Type:TileType.BARRACKS, Health:1000},
+    {Type:TileType.BARRACKS, Health:1000, unitlist:[]},
     {Type:TileType.WALL, Health:10000},
     {Type:TileType.GATE, Health:10000},
 ]
@@ -91,6 +91,25 @@ async function fetchRedisData(){
     }
 }
 
+function getTile(x, y) {
+    return Tiles[x+":"+y];
+}
+
+function getTile(pos) {
+    return Tiles[pos];
+}
+
+function safeType(pos){
+    var Tile = Tiles[pos];
+
+    return Tile ? Tile.Type : TileType.GRASS;
+}
+
+function toPosition(posString) {
+    var [x, y] = posString.split(":");
+    return [parseInt(x), parseInt(y)];
+}
+
 function addResource(id, resource, redispipe){
     var stats = UserStats[id];
 
@@ -126,6 +145,17 @@ function canBuild(id, type){
     return true;
 }
 
+function isMilitary(unitType){
+    return unitType >= UnitType.APPRENTICE && unitType <= UnitType.SOLDIER;
+}
+
+function isWalkable(position, unit){
+    let type = safeType(position)
+
+    if (type == TileType.PATH) return true;
+    else if (type == TileType.GRASS && isMilitary(unit.Type)) return true;
+}
+
 function verifyTilePlacement(redispipe, id, position, type){
     let tile = Tiles[position];
     
@@ -150,20 +180,27 @@ function verifyTilePlacement(redispipe, id, position, type){
     }
 }
 
-function verifyWorkAssignment(redispipe, id, unitid, position){
+function verifyAttackAssignment(redispipe, id, unitid, position){
+    
     let unit = Units[unitid];
     let tile = Tiles[position];
 
-    if (unit && tile && unit.OwnerId == id && tile.OwnerId == id && tile.unitlist.length == 0){
+    if (!unit || !tile || tile.Type == TileType.GRASS) return;
+    if (costHeuristic(unit.Posx+":"+unit.Posy, position) != 1) {console.log("Attack target too far!", costHeuristic(unit.Posx+":"+unit.Posy, position), unit.Posx+":"+unit.Posy, position); return}
+    unit.Attack = position;
+    console.log(unit.Attack, Units[unitid]);
+    redispipe.hset('units', unitid, JSON.stringify(unit));
+}
 
-        if (unit.Work) {
-            let work = Tiles[unit.Work];
-            work.unitlist = [];
-            redispipe.hset('tiles', unit.Work, JSON.stringify(work));
-        }
+function verifyWorkAssignment(redispipe, id, unitid, position){
 
-        unit.Work = position;
-        unit.Target = position;
+    let unit = Units[unitid];
+    let tile = Tiles[position];
+    if (!tile) tile = {Type:TileType.GRASS, OwnerId:id, unitlist:[]};
+
+    if (unit && unit.OwnerId == id && tile.OwnerId == id && tile.unitlist.length == 0){
+
+        let assigned = true;
 
         if (tile.Type == TileType.FARM){
             unit.Type = UnitType.FARMER;
@@ -171,11 +208,30 @@ function verifyWorkAssignment(redispipe, id, unitid, position){
             unit.Type = UnitType.LUMBERJACK;
         } else if (tile.Type == TileType.MINE){
             unit.Type = UnitType.MINER;
+        } else if (tile.Type == TileType.BARRACKS) {
+            unit.Type = UnitType.APPRENTICE;
+            if (!unit.Training) unit.Training = 0;
+        } else if (tile.Type == TileType.GRASS && isMilitary(unit.Type)) {
+            
+        } else {
+            assigned = false;
         }
 
-        tile.unitlist.push(unit.Id);
-        redispipe.hset('units', unitid, JSON.stringify(unit));
-        redispipe.hset('tiles', position, JSON.stringify(tile));
+        if (assigned) {
+
+            if (unit.Work && Tiles[unit.Work]) {
+                let work = Tiles[unit.Work];
+                work.unitlist = [];
+                redispipe.hset('tiles', unit.Work, JSON.stringify(work));
+            }
+    
+            unit.Work = position;
+            unit.Target = position;
+            
+            tile.unitlist.push(unit.Id);
+            redispipe.hset('tiles', position, JSON.stringify(tile));      
+            redispipe.hset('units', unitid, JSON.stringify(unit));
+        }
     }
 }
 
@@ -194,15 +250,19 @@ async function processActionQueue(redispipe){
         let action = JSON.parse(actions[index]);
 
         switch(action.action){
+
+            case Actions.NEW_PLAYER:
+                handleNewPlayer(redispipe, action.id);
+                break;
             case Actions.PLACE_TILE:
                 verifyTilePlacement(redispipe, action.id, action.position, action.type);
                 break;
             case Actions.SET_WORK:
                 verifyWorkAssignment(redispipe, action.id, action.unit, action.position);
                 break;
-            case Actions.NEW_PLAYER:
-                handleNewPlayer(redispipe, action.id);
-                break
+            case Actions.ATTACK:
+                verifyAttackAssignment(redispipe, action.id, action.unit, action.position);
+                break;
             default:
                 console.log("Unknown action!", action);
         }
@@ -246,25 +306,6 @@ function addProduceToUnit(unit, produce){
         unit.HeldResource.Amount += produce.Amount;
 }
 
-function getTile(x, y) {
-    return Tiles[x+":"+y];
-}
-
-function getTile(pos) {
-    return Tiles[pos];
-}
-
-function safeType(pos){
-    var Tile = Tiles[pos];
-
-    return Tile ? Tile.Type : TileType.GRASS;
-}
-
-function toPosition(posString) {
-    var [x, y] = posString.split(":");
-    return [parseInt(x), parseInt(y)];
-}
-
 function fCompare(obj1, obj2){
     let val = obj1.f - obj2.f
     return val != 0 ? val : -1;
@@ -305,8 +346,9 @@ function reconstructPath(start, end, cameFrom){
     var path = []
     var current = end
 
+
     while (current != start) {
-        path.unshift(current);
+        path.unshift(current); //TODO: perf test
         current = cameFrom[current];
     }
 
@@ -331,7 +373,7 @@ function getMin(set){
 }
 
 //A* implementation
-function findPath(start, target) {
+function findPath(start, target, unit) {
     var openSet = [];
     var closedSet = new Set();
     var cameFrom = {};
@@ -342,17 +384,12 @@ function findPath(start, target) {
     gScore[start] = 0;
 
     while (iterations++ < 1000) {
-        //var current = openSet.min();
         let [ind, current] = getMin(openSet);
-
-        if (!current) {
-            console.log("Unable to get min from openset!"); 
-            return;
-        }
 
         openSet.splice(ind, 1);
 
-        //if (!openSet.remove(current)) return false;
+        if (!current) return console.log("No path found!");
+
         if (current.p == target) {
             return reconstructPath(start, target, cameFrom);
         }
@@ -365,12 +402,12 @@ function findPath(start, target) {
             var neighbour = neighbours[n];
 
             if (closedSet.has(neighbour)) continue;
-            if ((!getTile(neighbour) || getTile(neighbour).Type != TileType.PATH) && neighbour != target) continue;
+            if ((!isWalkable(neighbour, unit)) && neighbour != target) continue;
             if (!gScore[neighbour]) gScore[neighbour] = Infinity;
 
             var g = gScore[current.p] + 1
 
-            if (g < gScore[neighbour]) {
+            if (g < gScore[neighbour] && g < 100) {
                 gScore[neighbour] = g
                 cameFrom[neighbour] = current.p;
                 openSet.push({p:neighbour, f:(g + costHeuristic(neighbour, target))});
@@ -414,18 +451,21 @@ function establishUnitState(unit) {
     var hasHome = unit.Home;
     var hasWork = unit.Work;
     var hasTarget = unit.Target;
-    var hasResource = unit.HeldResource;
+    var hasResource = unit.HeldResource && unit.HeldResource.Amount > 0;
     var atHome = pos == hasHome;
     var atWork = pos == hasWork;
     var atTarget = pos == hasTarget;
-    
+
     if (unit.Health == 0)
         return [UnitState.DEAD, pos, hasTarget];
+
+    else if (unit.Attack)
+        return [UnitState.COMBAT, pos, hasTarget];
 
     else if (hasTarget && !atTarget)
         return [UnitState.MOVING, pos, hasTarget];
 
-    else if (unit.Fatigue < MAX_FATIGUE && atWork)
+    else if (atWork)
         return [UnitState.WORKING, pos, hasWork];
 
     else if (hasResource) 
@@ -511,16 +551,68 @@ async function processRound() {
 
         switch(state){
             case UnitState.MOVING:
-                var path = findPath(pos, target);
+                var path = findPath(pos, target, unit);
                 if (!path) {console.warn("Unit could not find a path!");return;}
                 [unit.Posx, unit.Posy] = toPosition(path[0]);
                 break;
 
+            case UnitState.COMBAT:
+
+                let attacked = getTile(unit.Attack)
+
+                if (!attacked) {
+                    delete unit.Attack;
+                    break;
+                }
+
+                let list = attacked.unitlist;
+
+                if (list && list.length > 0 && isMilitary(list[0].Type)){
+                    list[0].Health -= 1;
+                    list[0].Work = list[1].Position;
+                    list[0].Attack = pos;
+
+                    console.log(list);
+                    
+                    if (list[0].Health <= 0) list[0].State = UnitState.DEAD;
+                    redispipe.hset('units', id, JSON.stringify(unit));
+
+                } else {
+                    
+                    attacked.Health -= 1;
+                    console.log(attacked);
+                    redispipe.hset('tiles', unit.Attack, JSON.stringify(attacked));
+
+                    if (attacked.Health <= 0){
+                        attacked.Type = TileType.DESTROYED;
+                        delete unit.Attack;
+                    }
+                }
+                break;
+
             case UnitState.WORKING:
-                var produce = getTileOutput(pos);
-                addProduceToUnit(unit, produce)
-                if (unit.Fatigue++ >= MAX_FATIGUE)
-                    unit.Target = findClosestStorage(pos);
+
+                if (isMilitary(unit.Type)) {
+
+                    unit.Training++;
+
+                    if (unit.Training > 10) {
+                        unit.Type = UnitType.SOLDIER;
+                    }
+
+                    unit.Fatigue += 0.1;
+                    if (unit.Fatigue >= MAX_FATIGUE)
+                        unit.Target = findClosestStorage(pos);
+
+                } else {
+                    var produce = getTileOutput(pos);
+                    addProduceToUnit(unit, produce)
+
+                    if (unit.Fatigue++ >= MAX_FATIGUE)
+                        unit.Target = findClosestStorage(pos);
+                }
+
+
                 break;
 
             case UnitState.RESTING:
@@ -546,6 +638,10 @@ async function processRound() {
                 } else {
                     unit.Target = findClosestStorage(pos);
                 }
+                break;
+
+            case UnitState.IDLE:
+                unit.Target = unit.Home;
                 break;
         }
 

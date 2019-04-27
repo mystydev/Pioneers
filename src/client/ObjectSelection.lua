@@ -7,6 +7,7 @@ local ViewTile        = require(Client.ViewTile)
 local ViewWorld       = require(Client.ViewWorld)
 local Replication     = require(Client.Replication)
 local Tile            = require(Common.Tile)
+local World           = require(Common.World)
 
 local RunService   = game:GetService("RunService")
 local UIS          = game:GetService("UserInputService")
@@ -18,7 +19,7 @@ local player     = Players.LocalPlayer
 local sgui       = Instance.new("ScreenGui", player.PlayerGui)
 local viewport   = Instance.new("ViewportFrame", sgui)
 local blur       = Instance.new("BlurEffect")
-local desaturate = Instance.new("ColorCorrectionEffect")
+local desaturate = Lighting.BaseCorrection
 local tweenSlow  = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local tweenFast  = TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
@@ -133,8 +134,7 @@ local function mouseClicked()
 end
 
 local function processInput(input, processed)
-    if currentWorld.Dead then return end
-    if processed then return end
+    if not currentWorld or currentWorld.Dead or processed then return end
 
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         mouseClicked()
@@ -196,25 +196,28 @@ function ObjectSelection.buildTileAtSelection(tileType)
 end
 
 --Async!
-function ObjectSelection.startUnitTileSelectPrompt()
+function ObjectSelection.startUnitTileSelectPrompt(action)
     TweenService:Create(blur, tweenSlow, {Size = 5}):Play()
 
     tempUnfocusInsts()
 
     local tempFocused = {}
 
-    for index, tile in pairs(currentWorld.Tiles) do
-        if (tile.Type == Tile.FARM
-            or tile.Type == Tile.FORESTRY
-            or tile.Type == Tile.MINE) 
-            and #tile.unitlist == 0 then
+    if action == World.UnitActions.SET_WORK then
+        for index, tile in pairs(currentWorld.Tiles) do
+            if (tile.Type == Tile.FARM
+                or tile.Type == Tile.FORESTRY
+                or tile.Type == Tile.MINE
+                or tile.Type == Tile.BARRACKS) 
+                and #tile.unitlist == 0 then
 
-            local inst = ViewWorld.convertObjectToInst(tile)
-            focusInst(inst)
-            tempFocused[inst] = true
+                local inst = ViewWorld.convertObjectToInst(tile)
+                focusInst(inst)
+                tempFocused[inst] = true
+            end
         end
     end
-
+    
     local object
 
     inPrompt = function()
@@ -242,11 +245,16 @@ function ObjectSelection.startUnitTileSelectPrompt()
     end
 end
 
-function ObjectSelection.assignWorkPrompt()
-    local tile = ObjectSelection.startUnitTileSelectPrompt()
+function ObjectSelection.assignTilePrompt(action)
+    local tile = ObjectSelection.startUnitTileSelectPrompt(action)
 
     if tile then
-        Replication.requestUnitWork(selectedObject, tile)
+        if action == World.Actions.SET_WORK then
+            Replication.requestUnitWork(selectedObject, tile)
+        elseif action == World.Actions.ATTACK then
+            Replication.requestUnitAttack(selectedObject, tile)
+        end
+
         unselect()
     end
 end

@@ -52,7 +52,6 @@ LogService.MessageOut:Connect(function(message, type)
             world.Dead = true
         end
 
-        game.Lighting.ColorCorrection:Destroy()
         game.Lighting.Blur:Destroy()
 
         script:Clone().Parent = script.Parent

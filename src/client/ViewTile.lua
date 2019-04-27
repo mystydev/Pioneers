@@ -20,7 +20,7 @@ local meshId = {}
 meshId[Tile.GRASS]    = {mesh = "rbxassetid://3029151403", texture = "rbxassetid://3080817017", offset = Vector3.new(0,     0,    0)}
 meshId[Tile.KEEP]     = {mesh = "rbxassetid://3051772197", texture = "rbxassetid://3051753777", offset = Vector3.new(0, 11.007, 0)}
 meshId[Tile.HOUSE]    = {mesh = "rbxassetid://3051012602", texture = "rbxassetid://3051015865", offset = Vector3.new(0, 5.479, 0)}
-meshId[Tile.PATH]     = {mesh = "rbxassetid://3054365062", texture = "rbxassetid://3054364701", offset = Vector3.new(0,     0,    0)}
+meshId[Tile.PATH]     = {mesh = "rbxassetid://3054365062", texture = "rbxassetid://3054364701", offset = Vector3.new(0,     0.5,    0)}
 meshId[Tile.FARM]     = {mesh = "rbxassetid://3054440853", texture = "rbxassetid://3054440951", offset = Vector3.new(-0.015, 1.594, 0.059)}
 meshId[Tile.FORESTRY] = {mesh = "rbxassetid://3054515092", texture = "rbxassetid://3054515216", offset = Vector3.new(0, 7.682, 0.131)}
 meshId[Tile.MINE]     = {mesh = "rbxassetid://3069462867", texture = "rbxassetid://3069463016", offset = Vector3.new(0, 1.795,    0)}
@@ -29,10 +29,11 @@ meshId[Tile.BARRACKS] = {mesh = "rbxassetid://3105724031", texture = "rbxassetid
 meshId[Tile.WALL]     = {mesh = "rbxassetid://3105142037", texture = "rbxassetid://3105142120", offset = Vector3.new(0, 12.5, 0)}
 
 local meshes = {}
+meshes[Tile.DESTROYED] = {mesh = Assets.Ruins,  offset = Vector3.new(0,     0,    0)}
 meshes[Tile.GRASS]    = {mesh = Assets.Hexagon,  offset = Vector3.new(0,     0,    0)}
 meshes[Tile.KEEP]     = {mesh = Assets.Keep,     offset = Vector3.new(0, 11.007, 0)}
 meshes[Tile.HOUSE]    = {mesh = Assets.House,    offset = Vector3.new(0, 5.479, 0)}
-meshes[Tile.PATH]     = {mesh = Assets.Path,     offset = Vector3.new(0,     0,    0)}
+meshes[Tile.PATH]     = {mesh = Assets.Path,     offset = Vector3.new(0,     0.25,    0)}
 meshes[Tile.FARM]     = {mesh = Assets.Farm,     offset = Vector3.new(-0.015, 1.594, 0.059)}
 meshes[Tile.FORESTRY] = {mesh = Assets.Forestry, offset = Vector3.new(0, 7.682, 0.131)}
 meshes[Tile.MINE]     = {mesh = Assets.Mine,     offset = Vector3.new(0, 1.795,    0)}

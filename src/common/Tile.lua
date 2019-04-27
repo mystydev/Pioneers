@@ -3,6 +3,7 @@ local Tile = {}
 
 local HttpService = game:GetService("HttpService")
 
+Tile.DESTROYED = -1
 Tile.GRASS = 0
 Tile.KEEP = 1
 Tile.PATH = 2
@@ -18,6 +19,7 @@ Tile.GATE = 10
 Tile.NumberTypes = 10
 
 Tile.Localisation = {}
+Tile.Localisation[Tile.DESTROYED]= "Ruins"
 Tile.Localisation[Tile.GRASS]    = "Grass"
 Tile.Localisation[Tile.KEEP]     = "Keep"
 Tile.Localisation[Tile.PATH]     = "Path"

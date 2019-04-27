@@ -11,6 +11,7 @@ local handle
 
 function ViewStats.init(stats)
     sgui.Name = "Stats view"
+    sgui.DisplayOrder = 2
     handle = Roact
     Roact.mount(Roact.createElement(StatsPanel, {stats = stats}), sgui)
 end

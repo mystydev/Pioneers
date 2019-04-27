@@ -8,7 +8,7 @@ local loading = true
 local loadingGui
 
 local tweenInfo  = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local fastTween  = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local fastTween  = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local spinnerTween = TweenInfo.new(0.3, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1)
 
 preload.Loaded = false
@@ -16,40 +16,56 @@ preload.Loaded = false
 local assetsLoaded = false
 local currentText = ""
 
-local function updateInfo(text, override)
-    if not preload.Aborting then
-        if override then
-            TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
-            wait(0.4)
+local lock
+local queued = {}
+local queuelength = 0
+local function updateInfo(text, loadedOverride, queueOverride)
+    spawn(function()
+
+        if queued[text] and not queueOverride then 
+            return end
+
+        if not queueOverride then 
+            queuelength = queuelength + 1 
         end
 
-        if not preload.Loaded or override then
-            loadingGui.Info.Text = text
-            TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 0}):Play()
+        queued[text] = true
+
+        while lock do
+            wait()
         end
-    end
+
+        if not queueOverride then 
+            queuelength = queuelength - 1 
+        end
+
+        if not preload.Loaded or loadedOverride then
+            lock = true
+            
+            if not preload.Aborting then
+
+                TweenService:Create(loadingGui.Info, queuelength == 0 and infoTween or fastTween, {TextTransparency = 1}):Play()
+                wait(queuelength == 0 and 0.5 or 0.1)
+                loadingGui.Info.Text = text
+                TweenService:Create(loadingGui.Info, queuelength == 0 and infoTween or fastTween, {TextTransparency = 0}):Play()
+                wait(queuelength == 0 and 0.5 or 0.1)
+                
+            end
+
+            lock = false
+        end
+    end)
 end
 
 --show update then return to previous text
-local function smallUpdateInfo(text)
-    if preload.Loaded then
-        return end
+local function smallUpdateInfo(text, override)
 
     local t = loadingGui.Info.Text
-    TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
-    wait(0.5)
     updateInfo(text)
-    wait(0.5)
-
-    if preload.Loaded then
-        return end
-
-    TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
-    wait(0.5)
-    updateInfo(t)
+    updateInfo(t, false, true)
 end
 
-_G.updateLoadStatus = updateInfo
+_G.updateLoadStatus = updateInfo --Yes this will be changed
 
 local function load()
     loadingGui = game.StarterGui.LoadingGui:Clone()
@@ -60,8 +76,8 @@ local function load()
 
     spawn(function()
         ContentProvider:PreloadAsync(game.ReplicatedStorage.Pioneers.Assets:GetChildren())
+        smallUpdateInfo("Assets loaded", true)
         assetsLoaded = true
-        smallUpdateInfo("Assets loaded...")
     end)
 
     TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 0}):Play()
@@ -103,7 +119,9 @@ function preload.tellReady()
         preload.Loaded = true
 
         spawn(function()
-            updateInfo("Let's go!", true)
+            repeat wait() until assetsLoaded and queuelength == 0
+
+            updateInfo("Ready", true)
 
             wait(1)
 
