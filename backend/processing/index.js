@@ -8,9 +8,11 @@ const MAX_FATIGUE = 10;
 const HOUSE_UNIT_NUMBER = 2;
 const SPAWN_TIME = 10;
 const SPAWN_REQUIRED_FOOD = 100;
+const MAX_STORAGE_DIST = 15;
+const MAX_PATH_LENGTH = 15;
 const TileType = {DESTROYED:-1,GRASS:0,KEEP:1,PATH:2,HOUSE:3,FARM:4,MINE:5,FORESTRY:6,STORAGE:7,BARRACKS:8,WALL:9,GATE:10};
 const UnitType = {NONE:0,VILLAGER:1,FARMER:2,LUMBERJACK:3,MINER:4, APPRENTICE:5, SOLDIER:6};
-const UnitState = {IDLE:0, DEAD:1, MOVING:2, WORKING:3, RESTING:4, STORING:5, COMBAT:6};
+const UnitState = {IDLE:0, DEAD:1, MOVING:2, WORKING:3, RESTING:4, STORING:5, COMBAT:6, LOST:7};
 const ResourceType = {FOOD:"Food", WOOD:"Wood", STONE:"Stone"};
 const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3};
 //PLACE_TILE = user id, action enum, tile type enum, tile as position string
@@ -388,7 +390,7 @@ function findPath(start, target, unit) {
 
         openSet.splice(ind, 1);
 
-        if (!current) return console.log("No path found!");
+        if (!current) return;
 
         if (current.p == target) {
             return reconstructPath(start, target, cameFrom);
@@ -407,7 +409,7 @@ function findPath(start, target, unit) {
 
             var g = gScore[current.p] + 1
 
-            if (g < gScore[neighbour] && g < 100) {
+            if (g < MAX_PATH_LENGTH && g < gScore[neighbour]) {
                 gScore[neighbour] = g
                 cameFrom[neighbour] = current.p;
                 openSet.push({p:neighbour, f:(g + costHeuristic(neighbour, target))});
@@ -415,13 +417,15 @@ function findPath(start, target, unit) {
         }
     }
 
-    console.warn("Aborted path that explored too far!");
+    //console.warn("Aborted path that explored too far!");
 }   
 
 function findClosestStorage(pos) {
     var searchQueue = [pos];
     var current;
     let index = 0;
+    let distance = {}
+    distance[pos] = 0;
 
     while (current = searchQueue[index++]){
         let neighbours = getNeighbours(current);
@@ -431,9 +435,10 @@ function findClosestStorage(pos) {
         for (let i in neighbours) {
 
             neighbour = neighbours[i];
+            distance[neighbour] = distance[current] + 1;
 
-            if (checked.has(neighbour)) continue;
-
+            if (checked.has(neighbour) || distance[neighbour] > MAX_STORAGE_DIST) continue;
+            
             type = safeType(neighbour);
 
             if (type == TileType.STORAGE || type == TileType.KEEP){
@@ -552,7 +557,7 @@ async function processRound() {
         switch(state){
             case UnitState.MOVING:
                 var path = findPath(pos, target, unit);
-                if (!path) {console.warn("Unit could not find a path!");return;}
+                if (!path) {unit.State = UnitState.LOST; break;}
                 [unit.Posx, unit.Posy] = toPosition(path[0]);
                 break;
 
@@ -612,6 +617,7 @@ async function processRound() {
                         unit.Target = findClosestStorage(pos);
                 }
 
+                if (!unit.Target) unit.State = UnitState.LOST;
 
                 break;
 
@@ -637,6 +643,8 @@ async function processRound() {
                         unit.Target = unit.Home;
                 } else {
                     unit.Target = findClosestStorage(pos);
+
+                    if (!unit.Target) unit.State = UnitState.LOST;
                 }
                 break;
 

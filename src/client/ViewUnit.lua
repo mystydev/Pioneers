@@ -4,6 +4,7 @@ local Common   = game.ReplicatedStorage.Pioneers.Common
 local Assets   = game.ReplicatedStorage.Pioneers.Assets
 
 local ClientUtil = require(Client.ClientUtil)
+local SoundManager = require(Client.SoundManager)
 local Util       = require(Common.Util)
 local Unit       = require(Common.Unit)
 local Tile       = require(Common.Tile)
@@ -310,7 +311,7 @@ function ViewUnit.updateDisplay(unit)
             and unit.Target 
             and unit.Target.Position == unit.Work.Position)
             or unit.State == Unit.UnitState.COMBAT then
-                
+
             if onBack[model] then
 
                 onBack[model] = false
@@ -402,7 +403,8 @@ function ViewUnit.updateDisplay(unit)
         
         if not lastanims[model] or lastanims[model] ~= actionAnim then
             lastanims[model] = actionAnim
-            delay(1.5, function() actionAnim:Play(1) end)
+            SoundManager.animSounds(currentItem, actionAnim)
+            delay(math.random()+0.75, function() actionAnim:Play(1) end)
         end
 
         model.HumanoidRootPart.StatusEmitter.Enabled = not Unit.isMilitary(unit)

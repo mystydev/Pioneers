@@ -72,6 +72,8 @@ function Replication.requestTilePlacement(tile, type)
     if not success then
         print("Tile placement request failed!")
     end
+
+    return success
 end
 
 function Replication.requestUnitWork(unit, tile)
@@ -80,6 +82,8 @@ function Replication.requestUnitWork(unit, tile)
     if not success then
         print("Work request failed!")
     end
+
+    return success
 end
 
 function Replication.requestUnitAttack(unit, tile)
@@ -88,6 +92,8 @@ function Replication.requestUnitAttack(unit, tile)
     if not success then
         print("Attack request failed!")
     end
+
+    return success
 end
 
 function handleUnitUpdate(unit)

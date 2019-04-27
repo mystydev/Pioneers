@@ -7,6 +7,7 @@ local UnitInfoLabel = require(ui.UnitInfoLabel)
 local Label = require(ui.Label)
 local Tile = require(Common.Tile)
 local ObjectSelection = require(Client.ObjectSelection)
+local SoundManager    = require(Client.SoundManager)
 
 local TweenService = game:GetService("TweenService")
 
@@ -33,6 +34,7 @@ function BuildListButton:render()
         [Roact.Ref] = self.instRef,
         [Roact.Event.MouseButton1Click] = function() ObjectSelection.buildTileAtSelection(self.state.Type) end,
         [Roact.Event.InputChanged] = function() self.state.call(self.state.Type) end,
+        [Roact.Event.MouseEnter] = SoundManager.highlight,
     }, {
         Label = Roact.createElement(Label, {
             Text = Tile.Localisation[self.state.Type],

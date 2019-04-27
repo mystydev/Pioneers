@@ -28,6 +28,7 @@ Unit.UnitState.WORKING = 3
 Unit.UnitState.RESTING = 4
 Unit.UnitState.STORING = 5
 Unit.UnitState.COMBAT  = 6
+Unit.UnitState.LOST    = 7
 
 Unit.StateLocalisation = {}
 Unit.StateLocalisation[Unit.UnitState.IDLE]    = "Idle"
@@ -37,6 +38,7 @@ Unit.StateLocalisation[Unit.UnitState.WORKING] = "Working"
 Unit.StateLocalisation[Unit.UnitState.RESTING] = "Resting"
 Unit.StateLocalisation[Unit.UnitState.STORING] = "Storing"
 Unit.StateLocalisation[Unit.UnitState.COMBAT]  = "In Combat"
+Unit.StateLocalisation[Unit.UnitState.LOST]    = "Lost"
 
 function Unit.serialise(unit)
     local index = unit.Id

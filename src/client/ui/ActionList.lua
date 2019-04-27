@@ -8,6 +8,7 @@ local Label = require(ui.Label)
 local Tile = require(Common.Tile)
 local World = require(Common.World)
 local ObjectSelection = require(Client.ObjectSelection)
+local SoundManager    = require(Client.SoundManager)
 
 local TweenService = game:GetService("TweenService")
 
@@ -31,6 +32,7 @@ function ActionListButton:render()
         Position = self.Position or UDim2.new(0,0,0,0),
         [Roact.Ref] = self.instRef,
         [Roact.Event.MouseButton1Click] = function() ObjectSelection.assignTilePrompt(self.state.Type) end,
+        [Roact.Event.MouseEnter] = SoundManager.highlight,
     }, {
         Label = Roact.createElement(Label, {
             Text = World.ActionLocalisation[self.state.Type],

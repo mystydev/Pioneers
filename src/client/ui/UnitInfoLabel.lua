@@ -25,13 +25,15 @@ function UnitInfoLabel:render()
 
     local state = self.state.Unit.State and Unit.StateLocalisation[self.state.Unit.State] or "unknown"
 
+    local displayImage = StateDisplay[self.state.Unit.State] or StateDisplay[Unit.UnitState.IDLE]
+
     return Roact.createElement("ImageButton", {
         Name = "UnitInfoLabel",
         BackgroundTransparency = 1,
         Position = self.state.Position or UDim2.new(0, 0, 0, 0),
         Size = self.state.Size or UDim2.new(0, 232, 0, 32),
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Image = StateDisplay[self.state.Unit.State],
+        Image = displayImage,
         [Roact.Event.MouseButton1Click] = function() ObjectSelection.select(self.state.Unit) end
     }, {
         Label = Roact.createElement(Label, {Text = Unit.Localisation[self.state.Unit.Type] .. " - " .. state})

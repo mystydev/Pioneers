@@ -8,8 +8,9 @@ local function start()
 
     local ViewWorld       = require(Client.ViewWorld)
     local ViewStats       = require(Client.ViewStats)
-    Replication     = require(Client.Replication)
+    Replication           = require(Client.Replication)
     local ObjectSelection = require(Client.ObjectSelection)
+    local SoundManager    = require(Client.SoundManager)
     local World           = require(Common.World)
 
     print("Pioneers client waiting for server to be ready")
@@ -17,7 +18,8 @@ local function start()
     repeat wait() until Replication.ready()
 
     print("Pioneers client starting...")
-
+    
+    SoundManager.init()
     world = World.new()
 
     Replication.init(world)
@@ -41,7 +43,7 @@ LogService.MessageOut:Connect(function(message, type)
         Replication.worldDied()
 
         for i, v in pairs(workspace:GetChildren()) do
-            if (v:IsA("BasePart") or v:IsA("Model")) and v.Name ~= "Terrain" then
+            if (v:IsA("BasePart") or v:IsA("Model") or v:IsA("SoundGroup")) and v.Name ~= "Terrain" then
                 v:Destroy()
             end
         end

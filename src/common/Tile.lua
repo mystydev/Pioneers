@@ -70,7 +70,9 @@ function Tile.deserialise(index, data)
 end
 
 function Tile.getIndex(tile)
-    return string.format("%d:%d", tile.Position.x, tile.Position.y)
+    if tile.Position then
+        return string.format("%d:%d", tile.Position.x, tile.Position.y)
+    end
 end
 
 return Tile

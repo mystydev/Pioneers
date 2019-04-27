@@ -6,6 +6,7 @@ local Roact  = require(game.ReplicatedStorage.Roact)
 local ViewTile        = require(Client.ViewTile)
 local ViewWorld       = require(Client.ViewWorld)
 local Replication     = require(Client.Replication)
+local SoundManager    = require(Client.SoundManager)
 local Tile            = require(Common.Tile)
 local World           = require(Common.World)
 
@@ -47,7 +48,9 @@ local function getObjectAtMouse()
 end
 
 local function focusInst(inst)
-    focusedInsts[inst] = true
+    if inst then
+        focusedInsts[inst] = true
+    end
 end
 
 local tempinsts = {}
@@ -85,11 +88,16 @@ local function unselect(dontunmount)
         local panel = Roact.createElement(ObjectInfoPanel, {info = currentSelectionInfo})
         handle = Roact.reconcile(handle, panel)
         inPrompt = nil
+        SoundManager.endFocus()
     end
 end
 
-local function select(object, inst)
+local function select(object, inst, reselect)
     unselect(true)
+
+    if not reselect then
+        SoundManager.pullFocus()
+    end
 
     TweenService:Create(blur, tweenSlow, {Size = 20}):Play()
     TweenService:Create(desaturate, tweenSlow, {Saturation = -0.5}):Play()
@@ -189,10 +197,17 @@ function ObjectSelection.buildTileAtSelection(tileType)
     if not selectedObject then return warn("Attempted to place tile when a tile is not selected!") end
     if selectedObject.Id then return warn("Attempted to place tile on a unit!") end
 
+    SoundManager.initiatePlace()
+
     selectedObject.Type = tileType
     ViewTile.updateDisplay(selectedObject) --Predict build is ok
+    select(selectedObject, nil, true)
 
-    Replication.requestTilePlacement(selectedObject, tileType)
+    local status = Replication.requestTilePlacement(selectedObject, tileType)
+
+    if status then
+        SoundManager.success()
+    end
 end
 
 --Async!
@@ -203,7 +218,7 @@ function ObjectSelection.startUnitTileSelectPrompt(action)
 
     local tempFocused = {}
 
-    if action == World.UnitActions.SET_WORK then
+    if action == World.Actions.SET_WORK then
         for index, tile in pairs(currentWorld.Tiles) do
             if (tile.Type == Tile.FARM
                 or tile.Type == Tile.FORESTRY
@@ -249,10 +264,16 @@ function ObjectSelection.assignTilePrompt(action)
     local tile = ObjectSelection.startUnitTileSelectPrompt(action)
 
     if tile then
+        local status
+
         if action == World.Actions.SET_WORK then
-            Replication.requestUnitWork(selectedObject, tile)
+            status = Replication.requestUnitWork(selectedObject, tile)
         elseif action == World.Actions.ATTACK then
-            Replication.requestUnitAttack(selectedObject, tile)
+            status = Replication.requestUnitAttack(selectedObject, tile)
+        end
+
+        if status then
+            SoundManager.success()
         end
 
         unselect()

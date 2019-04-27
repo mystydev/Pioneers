@@ -1,7 +1,9 @@
 local ui = script.Parent
+local Client = ui.Parent
 local Common = game.ReplicatedStorage.Pioneers.Common
 local Roact = require(game.ReplicatedStorage.Roact)
 
+local SoundManager = require(Client.SoundManager)
 local Tile = require(Common.Tile)
 local BuildList = require(ui.BuildList)
 local ResourceLabel = require(ui.ResourceLabel)
@@ -39,6 +41,7 @@ function BuildButton:render()
         PressedImage           = "rbxassetid://3064053551",
         [Roact.Event.MouseButton1Click] = function() self:setState({buildList = BuildList.generate(setHoverType)}) end,
         [Roact.Event.MouseButton2Click] = function() self:setState({buildList = nil}) end, --TODO: Fix this
+        [Roact.Event.MouseEnter] = SoundManager.highlight,
     }, self.state.buildList)
 end
 
