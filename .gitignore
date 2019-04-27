@@ -4,3 +4,5 @@ site/*
 *.obj
 backend/api/node_modules/*
 backend/processing/node_modules/*
+Roact/*
+TestEZ/*
