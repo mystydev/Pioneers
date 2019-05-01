@@ -16,10 +16,12 @@ local currentStats = {}
 local syncing = true
 
 local function tileSync()
+
     while syncing do
         local pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
         local dist = ClientUtil.getCurrentViewDistance()
-        Replication.updateTiles(pos, dist)
+
+        Replication.updateTiles(pos, 15)
         wait(1)
     end
 end
@@ -50,11 +52,11 @@ function Replication.getUserStats()
     repeat
         currentStats = Network.RequestStats:InvokeServer()
     until currentStats
-
-    currentStats.Offset = {}
+    
     return currentStats
 end
 
+local buildCostBuffer = {}
 function Replication.requestTilePlacement(tile, type)
 
     local success
@@ -63,7 +65,6 @@ function Replication.requestTilePlacement(tile, type)
     if UserStats.hasEnoughResources(currentStats, reqs) then
         for res, amount in pairs(reqs) do
             currentStats[res] = currentStats[res] - amount
-            currentStats.Offset[res] = amount
         end
 
         success = Network.RequestTilePlacement:InvokeServer(tile, type)
@@ -71,6 +72,16 @@ function Replication.requestTilePlacement(tile, type)
 
     if not success then
         print("Tile placement request failed!")
+    end
+
+    return success
+end
+
+function Replication.requestTileDelete(tile)
+    success = Network.RequestTileDelete:InvokeServer(tile)
+
+    if not success then
+        print("Tile delete request failed!")
     end
 
     return success
@@ -113,24 +124,39 @@ function handleUnitUpdate(unit)
     end
 end
 
+local strayed = {}
 function handleStatsUpdate(stats)
     for i, v in pairs(stats) do
-        if currentStats.Offset and currentStats.Offset[i] then
-            currentStats[i] = v - currentStats.Offset[i]
-            currentStats.Offset[i] = nil
+
+        if i == "Food" or i == "Wood" or i == "Stone" then
+
+            if math.abs(v - currentStats[i] - currentStats['M'..i]) < 5 then
+                currentStats[i] = v
+                strayed[i] = 0
+            else
+                currentStats[i] = currentStats[i] - currentStats['M'..i]
+                strayed[i] = (strayed[i] or 0) + 1
+
+                if strayed[i] > 10 then
+                    currentStats[i] = v
+                end
+            end
         else
             currentStats[i] = v
         end
     end
 end
 
-function handleTileUpdate(tile)
+function handleTileUpdate(tile, t)
 
     local pos = tile.Position
     local localTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
+    local t = t or tick()
 
     for i, v in pairs(tile) do
-        localTile[i] = v
+        if not (localTile.lastChange and t - localTile.lastChange < 4) then
+            localTile[i] = v
+        end
     end
 
     ViewTile.updateDisplay(localTile)
@@ -138,9 +164,10 @@ end
 
 function Replication.updateTiles(pos, radius)
     local tiles = Network.GetCircularTiles:InvokeServer(pos, radius)
+    local t = tick()
 
     for _, tile in pairs(tiles) do
-        handleTileUpdate(tile)
+        handleTileUpdate(tile, t)
     end
 end
 

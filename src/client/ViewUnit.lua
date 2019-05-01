@@ -42,8 +42,7 @@ StatusIds.IDLE = "rbxassetid://3101321886"
 local StatusCols = {}
 StatusCols.FOOD = ColorSequence.new(Color3.fromRGB(255, 236, 179))
 StatusCols.WOOD = ColorSequence.new(Color3.fromRGB(46, 125, 50))
---StatusCols.STONE = ColorSequence.new(Color3.fromRGB(2, 136, 209))
-StatusCols.STONE = ColorSequence.new(Color3.fromRGB(155, 155, 155))
+StatusCols.STONE = ColorSequence.new(Color3.fromRGB(230, 230, 230))
 StatusCols.IDLE = ColorSequence.new(Color3.fromRGB(171, 8, 0))
 
 local unitToInstMap = {}
@@ -103,8 +102,8 @@ local function giveToolInsomnia(model)
         local victim = model.Handle.AlignPosition
 
         while model.Parent do
-            victim.RigidityEnabled = false
-            victim.RigidityEnabled = true
+            victim.Enabled = false
+            victim.Enabled = true
 
             RunService.Stepped:Wait()
         end
@@ -225,7 +224,7 @@ function ViewUnit.updateDisplay(unit)
     end
 
     if gatherStatus[unit] ~= unit.HeldResource.Amount then
-        model.HumanoidRootPart.StatusEmitter.Rate = math.max(0, (unit.HeldResource.Amount - gatherStatus[unit])/2)
+        model.HumanoidRootPart.StatusEmitter.Rate = math.max(0, (unit.HeldResource.Amount - gatherStatus[unit])/4)
         model.HumanoidRootPart.StatusEmitter.Size = NumberSequence.new((model.HumanoidRootPart.StatusEmitter.Rate/2)^1.5)
         gatherStatus[unit] = unit.HeldResource.Amount
     end
@@ -352,7 +351,7 @@ function ViewUnit.updateDisplay(unit)
         end
     end
 
-    if positionCache[unit] ~= unit.Position and model then
+    if positionCache[unit] ~= unit.Position and model and unit.State ~= Unit.UnitState.COMBAT then
         positionCache[unit] = unit.Position
         local cpos = model.HumanoidRootPart.Position
         local pos = Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET
@@ -369,6 +368,16 @@ function ViewUnit.updateDisplay(unit)
                 TweenService:Create(model.HumanoidRootPart, tweenInfo, {CFrame = targetcf}):Play()
             end
         end)
+    
+    elseif unit.State == Unit.UnitState.COMBAT then
+        local cpos = model.HumanoidRootPart.Position
+        local pos = Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET
+        local apos = Util.axialCoordToWorldCoord(unit.Attack.Position) + POSITION_OFFSET
+
+        local dir = (apos - cpos).unit
+        local targetcf = CFrame.new(pos:Lerp(apos, 0.15), apos)
+
+        TweenService:Create(model.HumanoidRootPart, tweenInfo, {CFrame = targetcf}):Play()
     end
 
     if unit.State == Unit.UnitState.IDLE then

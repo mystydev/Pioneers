@@ -23,16 +23,22 @@ local FocusMuteVals = {
 }
 
 function SoundManager.init()
-    local bgm = Sounds.BGM:GetChildren()
-    local i = math.random(1, #bgm)
-
-    local initialMusic = bgm[i]:Clone()
-    initialMusic.Parent = masterGroup
-    initialMusic.SoundGroup = masterGroup
-    initialMusic.Playing = true
-
+    spawn(SoundManager.newBGM)
     local focusMuteMod = Sounds.Mods.FocusMute:Clone()
     focusMuteMod.Parent = masterGroup
+end
+
+function SoundManager.newBGM()
+    local bgm = Sounds.BGM:GetChildren()
+    local i = math.random(1, #bgm)
+    music = bgm[i]:Clone()
+    music.Parent = masterGroup
+    music.SoundGroup = masterGroup
+    music.Playing = true
+
+    music.Ended:Wait()
+    music:Destroy()
+    SoundManager.newBGM()
 end
 
 function SoundManager.tempGlobal(sound)

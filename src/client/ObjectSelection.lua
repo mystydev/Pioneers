@@ -200,6 +200,7 @@ function ObjectSelection.buildTileAtSelection(tileType)
     SoundManager.initiatePlace()
 
     selectedObject.Type = tileType
+    selectedObject.lastChange = tick()
     ViewTile.updateDisplay(selectedObject) --Predict build is ok
     select(selectedObject, nil, true)
 
@@ -224,7 +225,7 @@ function ObjectSelection.startUnitTileSelectPrompt(action)
                 or tile.Type == Tile.FORESTRY
                 or tile.Type == Tile.MINE
                 or tile.Type == Tile.BARRACKS) 
-                and #tile.unitlist == 0 then
+                and #(tile.unitlist or {}) == 0 then
 
                 local inst = ViewWorld.convertObjectToInst(tile)
                 focusInst(inst)

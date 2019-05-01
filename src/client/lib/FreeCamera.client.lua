@@ -174,7 +174,10 @@ local UpdateFreecam do
 		stateRot = stateRot + dRot
 		stateRot = Vector2.new(Clamp(stateRot.x, -3/2, 3/2), stateRot.y)
 
-		local c = CFrame.new(camCFrame.p) * CFrame.Angles(0, stateRot.y, 0) * CFrame.Angles(stateRot.x, 0, 0) * CFrame.new(dPos)
+
+		local lockedY = math.max(camCFrame.p.y, 5)
+
+		local c = CFrame.new(camCFrame.p.x, lockedY, camCFrame.p.z) * CFrame.Angles(0, stateRot.y, 0) * CFrame.Angles(stateRot.x, 0, 0) * CFrame.new(dPos)
 
 		camera.CFrame = c
 		camera.Focus = c*FOCUS_OFFSET

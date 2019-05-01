@@ -2,7 +2,7 @@ local ClientUtil = {}
 
 local camera = Workspace.CurrentCamera
 
-local viewDistance = 25
+local viewDistance = 40
 
 function ClientUtil.getPlayerPosition()
     return camera.CFrame.Position

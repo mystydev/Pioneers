@@ -78,6 +78,7 @@ function Unit.deserialise(index, sdata, tiles)
     unit.Home     = tiles[data.Home]
     unit.Work     = tiles[data.Work] or {Type = 0}
     unit.Target   = tiles[data.Target]
+    unit.Attack   = tiles[data.Attack]
     unit.State    = data.State
     unit.HeldResource = data.HeldResource
 

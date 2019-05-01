@@ -11,6 +11,7 @@ local function start()
     Replication           = require(Client.Replication)
     local ObjectSelection = require(Client.ObjectSelection)
     local SoundManager    = require(Client.SoundManager)
+    local NightCycle      = require(Client.Nightcycle)
     local World           = require(Common.World)
 
     print("Pioneers client waiting for server to be ready")

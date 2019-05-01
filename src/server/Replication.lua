@@ -12,7 +12,7 @@ local Players = game:GetService("Players")
 local Http    = game:GetService("HttpService")
 
 local API_URL = "https://api.mysty.dev/pion/"
-local Actions = {NEW_PLAYER = 0, PLACE_TILE = 1, SET_WORK = 2, ATTACK = 3}
+local Actions = World.Actions
 
 local currentWorld
 
@@ -28,12 +28,6 @@ local function tilePlacementRequest(player, tile, type)
     
     local stile = World.getTile(currentWorld.Tiles, tile.Position.x, tile.Position.y)
 
-    for i, v in pairs(tile) do --TODO: bad!
-        stile[i] = v
-    end
-
-    stile.OwnerId = player.UserId
-
     local payload = {
         id = player.UserId,
         action = Actions.PLACE_TILE,
@@ -43,6 +37,23 @@ local function tilePlacementRequest(player, tile, type)
 
     local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
     res = Http:JSONDecode(res)
+
+    return res.status == "Ok"
+end
+
+local function tileDeleteRequest(player, tile)
+    local payload = {
+        id = player.UserId,
+        action = Actions.DELETE_TILE,
+        position = Tile.getIndex(tile)
+    }
+
+    for i, v in pairs(payload) do print(i,v) end
+
+    local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
+    res = Http:JSONDecode(res)
+
+    for i, v in pairs(res) do print(i,v) end
 
     return res.status == "Ok"
 end
@@ -91,6 +102,7 @@ function Replication.assignWorld(w)
     Network.RequestWorldState.OnServerInvoke    = worldStateRequest
     Network.RequestStats.OnServerInvoke         = statsRequest
     Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
+    Network.RequestTileDelete.OnServerInvoke    = tileDeleteRequest
     Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
     Network.RequestUnitAttack.OnServerInvoke    = unitAttackRequest
     Network.GetCircularTiles.OnServerInvoke     = getCircularTiles

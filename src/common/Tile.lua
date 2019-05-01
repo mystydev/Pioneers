@@ -33,16 +33,16 @@ Tile.Localisation[Tile.WALL]     = "Wall"
 Tile.Localisation[Tile.GATE]     = "Gate" 
 
 Tile.ConstructionCosts = {
-    {Stone =   0, Wood =   0}, -- keep
-    {Stone =  30, Wood =   0}, -- path
-    {Stone =  30, Wood =  60}, -- house
-    {Stone =  20, Wood =  40}, -- farm
-    {Stone =   0, Wood =  60}, -- mine
-    {Stone =  60, Wood =   0}, -- forestry
-    {Stone = 200, Wood = 200}, -- storage
-    {Stone = 10000, Wood = 10000}, -- barracks
-    {Stone = 1000, Wood =  200}, -- wall
-    {Stone = 1000, Wood = 400}  -- gate
+    {Stone =   0,   Wood =   0}, -- keep
+    {Stone =  20,   Wood =   0}, -- path
+    {Stone =  100,  Wood =  100}, -- house
+    {Stone =  75,   Wood =  75}, -- farm
+    {Stone =   0,   Wood =  150}, -- mine
+    {Stone =  150,  Wood =   0}, -- forestry
+    {Stone = 500,   Wood = 500}, -- storage
+    {Stone = 500,  Wood = 300}, -- barracks
+    {Stone = 1000, Wood =  1000}, -- wall
+    {Stone = 1000, Wood = 1500}  -- gate
 }   
 
 function Tile.serialise(tile)

@@ -11,7 +11,7 @@ var certificate = fs.readFileSync('/certs/public.pem', 'utf8');
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = https.createServer(credentials, app);
 
-const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3};
+const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3,DELETE_TILE:4};
 //PLACE_TILE = user id, action enum, tile type enum, tile as position string
 //SET_WORK   = user id, action enum, unitid, tile as position string
 
@@ -50,6 +50,12 @@ app.post("/pion/actionRequest", (req, res) => {
             unit = req.body.unitId;
             tileLoc = req.body.position;
             redis.rpush('actionQueue', JSON.stringify({id:id, action:action, unit:unit, position:tileLoc}))
+            res.json({status:"Ok"})
+            break;
+
+        case Actions.DELETE_TILE:
+            tileLoc = req.body.position;
+            redis.rpush('actionQueue', JSON.stringify({id:id, action:action, position:tileLoc}));
             res.json({status:"Ok"})
             break;
 

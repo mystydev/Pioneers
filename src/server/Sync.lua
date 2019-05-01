@@ -10,7 +10,7 @@ local UserStats   = require(Common.UserStats)
 local Players     = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 
-local SYNC_RATE = 0.5 --2 sync request a second to backend
+local SYNC_RATE = 1
 local API_URL = "https://api.mysty.dev/pion/"
 local syncing, currentWorld
 
@@ -48,8 +48,12 @@ local function syncprocess(world)
         
         local tiles = HttpService:GetAsync(API_URL.."alltiles")
         tiles = HttpService:JSONDecode(tiles)
-    
+        
+        local t = tick()
+
         for i, tile in pairs(tiles) do
+            local stile = world.Tiles[i]
+
             world.Tiles[i] = Tile.deserialise(i, tile)
             Replication.pushTileChange(world.Tiles[i])
         end
@@ -57,8 +61,6 @@ local function syncprocess(world)
         wait(SYNC_RATE)
     end
 end
-
-
 
 local function tempSyncAll(world)
 
@@ -78,7 +80,7 @@ local function tempSyncAll(world)
             Replication.tempSyncUnit(world.Units[index])
         end
 
-        wait(math.random()) --Slightly spread out load on http api
+        wait(SYNC_RATE + math.random()) --Slightly spread out load on http api
     end
 end
 
@@ -95,7 +97,7 @@ local function syncStats(player, world)
         UserStats.Store[player.UserId] = HttpService:JSONDecode(res.data)
         Replication.pushStatsChange(UserStats.Store[player.UserId])
 
-        wait(math.random())
+        wait(SYNC_RATE + math.random())
     end
 end
 
