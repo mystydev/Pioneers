@@ -691,8 +691,10 @@ async function processRound() {
                 } else {
                     var produce = getTileOutput(pos);
                     addProduceToUnit(unit, produce)
+                    
+                    unit.Fatigue++
 
-                    if (unit.Fatigue++ >= MAX_FATIGUE)
+                    if (unit.Fatigue >= MAX_FATIGUE)
                         unit.Target = findClosestStorage(pos);
                 }
 

@@ -74,13 +74,17 @@ function Unit.deserialise(index, sdata, tiles)
     unit.OwnerId  = data.OwnerId
     unit.Position = Vector2.new(data.Posx, data.Posy)
     unit.Health   = data.Health
+    unit.MHealth  = data.MHealth or 200
     unit.Fatigue  = data.Fatigue
+    unit.MFatigue = data.MFatigue or 10
+    unit.Training = data.Training
+    unit.MTraining= data.MTraining or 10000
     unit.Home     = tiles[data.Home]
     unit.Work     = tiles[data.Work] or {Type = 0}
     unit.Target   = tiles[data.Target]
     unit.Attack   = tiles[data.Attack]
     unit.State    = data.State
-    unit.HeldResource = data.HeldResource
+    unit.HeldResource = data.HeldResource or false
 
     return unit
 end

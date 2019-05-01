@@ -12,11 +12,15 @@ local function InfoDrop(props)
         Size                   = UDim2.new(0,36,0,41),
         Image                  = "rbxassetid://3063804359",
         AnchorPoint            = Vector2.new(0.5, 1),
+        ZIndex = 2,
     },{
         Label = Roact.createElement(Label, {
             Text = props.Text,
             Color = props.TextColor,
             Position = UDim2.new(0, 0, 0, -5),
+            TextTransparency = 0.2,
+            Font = "SourceSansBold",
+            ZIndex = 2,
         })
     }
 

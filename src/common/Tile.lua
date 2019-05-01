@@ -45,6 +45,20 @@ Tile.ConstructionCosts = {
     {Stone = 1000, Wood = 1500}  -- gate
 }   
 
+Tile.MaxHealth = {}
+Tile.MaxHealth[Tile.DESTROYED]= 0
+Tile.MaxHealth[Tile.GRASS]    = 0
+Tile.MaxHealth[Tile.KEEP]     = 1000
+Tile.MaxHealth[Tile.PATH]     = 100
+Tile.MaxHealth[Tile.HOUSE]    = 200
+Tile.MaxHealth[Tile.FARM]     = 100
+Tile.MaxHealth[Tile.MINE]     = 100
+Tile.MaxHealth[Tile.FORESTRY] = 100
+Tile.MaxHealth[Tile.STORAGE]  = 300
+Tile.MaxHealth[Tile.BARRACKS] = 1000
+Tile.MaxHealth[Tile.WALL]     = 10000
+Tile.MaxHealth[Tile.GATE]     = 10000 
+
 function Tile.serialise(tile)
     local index = string.format("%d:%d", tile.Position.x, tile.Position.y)
     local data = {}
@@ -64,6 +78,7 @@ function Tile.deserialise(index, data)
     tile.OwnerId = data.OwnerId
     tile.Position = Vector2.new(tonumber(x), tonumber(y))
     tile.Health = data.Health
+    tile.MHealth = data.MHealth or Tile.MaxHealth[data.Type]
     tile.unitlist = data.unitlist
 
     return tile
