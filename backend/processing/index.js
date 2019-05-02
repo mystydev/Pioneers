@@ -155,7 +155,7 @@ function useResource(id, resource, redispipe){
     //redispipe.hset('stats', id, JSON.stringify(stats));
 }
 
-function canBuild(id, tile, type){
+function canBuild(id, tile, position, type){
 
     if (tile && (tile.Type != TileType.GRASS || tile.unitlist.length > 0)){
         return false;
@@ -168,7 +168,17 @@ function canBuild(id, tile, type){
         if (stats[res] < req[res])
             return false;
 
-    return true;
+    let neighbours = getNeighbours(position);
+    let hasTile = false
+    
+    if (type == TileType.KEEP)
+        return true;
+
+    for (n in neighbours)
+        if (safeType(neighbours[n]) == TileType.PATH)
+            hasTile = true;
+
+    return hasTile;
 }
 
 function isMilitary(unitType){
@@ -185,7 +195,7 @@ function isWalkable(position, unit){
 function verifyTilePlacement(redispipe, id, position, type){
     let tile = Tiles[position];
     
-    if (canBuild(id, tile, type)){ //If the tile is grass TODO:Full verification
+    if (canBuild(id, tile, position, type)){
         
         let req = TileConstructionCosts[type];
 
@@ -206,6 +216,19 @@ function verifyTilePlacement(redispipe, id, position, type){
         if (type == TileType.HOUSE){
             redispipe.hset('unitspawns', position, 0);
             UnitSpawns[position] = 0;
+        }
+
+        if (type == TileType.KEEP){
+            let neighbours = getNeighbours(position);
+            
+            for (i in neighbours) {
+                let pos = neighbours[i]
+                let t = JSON.parse(JSON.stringify(DefaultTile[TileType.PATH]));
+                t.OwnerId = id;
+
+                Tiles[pos] = t;
+                redispipe.hset('tiles', pos, JSON.stringify(t));
+            }
         }
     }
 }
@@ -388,8 +411,8 @@ function openSetEquals(obj1, obj2){
     return obj1.p == obj2.p;
 }
 
-function getNeighbours(tile){
-    var [x, y] = toPosition(tile);
+function getNeighbours(pos){
+    var [x, y] = toPosition(pos);
 
     return [
         (x    ) + ":" + (y + 1),
@@ -691,7 +714,7 @@ async function processRound() {
                 } else {
                     var produce = getTileOutput(pos);
                     addProduceToUnit(unit, produce)
-                    
+
                     unit.Fatigue++
 
                     if (unit.Fatigue >= MAX_FATIGUE)

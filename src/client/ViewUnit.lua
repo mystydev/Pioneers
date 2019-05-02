@@ -102,8 +102,8 @@ local function giveToolInsomnia(model)
         local victim = model.Handle.AlignPosition
 
         while model.Parent do
-            victim.Enabled = false
-            victim.Enabled = true
+            victim.LimitsEnabled = true
+            victim.LimitsEnabled = false
 
             RunService.Stepped:Wait()
         end

@@ -161,7 +161,6 @@ local function updateWiggle()
         end
 
         for inst, _ in pairs(focusedInsts) do
-
             wiggleinsts[inst] = inst:Clone()
             wiggleinsts[inst].Parent = viewport 
         end
@@ -193,6 +192,20 @@ function ObjectSelection.init(world, stats)
     spawn(updateWiggle)
 end
 
+local function getNeighbours(tile)
+    local tiles = currentWorld.Tiles
+    local pos = tile.Position
+
+    return {
+        World.getTile(tiles, pos.x    , pos.y + 1),
+        World.getTile(tiles, pos.x + 1, pos.y + 1),
+        World.getTile(tiles, pos.x + 1, pos.y    ),
+        World.getTile(tiles, pos.x    , pos.y - 1),
+        World.getTile(tiles, pos.x - 1, pos.y - 1),
+        World.getTile(tiles, pos.x - 1, pos.y    ),
+    }
+end
+
 function ObjectSelection.buildTileAtSelection(tileType)
     if not selectedObject then return warn("Attempted to place tile when a tile is not selected!") end
     if selectedObject.Id then return warn("Attempted to place tile on a unit!") end
@@ -203,6 +216,16 @@ function ObjectSelection.buildTileAtSelection(tileType)
     selectedObject.lastChange = tick()
     ViewTile.updateDisplay(selectedObject) --Predict build is ok
     select(selectedObject, nil, true)
+
+    if tileType == Tile.KEEP then
+        delay(0.2, function()
+            for _, tile in pairs(getNeighbours(selectedObject)) do
+                tile.Type = Tile.PATH
+                tile.lastChange = tick()
+                ViewTile.updateDisplay(tile)
+            end
+        end)
+    end
 
     local status = Replication.requestTilePlacement(selectedObject, tileType)
 
