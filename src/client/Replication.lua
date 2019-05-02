@@ -2,14 +2,15 @@ local Replication = {}
 local Client      = script.Parent
 local Common      = game.ReplicatedStorage.Pioneers.Common
 
-local ViewUnit   = require(Client.ViewUnit)
-local ViewTile   = require(Client.ViewTile)
-local ClientUtil = require(Client.ClientUtil)
-local World      = require(Common.World)
-local Tile       = require(Common.Tile)
-local Util       = require(Common.Util)
-local UserStats  = require(Common.UserStats)
-local Network    = game.ReplicatedStorage.Network
+local ClientPreload = require(Client.ClientPreload)
+local ViewUnit    = require(Client.ViewUnit)
+local ViewTile    = require(Client.ViewTile)
+local ClientUtil  = require(Client.ClientUtil)
+local World       = require(Common.World)
+local Tile        = require(Common.Tile)
+local Util        = require(Common.Util)
+local UserStats   = require(Common.UserStats)
+local Network     = game.ReplicatedStorage.Network
 
 local currentWorld
 local currentStats = {}
@@ -173,7 +174,11 @@ end
 
 function Replication.ready()
     _G.updateLoadStatus("Waiting for server to be ready...")
-    return Network.Ready:InvokeServer()
+    local status = Network.Ready:InvokeServer()
+
+    ClientPreload.displayTesterStatus(status)
+
+    return status ~= nil
 end
 
 return Replication

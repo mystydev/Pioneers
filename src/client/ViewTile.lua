@@ -17,7 +17,7 @@ local TileToInstMap = {}
 local sizeTween = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local meshes = {}
-meshes[Tile.DESTROYED] = {mesh = Assets.Ruins,  offset = Vector3.new(0,     0,    0)}
+meshes[Tile.DESTROYED]= {mesh = Assets.Ruins,    offset = Vector3.new(0,     0,    0)}
 meshes[Tile.GRASS]    = {mesh = Assets.Hexagon,  offset = Vector3.new(0,     0,    0)}
 meshes[Tile.KEEP]     = {mesh = Assets.Keep,     offset = Vector3.new(0, 11.007, 0)}
 meshes[Tile.HOUSE]    = {mesh = Assets.House,    offset = Vector3.new(0, 5.479, 0)}
@@ -28,9 +28,7 @@ meshes[Tile.MINE]     = {mesh = Assets.Mine,     offset = Vector3.new(0, 1.795, 
 meshes[Tile.STORAGE]  = {mesh = Assets.Storage,  offset = Vector3.new(0, 16.842, -0.459)}
 meshes[Tile.BARRACKS] = {mesh = Assets.Barracks, offset = Vector3.new(0, 5.407, -0)}
 meshes[Tile.WALL]     = {mesh = Assets.Wall,     offset = Vector3.new(0, 12.5, 0)}
-meshes[Tile.GATE]     = {
-    ACROSS = {mesh = Assets.GateAcross, offset = Vector3.new(0, 11.009 - 0.25, 0)}
-}
+meshes[Tile.GATE]     = {mesh = Assets.Gate,     offset = Vector3.new(0, 11.009 - 0.25, 0)}
 
 
 currentTiles = {}
@@ -46,11 +44,7 @@ function ViewTile.displayTile(tile, displaySize)
 
     local meshInfo
     
-    if tile.Type ~= Tile.GATE then
-        meshInfo = meshes[tile.Type]
-    else
-        meshInfo = meshes[tile.Type].ACROSS
-    end
+    meshInfo = meshes[tile.Type]
 
     local model = meshInfo.mesh:Clone()
 
@@ -62,7 +56,14 @@ function ViewTile.displayTile(tile, displaySize)
     end
 
     TileToInstMap[tile] = model
-    model.Position = Util.axialCoordToWorldCoord(tile.Position) + meshInfo.offset
+    model.CFrame = CFrame.new(Util.axialCoordToWorldCoord(tile.Position) + meshInfo.offset)
+
+    if tile.Type == Tile.GATE then
+        model.Bars.PrismaticConstraint.Enabled = false
+        model.Bars.CFrame = model.CFrame
+        model.Bars.PrismaticConstraint.Enabled = true
+    end
+
     model.Parent = Workspace
 
     ViewTile.updateDisplay(tile, displaySize or 1)
@@ -75,12 +76,12 @@ function ViewTile.updateDisplay(tile, displaySize)
         return ViewTile.displayTile(tile)
     end
 
-    local displayInfo = tile.Type == Tile.GATE and meshes[tile.Type].ACROSS or meshes[tile.Type]
+    local displayInfo = meshes[tile.Type]
 
     if model.Name ~= displayInfo.mesh.Name then
         TileToInstMap[tile]:Destroy()
         TileToInstMap[tile] = nil
-        ViewTile.displayTile(tile)
+        return ViewTile.displayTile(tile, displaySize)
     end
 
     if displaySize and displaySize ~= "SKIP" and displaySize > tile.displaySize then
@@ -107,12 +108,20 @@ function ViewTile.updateDisplay(tile, displaySize)
             orientation = 2
         end
 
+        local cf = model.CFrame
+
         if orientation == 1 then
             model.CFrame = CFrame.new(model.Position) * CFrame.Angles(0, math.rad(60), 0)
         elseif orientation == 2 then
             model.CFrame = CFrame.new(model.Position) * CFrame.Angles(0, math.rad(120), 0)
         elseif orientation == 3 then
             model.CFrame = CFrame.new(model.Position) * CFrame.Angles(0, 0, 0)
+        end
+        
+        if model.CFrame ~= cf then
+            model.Bars.PrismaticConstraint.Enabled = false
+            model.Bars.CFrame = model.CFrame
+            model.Bars.PrismaticConstraint.Enabled = true
         end
     end
 end

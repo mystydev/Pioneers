@@ -1,4 +1,8 @@
 local preload = {}
+local Client  = script.Parent
+local Roact   = require(game.ReplicatedStorage.Roact)
+
+local TesterAlert = require(Client.ui.TesterAlert)
 
 local RunService      = game:GetService("RunService")
 local ContentProvider = game:GetService("ContentProvider")
@@ -115,25 +119,31 @@ end
 
 
 function preload.tellReady()
-    if not preload.Aborting then
+    if not preload.Aborting and not preload.Loaded then
         preload.Loaded = true
 
         spawn(function()
             repeat wait() until assetsLoaded and queuelength == 0
 
+            if preload.Aborting then
+                return end
+
             updateInfo("Ready", true)
+
+            
 
             wait(1)
 
+            preload.FullyLoaded = true
             TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 1}):Play()
             TweenService:Create(loadingGui.Background, tweenInfo, {BackgroundTransparency = 1}):Play()
             TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
             TweenService:Create(game.Lighting.LoadingBlur, tweenInfo, {Size = 0}):Play()
 
-            wait(2)
+            --wait(2)
             
-            loadingGui:Destroy()
-            game.Lighting.LoadingBlur.Size = 0
+            --loadingGui:Destroy()
+            --game.Lighting.LoadingBlur.Size = 0
         end)
     end
 end
@@ -142,6 +152,37 @@ end
 function preload.init()
     game.ReplicatedFirst:RemoveDefaultLoadingScreen()
     spawn(load)
+end
+
+function preload.displayTesterStatus(status)
+    spawn(function()
+        if status == false then
+            preload.Loaded = true
+            preload.Aborting = true
+
+            TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 1}):Play()
+            TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
+            TweenService:Create(loadingGui.Background, tweenInfo, {BackgroundTransparency = 0.3}):Play()
+            Roact.mount(TesterAlert({Approved = status}), loadingGui, "Tester Alert")
+            wait(10)
+
+            game.Players.LocalPlayer:Kick("Not an approved tester.")
+
+        elseif status == true then
+        
+            repeat wait() until preload.FullyLoaded
+
+            local handle
+
+            local function onAgree()
+                TweenService:Create(game.Lighting.LoadingBlur, tweenInfo, {Size = 0}):Play()
+                Roact.unmount(handle)
+            end
+
+            TweenService:Create(game.Lighting.LoadingBlur, tweenInfo, {Size = 15}):Play()
+            handle = Roact.mount(TesterAlert({Approved = status, Clicked = onAgree}), loadingGui, "Tester Alert")
+        end
+    end)
 end
 
 return preload

@@ -174,6 +174,27 @@ function canBuild(id, tile, position, type){
     if (type == TileType.KEEP)
         return true;
 
+    if (type == TileType.GATE){
+        let [x, y] = toPosition(position);
+
+        let t1 = safeType((x    ) + ":" + (y + 1))
+        let t2 = safeType((x    ) + ":" + (y - 1))
+        let t3 = safeType((x + 1) + ":" + (y + 1))
+        let t4 = safeType((x - 1) + ":" + (y - 1))
+        let t5 = safeType((x + 1) + ":" + (y    ))
+        let t6 = safeType((x - 1) + ":" + (y    ))
+
+        if (t1 == TileType.WALL && t2 == TileType.WALL){
+            return true
+        } else if (t3 == TileType.WALL && t4 == TileType.WALL){
+            return true
+        } else if (t5 == TileType.WALL && t6 == TileType.WALL){
+            return true
+        } else {
+            return false
+        }
+    }
+
     for (n in neighbours){
         let t = safeType(neighbours[n])
         if (t == TileType.PATH || t == TileType.GATE)
@@ -788,6 +809,7 @@ async function processRound() {
     console.log(outInfo);
 
     redis.set('lastprocess', Math.round(t5));
+    redis.set('status', JSON.stringify({time:(t5 - t1), actions:pactions, units:processed}));
 }
 
 console.log("Pioneers processing backend starting....");

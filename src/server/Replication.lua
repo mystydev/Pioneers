@@ -96,6 +96,16 @@ local function getCircularTiles(player, pos, radius)
     return Util.circularCollection(currentWorld.Tiles, pos.x, pos.y, 0, radius)
 end
 
+local function getTesterStatus(player)
+    local res = Http:GetAsync(API_URL.."isTester?id="..player.UserId)
+
+    if res == "\"0\"" then
+        return false
+    else
+        return true
+    end
+end
+
 function Replication.assignWorld(w)
     currentWorld = w
 
@@ -106,14 +116,7 @@ function Replication.assignWorld(w)
     Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
     Network.RequestUnitAttack.OnServerInvoke    = unitAttackRequest
     Network.GetCircularTiles.OnServerInvoke     = getCircularTiles
-    Network.Ready.OnServerInvoke = function() return true end
-end
-
-function Replication.pushUnitChange(unit)
-    local payload = Unit.serialise(unit)
-    Http:PostAsync("https://api.mysty.dev/pion/unitupdate", payload)
-
-    Network.UnitUpdate:FireAllClients(unit)
+    Network.Ready.OnServerInvoke = getTesterStatus
 end
 
 function Replication.pushStatsChange(stats)
@@ -132,6 +135,6 @@ function Replication.tempSyncUnit(unit)
     Network.UnitUpdate:FireAllClients(unit)
 end
 
-Network.Ready.OnServerInvoke = function() return false end
+Network.Ready.OnServerInvoke = function() return nil end
 
 return Replication

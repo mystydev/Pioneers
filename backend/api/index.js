@@ -23,6 +23,22 @@ httpsServer.listen(PORT, () => {
     console.log("Pioneers HTTP API is now running on port "+PORT+"!");
 });
 
+app.get("/pion/status", (req, res) => {
+    redis.get('status').then(s => {
+        res.json(s);
+    })
+})
+
+app.get("/pion/isTester", (req, res) => {
+    redis.hget('tester', req.query.id).then(s => {
+        if (s) {
+            res.json(s);
+        } else {
+            res.json("0");
+        }
+    })
+})
+
 app.post("/pion/actionRequest", (req, res) => {
     let id = req.body.id;
     let action = req.body.action;

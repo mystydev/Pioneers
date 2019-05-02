@@ -11,7 +11,7 @@ local Util       = require(Common.Util)
 local RunService = game:GetService("RunService")
 
 local CurrentWorld
-local UPDATE_THROTTLE = 300
+local UPDATE_THROTTLE = 100
 
 local function isTile(inst)
     if not inst then return end
@@ -48,12 +48,13 @@ function ViewWorld.displayWorld(world)
                     RunService.Stepped:Wait() 
                 end
             end
-            RunService.Stepped:Wait()
+            
+            wait(0.5)
         end
     end)
 
     local edgeSize = 6
-    delay(0, function()
+    delay(0.5, function()
         while true do
             local pos, posx, posy
 
@@ -82,9 +83,10 @@ function ViewWorld.displayWorld(world)
                         RunService.Stepped:Wait() 
                     end
                 end
+                RunService.Stepped:Wait()
             end
 
-            RunService.Stepped:Wait()
+            wait(0.5)
         end
     end)
 
