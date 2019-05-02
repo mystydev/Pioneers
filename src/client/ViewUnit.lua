@@ -3,11 +3,11 @@ local Client   = script.Parent
 local Common   = game.ReplicatedStorage.Pioneers.Common
 local Assets   = game.ReplicatedStorage.Pioneers.Assets
 
-local ClientUtil = require(Client.ClientUtil)
+local ClientUtil   = require(Client.ClientUtil)
 local SoundManager = require(Client.SoundManager)
-local Util       = require(Common.Util)
-local Unit       = require(Common.Unit)
-local Tile       = require(Common.Tile)
+local Util         = require(Common.Util)
+local Unit         = require(Common.Unit)
+local Tile         = require(Common.Tile)
 
 local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -49,6 +49,11 @@ local unitToInstMap = {}
 local instToUnitMap = {}
 
 local modelSizeOffset = Vector3.new(2, 5, 2)
+
+local currentWorld
+function ViewUnit.init(w)
+    currentWorld = w
+end
 
 local function unload(model) --TODO: fully unload from memory
     instToUnitMap[model] = nil
@@ -206,6 +211,26 @@ function ViewUnit.updateDisplay(unit)
 
     if not model then
         return end
+
+    local onTile = currentWorld.Tiles[unit.Position.x ..":"..unit.Position.y]
+    if onTile and onTile.Type == Tile.GATE then
+        local gate = require(Client.ViewWorld).convertObjectToInst(onTile) --TODO: This
+
+        gate.Bars.PrismaticConstraint.Attachment1 = gate.Up
+        onTile.LastUnder = tick()
+
+        delay(2, function()
+
+            gate.Bars.PrismaticConstraint.Attachment1 = gate.Up
+            onTile.LastUnder = tick()
+            
+            wait(1)
+
+            if tick() - onTile.LastUnder >= 1 then
+                gate.Bars.PrismaticConstraint.Attachment1 = gate.Down
+            end
+        end)
+    end
     
     if model.Name == "Soldier" and unit.Type >= Unit.VILLAGER and unit.Type <= Unit.APPRENTICE then
         return ViewUnit.displayUnit(unit, model)

@@ -28,6 +28,9 @@ function ViewWorld.displayWorld(world)
     local tiles = world.Tiles
     local units = world.Units
 
+    ViewTile.init(tiles)
+    ViewUnit.init(world)
+
     delay(0, function()
         while true do
             local pos, posx, posy

@@ -174,9 +174,11 @@ function canBuild(id, tile, position, type){
     if (type == TileType.KEEP)
         return true;
 
-    for (n in neighbours)
-        if (safeType(neighbours[n]) == TileType.PATH)
+    for (n in neighbours){
+        let t = safeType(neighbours[n])
+        if (t == TileType.PATH || t == TileType.GATE)
             hasTile = true;
+    }
 
     return hasTile;
 }
@@ -188,7 +190,7 @@ function isMilitary(unitType){
 function isWalkable(position, unit){
     let type = safeType(position)
 
-    if (type == TileType.PATH) return true;
+    if (type == TileType.PATH || type == TileType.GATE) return true;
     else if (type == TileType.GRASS && isMilitary(unit.Type)) return true;
 }
 
