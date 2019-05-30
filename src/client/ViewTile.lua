@@ -18,10 +18,10 @@ local sizeTween = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirectio
 
 local meshes = {}
 meshes[Tile.DESTROYED]= {mesh = Assets.Ruins,    offset = Vector3.new(0,     0,    0)}
-meshes[Tile.GRASS]    = {mesh = Assets.Hexagon,  offset = Vector3.new(0,     0,    0)}
+meshes[Tile.GRASS]    = {mesh = Assets.Grass,    offset = Vector3.new(0,     0,    0)}
 meshes[Tile.KEEP]     = {mesh = Assets.Keep,     offset = Vector3.new(0, 11.007, 0)}
 meshes[Tile.HOUSE]    = {mesh = Assets.House,    offset = Vector3.new(0, 5.479, 0)}
-meshes[Tile.PATH]     = {mesh = Assets.Path,     offset = Vector3.new(0,     0.25,    0)}
+meshes[Tile.PATH]     = {mesh = Assets.Path,     offset = Vector3.new(0,     0,    0)}
 meshes[Tile.FARM]     = {mesh = Assets.Farm,     offset = Vector3.new(-0.015, 1.594, 0.059)}
 meshes[Tile.FORESTRY] = {mesh = Assets.Forestry, offset = Vector3.new(0, 7.682, 0.131)}
 meshes[Tile.MINE]     = {mesh = Assets.Mine,     offset = Vector3.new(0, 1.795,    0)}
@@ -30,6 +30,42 @@ meshes[Tile.BARRACKS] = {mesh = Assets.Barracks, offset = Vector3.new(0, 5.407, 
 meshes[Tile.WALL]     = {mesh = Assets.Wall,     offset = Vector3.new(0, 12.5, 0)}
 meshes[Tile.GATE]     = {mesh = Assets.Gate,     offset = Vector3.new(0, 11.009 - 0.25, 0)}
 
+
+local grassPathTextures = {}
+grassPathTextures[0]  = "rbxassetid://3080817017"
+grassPathTextures[1]  = "rbxassetid://3237288852"
+grassPathTextures[5]  = "rbxassetid://3237282190"
+grassPathTextures[9]  = "rbxassetid://3237282264"
+grassPathTextures[21] = "rbxassetid://3237282124"
+grassPathTextures[3]  = "rbxassetid://3237285047"
+grassPathTextures[11] = "rbxassetid://3237281850"
+grassPathTextures[19] = "rbxassetid://3237281781"
+grassPathTextures[27] = "rbxassetid://3237279828"
+grassPathTextures[7]  = "rbxassetid://3237284972"
+grassPathTextures[23] = "rbxassetid://3237279749"
+grassPathTextures[15] = "rbxassetid://3237284892"
+grassPathTextures[31] = "rbxassetid://3237284550"
+grassPathTextures[63] = "rbxassetid://3237284465"
+
+local gptLookup = {
+    { 1, 0}, { 1, 1}, { 3, 0}, { 1, 2},
+    { 5, 0}, { 3, 1}, { 7, 0}, { 1, 3},
+    { 9, 0}, { 5, 1}, {11, 0}, { 3, 2},
+    {19, 2}, { 7, 1}, {15, 0}, { 1, 4},
+    { 5, 4}, { 9, 1}, {19, 0}, { 5, 2},
+    {21, 0}, {11, 1}, {23, 0}, { 3, 3},
+    {11, 3}, {19, 3}, {27, 0}, { 7, 2},
+    {23, 2}, {15, 1}, {31, 0}, { 1, 5},
+    { 3, 5}, {34, 5}, { 7, 5}, { 9, 2},
+    {11, 5}, {19, 1}, {15, 5}, { 5, 3},
+    {19, 5}, {21, 1}, {23, 5}, {11, 2},
+    {27, 2}, {23, 1}, {31, 5}, { 3, 4},
+    { 7, 4}, {11, 4}, {15, 4}, {19, 4},
+    {23, 4}, {27, 1}, {31, 4}, { 7, 3},
+    {15, 3}, {23, 3}, {31, 3}, {15, 2},
+    {31, 2}, {31, 1}, {63, 0}
+}
+gptLookup[0] = {0, 0}
 
 currentTiles = {}
 function ViewTile.init(tiles)
@@ -126,6 +162,32 @@ function ViewTile.updateDisplay(tile, displaySize)
             model.Bars.CFrame = model.CFrame
             model.Bars.PrismaticConstraint.Enabled = true
         end
+    end
+
+    if tile.Type == Tile.GRASS then
+        local pos = tile.Position
+
+        local n1 = World.getTile(currentTiles, pos.x    , pos.y + 1)
+        local n2 = World.getTile(currentTiles, pos.x + 1, pos.y + 1)
+        local n3 = World.getTile(currentTiles, pos.x + 1, pos.y    )
+        local n4 = World.getTile(currentTiles, pos.x    , pos.y - 1)
+        local n5 = World.getTile(currentTiles, pos.x - 1, pos.y - 1)
+        local n6 = World.getTile(currentTiles, pos.x - 1, pos.y    )
+
+        local encodedString = 
+           (n6 and n6.Type == Tile.PATH and "1" or "0")
+        .. (n5 and n5.Type == Tile.PATH and "1" or "0")
+        .. (n4 and n4.Type == Tile.PATH and "1" or "0")
+        .. (n3 and n3.Type == Tile.PATH and "1" or "0")
+        .. (n2 and n2.Type == Tile.PATH and "1" or "0")
+        .. (n1 and n1.Type == Tile.PATH and "1" or "0")
+
+        local info = gptLookup[tonumber(encodedString, 2)]
+        local texture = grassPathTextures[info[1]]
+        local rotation = (info[2] + 1)%6
+
+        model.CFrame = CFrame.new(model.Position) * CFrame.Angles(0, -1.0471975512 * rotation, 0)
+        model.TextureID = texture
     end
 end
 
