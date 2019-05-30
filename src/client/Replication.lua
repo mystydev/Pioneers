@@ -129,8 +129,7 @@ local strayed = {}
 function handleStatsUpdate(stats)
     for i, v in pairs(stats) do
 
-        if i == "Food" or i == "Wood" or i == "Stone" then
-
+        if i == "Wood" or i == "Stone" then
             if math.abs(v - currentStats[i] - currentStats['M'..i]) < 5 then
                 currentStats[i] = v
                 strayed[i] = 0
@@ -138,7 +137,7 @@ function handleStatsUpdate(stats)
                 currentStats[i] = currentStats[i] - currentStats['M'..i]
                 strayed[i] = (strayed[i] or 0) + 1
 
-                if strayed[i] > 10 then
+                if strayed[i] > 2 then
                     currentStats[i] = v
                 end
             end

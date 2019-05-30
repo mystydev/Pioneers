@@ -162,7 +162,7 @@ function preload.displayTesterStatus(status)
 
             TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 1}):Play()
             TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
-            TweenService:Create(loadingGui.Background, tweenInfo, {BackgroundTransparency = 0.3}):Play()
+            TweenService:Create(loadingGui.Background, tweenInfo, {BackgroundTransparency = 0}):Play()
             Roact.mount(TesterAlert({Approved = status}), loadingGui, "Tester Alert")
             wait(10)
 

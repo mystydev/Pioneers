@@ -3,6 +3,7 @@ var https = require('https');
 var Redis = require('ioredis');
 var express = require("express");
 var bodyParser = require('body-parser');
+var cors = require('cors');
 var redis = new Redis();
 var app = express();
 var privateKey  = fs.readFileSync('/certs/private.key', 'utf8');
@@ -17,6 +18,7 @@ const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3,DELETE_TILE:4};
 
 const PORT = 443;
 
+app.use(cors())
 app.use(bodyParser.json())
 
 httpsServer.listen(PORT, () => {

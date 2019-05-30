@@ -10,8 +10,8 @@ local function StatsPanel(props)
     local stats = props.stats
 
     elements.FoodLabel = Roact.createElement(ResourceLabel, {Position = UDim2.new(0, 20, 1, -20), Type = "Food", stats = stats})
-    elements.WoodLabel = Roact.createElement(ResourceLabel, {Position = UDim2.new(0, 147 + 20, 1, -20), Type = "Wood", stats = stats})
-    elements.StoneLabel = Roact.createElement(ResourceLabel, {Position = UDim2.new(0, 2 * 147 + 20, 1, -20), Type = "Stone", stats = stats})
+    elements.WoodLabel = Roact.createElement(ResourceLabel, {Position = UDim2.new(0, 208 + 30, 1, -20), Type = "Wood", stats = stats})
+    elements.StoneLabel = Roact.createElement(ResourceLabel, {Position = UDim2.new(0, 2 * 208 + 40, 1, -20), Type = "Stone", stats = stats})
 
     return Roact.createElement("Frame", {
         Name                   = "StatsPanel",

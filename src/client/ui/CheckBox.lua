@@ -2,7 +2,7 @@ local Roact = require(game.ReplicatedStorage.Roact)
 local TweenService = game:GetService("TweenService")
 
 local empty = "rbxassetid://3137132874"
-local filled = "rbxassetid://3137254498"
+local filled = "rbxassetid://3137569139"
 local check  = "rbxassetid://3137132820"
 
 local CheckBox = Roact.Component:extend("CheckBox")

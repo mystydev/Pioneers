@@ -115,7 +115,9 @@ local function playerJoined(player)
     local stats = HttpService:JSONDecode(jsonStats)
 
     if stats.status and stats.status == "NewUser" then
-        UserStats.Store[player.UserId] = {Food = 0, Wood = 0, Stone = 0}
+        UserStats.Store[player.UserId] = {Food = 0, Wood = 0, Stone = 0, 
+                                        MFood = 0, MWood = 0, MStone = 0, 
+                                        PFood = 0, PWood = 0, PStone = 0}
     else
         UserStats.Store[player.UserId] = stats
     end

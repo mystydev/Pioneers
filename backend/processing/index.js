@@ -8,6 +8,8 @@ const STARTING_FOOD = 1000;
 const STARTING_WOOD = 2500;
 const STARTING_STONE = 2500;
 const MAX_FATIGUE = 10;
+const FOOD_PER_FATIGUE = 2;
+const FATIGUE_RECOVER_RATE = 5;
 const HOUSE_UNIT_NUMBER = 2;
 const SPAWN_TIME = 10;
 const SPAWN_REQUIRED_FOOD = 100;
@@ -36,11 +38,11 @@ TileConstructionCosts[TileType.GATE]     = {Stone:1000,  Wood:1500};
 
 const TileMaintenanceCosts = {}
 TileMaintenanceCosts[TileType.KEEP]     = {Stone:0,     Wood:0};
-TileMaintenanceCosts[TileType.PATH]     = {Stone:.1,    Wood:.1};
-TileMaintenanceCosts[TileType.HOUSE]    = {Stone:.5,    Wood:.5};
-TileMaintenanceCosts[TileType.FARM]     = {Stone:.33,   Wood:.33};
-TileMaintenanceCosts[TileType.MINE]     = {Stone:0,     Wood:.5};
-TileMaintenanceCosts[TileType.FORESTRY] = {Stone:.5,    Wood:0};
+TileMaintenanceCosts[TileType.PATH]     = {Stone:0,     Wood:0};
+TileMaintenanceCosts[TileType.HOUSE]    = {Stone:0,     Wood:0};
+TileMaintenanceCosts[TileType.FARM]     = {Stone:0,     Wood:0};
+TileMaintenanceCosts[TileType.MINE]     = {Stone:0,     Wood:0};
+TileMaintenanceCosts[TileType.FORESTRY] = {Stone:0,     Wood:0};
 TileMaintenanceCosts[TileType.STORAGE]  = {Stone:1,     Wood:1};
 TileMaintenanceCosts[TileType.BARRACKS] = {Stone:2,     Wood:2};
 TileMaintenanceCosts[TileType.WALL]     = {Stone:3,     Wood:3};
@@ -62,6 +64,7 @@ const DefaultTile = [
 
 let Tiles = {};
 let Units = {};
+let UnitCollections = [];
 let UserStats = {};
 let UnitCount = 0;
 let UnitSpawns = {};
@@ -79,7 +82,14 @@ async function fetchRedisData(){
     units = await redis.hgetall('units');
     num = 0
     for (key in units) {
-        Units[key] = JSON.parse(units[key]);
+        let unit = JSON.parse(units[key]);
+        Units[key] = unit;
+        
+        if (!UnitCollections[unit.OwnerId])
+            UnitCollections[unit.OwnerId] = [key];
+        else
+            UnitCollections[unit.OwnerId].push(key);
+
         num++;
     }
     console.log("Loaded", num, "units!");
@@ -94,7 +104,7 @@ async function fetchRedisData(){
 
     UnitCount = await redis.get('unitcount');
 
-    spawns = await redis.get('unitspawns');
+    spawns = await redis.hgetall('unitspawns');
 
     num = 0
     for (pos in spawns) {
@@ -215,6 +225,54 @@ function isWalkable(position, unit){
     else if (type == TileType.GRASS && isMilitary(unit.Type)) return true;
 }
 
+function getWalkDistance(start, end, unit){
+    let path = findPath(start, end, unit);
+
+    if (!path)
+        return 0;
+    else
+        return path.length;
+}
+
+function calculateTripLength(unit){
+    if (!unit.Work) return 0;
+
+    let home = unit.Home;
+    let work = unit.Work;
+    let storage = findClosestStorage(unit.Work);
+
+    let dist = getWalkDistance(home, work, unit);
+    dist += getWalkDistance(work, storage, unit);
+    dist += getWalkDistance(storage, home, unit);
+    dist += MAX_FATIGUE;
+
+    return dist;
+}
+
+function calculateUnitProduce(unit){
+    if (!unit.Work) return 0;
+
+    let produce = getTileOutput(unit.Work);
+    produce.Amount *= MAX_FATIGUE;
+
+    return produce;
+}
+
+function calculateEfficiencyStats(id, unit){
+
+    if (unit.ProducePerRound) {
+        UserStats[id]["P"+unit.ProducePerRound.Type] -= unit.ProducePerRound.Amount;
+        UserStats[id]["MFood"] -= (MAX_FATIGUE * FOOD_PER_FATIGUE) / unit.TripLength;
+    }
+    
+    unit.TripLength = calculateTripLength(unit);
+    unit.ProducePerRound = calculateUnitProduce(unit);
+    unit.ProducePerRound.Amount /= unit.TripLength;
+
+    UserStats[id]["P"+unit.ProducePerRound.Type] += unit.ProducePerRound.Amount;
+    UserStats[id]["MFood"] += (MAX_FATIGUE * FOOD_PER_FATIGUE) / unit.TripLength;
+}
+
 function verifyTilePlacement(redispipe, id, position, type){
     let tile = Tiles[position];
     
@@ -252,6 +310,10 @@ function verifyTilePlacement(redispipe, id, position, type){
                 Tiles[pos] = t;
                 redispipe.hset('tiles', pos, JSON.stringify(t));
             }
+        }
+
+        for (let unitid of UnitCollections[id]){
+            calculateEfficiencyStats(id, Units[unitid]);
         }
     }
 }
@@ -326,7 +388,9 @@ function verifyWorkAssignment(redispipe, id, unitid, position){
             unit.Work = position;
             unit.Target = position;
             delete unit.Attack;
-            
+
+            calculateEfficiencyStats(id, unit);
+
             tile.unitlist.push(unit.Id);
             redispipe.hset('tiles', position, JSON.stringify(tile));      
             redispipe.hset('units', unitid, JSON.stringify(unit));
@@ -352,7 +416,8 @@ function verifyTileDelete(redispipe, id, position){
 }
 
 function handleNewPlayer(redispipe, id){
-    let stats = {Food:STARTING_FOOD, Wood:STARTING_WOOD, Stone:STARTING_STONE, PlayerId:id, MFood:0,MWood:0,MStone:0};
+    let stats = {Food:STARTING_FOOD, Wood:STARTING_WOOD, Stone:STARTING_STONE, PlayerId:id, MFood:0,MWood:0,MStone:0,PFood:0,PWood:0,PStone:0};
+    UnitCollections[id] = [];
     UserStats[id] = stats;
     redispipe.hset('stats', id, JSON.stringify(stats));
 }
@@ -622,6 +687,7 @@ function spawnUnit(redispipe, position){
     };
 
     Units[id] = unit;
+    UnitCollections[unit.OwnerId].push(id);
     useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:100}, redispipe);
     redispipe.hset('units', id, JSON.stringify(unit));
     redispipe.set('unitcount', UnitCount);
@@ -635,7 +701,7 @@ async function processUnitSpawns(redispipe){
         let tile = getTile(pos);
         let checkNum = UnitSpawns[pos];
 
-        if (UserStats[tile.OwnerId][ResourceType.FOOD] < SPAWN_REQUIRED_FOOD) continue;
+        if (UserStats[tile.OwnerId] && UserStats[tile.OwnerId][ResourceType.FOOD] < SPAWN_REQUIRED_FOOD) continue;
 
         if (checkNum < SPAWN_TIME) {
             UnitSpawns[pos]++;
@@ -752,9 +818,9 @@ async function processRound() {
                 break;
 
             case UnitState.RESTING:
-                useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:10}, redispipe);
+                useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:FOOD_PER_FATIGUE*FATIGUE_RECOVER_RATE}, redispipe);
 
-                unit.Fatigue -= 5;
+                unit.Fatigue -= FATIGUE_RECOVER_RATE;
 
                 if (unit.Fatigue <= 0) {
                     unit.Fatigue = 0;

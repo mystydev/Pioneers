@@ -87,6 +87,9 @@ function ViewTile.updateDisplay(tile, displaySize)
     if displaySize and displaySize ~= "SKIP" and displaySize > tile.displaySize then
         TweenService:Create(model, sizeTween, {Size = displayInfo.mesh.Size * displaySize}):Play()
         tile.displaySize = displaySize
+    elseif displaySize == "SKIP" then
+        tile.displaySize = 1
+        model.Size = displayInfo.mesh.Size
     end
 
     if tile.Type == Tile.GATE then
