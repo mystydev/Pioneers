@@ -404,9 +404,59 @@ function verifyWorkAssignment(redispipe, id, unitid, position){
     }
 }
 
+function deleteCiv(redispipe, id){
+    let tileQueue = new Set();
+    let tiles = new Set();
+
+    console.log("Deleting civ of "+id)
+    let start = performance.now();
+
+    tileQueue.add(UserStats[id].Keep);
+
+    while (tileQueue.size > 0){
+        for (tile of tileQueue) {
+            tileQueue.delete(tile);
+            tiles.add(tile);
+
+            for (n of getNeighbours(tile)){
+                let neighbour = getTile(n);
+
+                if (neighbour 
+                    && neighbour.Type != TileType.GRASS 
+                    && neighbour.OwnerId == id
+                    && !tiles.has(n)){
+
+                    tileQueue.add(n);
+                }
+            }
+        }
+    }
+
+    for (pos of tiles) {
+        delete Tiles[pos];
+        redispipe.hdel('tiles', pos);
+    }
+
+    delete UserStats[id];
+    redispipe.hdel('stats', id);
+
+    for (unit of UnitCollections[id]) {
+        delete Units[unit];
+        redispipe.hdel('units', unit);
+    }
+
+    let t = (performance.now() - start).toFixed(1).toString().padStart(5, " ");
+    console.log("Took: " + t + "ms");
+    handleNewPlayer(redispipe, id);
+}
+
 function deleteTile(redispipe, id, position){
     let tile = Tiles[position];
 
+    if (tile && tile.Type == TileType.KEEP){
+        return deleteCiv(redispipe, id);
+    } 
+    
     if (tile && (!tile.unitlist || tile.unitlist.length == 0)){
         UserStats[id].MWood -= TileMaintenanceCosts[tile.Type].Wood;
         UserStats[id].MStone -= TileMaintenanceCosts[tile.Type].Stone;
