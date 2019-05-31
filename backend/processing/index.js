@@ -118,8 +118,8 @@ async function fetchRedisData(){
     }
 }
 
-function getTile(x, y) {
-    return Tiles[x+":"+y];
+function getTileByNum(x, y) {
+    return getTile(x+":"+y);
 }
 
 function getTile(pos) {
@@ -135,6 +135,10 @@ function safeType(pos){
 function toPosition(posString) {
     var [x, y] = posString.split(":");
     return [parseInt(x), parseInt(y)];
+}
+
+function toPosString(x, y){
+    return x+":"+y;
 }
 
 function makeDefaultTile() {
@@ -181,7 +185,7 @@ function canBuild(id, tile, position, type){
     let neighbours = getNeighbours(position);
     let hasTile = false
     
-    if (type == TileType.KEEP)
+    if (type == TileType.KEEP && !stats.Keep)
         return true;
 
     if (type == TileType.GATE){
@@ -310,6 +314,8 @@ function verifyTilePlacement(redispipe, id, position, type){
                 Tiles[pos] = t;
                 redispipe.hset('tiles', pos, JSON.stringify(t));
             }
+
+            UserStats[id].Keep = position;
         }
 
         for (let unitid of UnitCollections[id]){
@@ -412,7 +418,33 @@ function deleteTile(redispipe, id, position){
 }  
 
 function verifyTileDelete(redispipe, id, position){
-    deleteTile(redispipe, id, position)
+    let tile = Tiles[position];
+
+    if (tile.OwnerId == id){
+        if (tile.Type == TileType.PATH || tile.Type == TileType.GATE) {
+            
+            let keepPos    = UserStats[id].Keep;
+            let type       = tile.Type;
+            let fragmented = false;
+
+            tile.Type = TileType.GRASS;
+
+            for (n of getNeighbours(position)){
+                if (safeType(n)!=TileType.GRASS && !findPath(n, keepPos, undefined, true)){
+                    fragmented = true;
+                    break;
+                }
+            }
+
+            tile.Type = type;
+
+            if (!fragmented)
+                deleteTile(redispipe, id, position);
+
+        } else {
+            deleteTile(redispipe, id, position);
+        }
+    }
 }
 
 function handleNewPlayer(redispipe, id){
@@ -557,17 +589,19 @@ function getMin(set){
 }
 
 //A* implementation
-function findPath(start, target, unit) {
+function findPath(start, target, unit, bigsearch) {
     var openSet = [];
     var closedSet = new Set();
     var cameFrom = {};
     var gScore = {};
     var iterations = 0;
+    let itLim = bigsearch ? 10000 : 1000
+    unit = unit ? unit : {Type:UnitType.VILLAGER};
 
     openSet.push({p:start,f:0});
     gScore[start] = 0;
 
-    while (iterations++ < 1000) {
+    while (iterations++ < itLim) {
         let [ind, current] = getMin(openSet);
 
         openSet.splice(ind, 1);
@@ -751,7 +785,12 @@ async function processRound() {
         switch(state){
             case UnitState.MOVING:
                 var path = findPath(pos, target, unit);
-                if (!path) {unit.State = UnitState.LOST; console.log("Unit lost due to no path"); break;}
+                if (!path) {
+                    unit.State = UnitState.LOST; 
+                    unit.Target = undefined;
+                    console.log("Unit lost due to no path"); 
+                    break;
+                }
                 [unit.Posx, unit.Posy] = toPosition(path[0]);
                 break;
 
