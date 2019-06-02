@@ -790,6 +790,10 @@ async function processUnitSpawns(redispipe){
         if (checkNum < SPAWN_TIME) {
             UnitSpawns[pos]++;
         } else {
+
+            if(!tile.unitlist)
+                tile.unitlist = [];
+
             let unit = spawnUnit(redispipe, pos);
             tile.unitlist.push(unit.Id);
 

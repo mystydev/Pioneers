@@ -9,6 +9,7 @@ local Replication     = require(Client.Replication)
 local SoundManager    = require(Client.SoundManager)
 local Tile            = require(Common.Tile)
 local World           = require(Common.World)
+local Util            = require(Common.Util)
 
 local RunService   = game:GetService("RunService")
 local UIS          = game:GetService("UserInputService")
@@ -214,7 +215,14 @@ function ObjectSelection.buildTileAtSelection(tileType)
 
     selectedObject.Type = tileType
     selectedObject.lastChange = tick()
-    ViewTile.updateDisplay(selectedObject) --Predict build is ok
+
+    --Predict build is ok
+    ViewTile.updateDisplay(selectedObject)
+
+    for _, n in pairs(Util.getNeighbours(currentWorld.Tiles, selectedObject.Position)) do
+        ViewTile.updateDisplay(n)
+    end
+
     select(selectedObject, nil, true)
 
     if tileType == Tile.KEEP then

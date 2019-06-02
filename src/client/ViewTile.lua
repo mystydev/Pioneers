@@ -37,7 +37,7 @@ grassPathTextures[1]  = "rbxassetid://3237288852"
 grassPathTextures[5]  = "rbxassetid://3237282190"
 grassPathTextures[9]  = "rbxassetid://3237282264"
 grassPathTextures[21] = "rbxassetid://3237282124"
-grassPathTextures[3]  = "rbxassetid://3237285047"
+grassPathTextures[3]  = "rbxassetid://3242019037"
 grassPathTextures[11] = "rbxassetid://3237281850"
 grassPathTextures[19] = "rbxassetid://3237281781"
 grassPathTextures[27] = "rbxassetid://3237279828"
@@ -56,7 +56,7 @@ local gptLookup = {
     {21, 0}, {11, 1}, {23, 0}, { 3, 3},
     {11, 3}, {19, 3}, {27, 0}, { 7, 2},
     {23, 2}, {15, 1}, {31, 0}, { 1, 5},
-    { 3, 5}, {34, 5}, { 7, 5}, { 9, 2},
+    { 3, 5}, { 5, 5}, { 7, 5}, { 9, 2},
     {11, 5}, {19, 1}, {15, 5}, { 5, 3},
     {19, 5}, {21, 1}, {23, 5}, {11, 2},
     {27, 2}, {23, 1}, {31, 5}, { 3, 4},

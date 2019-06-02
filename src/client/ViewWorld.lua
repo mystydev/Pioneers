@@ -31,55 +31,36 @@ function ViewWorld.displayWorld(world)
     ViewTile.init(tiles)
     ViewUnit.init(world)
 
-    delay(0, function()
+    spawn(function()
         while true do
-            local pos, posx, posy
 
-            pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
-            posx, posy = pos.x, pos.y
-
-            local area = Util.circularCollection(tiles, posx, posy, 0, ClientUtil.getCurrentViewDistance())
+            local pos  = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
+            local area = Util.circularCollection(tiles, pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
 
             for _, tile in pairs(area) do
                 ViewTile.displayTile(tile, "SKIP")
-                updateCount = updateCount + 1
-                if (updateCount > UPDATE_THROTTLE) then 
-                    updateCount = 0 
-                    RunService.Stepped:Wait() 
-                end
+                RunService.Stepped:Wait() 
             end
         end
-
-        wait(0.5)
     end)
 
-    local edgeSize = 6
-    delay(0.5, function()
+    
+    spawn(function()
+
+        local edgeSize = 6
+
         while true do
-            local pos, posx, posy
-
-            pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
-            posx, posy = pos.x, pos.y
-
-            --[[local area = Util.circularCollection(tiles, posx, posy, 15, ClientUtil.getCurrentViewDistance()-edgeSize-1)
-
-            for _, tile in pairs(area) do
-                ViewTile.displayTile(tile, 1)
-                updateCount = updateCount + 1
-                if (updateCount > UPDATE_THROTTLE) then 
-                    updateCount = 0 
-                    RunService.Stepped:Wait() 
-                end
-            end]]--
+            local pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
+            local viewDistance = ClientUtil.getCurrentViewDistance()+edgeSize
 
             for edge = edgeSize, 1, -1 do
-                local area = Util.circularCollection(tiles, posx, posy, ClientUtil.getCurrentViewDistance()+edgeSize-edge-1, ClientUtil.getCurrentViewDistance()+edgeSize-edge)
+                local area = Util.circularCollection(tiles, pos.x, pos.y, viewDistance-edge-1, viewDistance-edge)
 
                 for _, tile in pairs(area) do
                     ViewTile.displayTile(tile, edge/edgeSize)
-                    updateCount = updateCount + 1
-                    if (updateCount > UPDATE_THROTTLE) then 
-                        updateCount = 0 
+
+                    updateCount = (updateCount + 1)%UPDATE_THROTTLE
+                    if (updateCount == 0) then 
                         RunService.Stepped:Wait() 
                     end
                 end
@@ -94,12 +75,11 @@ end
 
 function ViewWorld.convertInstanceToTile(inst)
 
-    if isTile(inst) then
-        
-        local pos = Util.worldCoordToAxialCoord(inst.Position)
-        return World.getTile(CurrentWorld.Tiles, pos.x, pos.y)
+    if not isTile(inst) then
+        return end
 
-    end
+    local pos = Util.worldCoordToAxialCoord(inst.Position)
+    return World.getTile(CurrentWorld.Tiles, pos.x, pos.y)
 end
 
 function ViewWorld.convertInstanceToUnit(inst)
@@ -107,11 +87,13 @@ function ViewWorld.convertInstanceToUnit(inst)
 end
 
 function ViewWorld.convertInstanceToObject(inst)
-    return ViewWorld.convertInstanceToTile(inst) or ViewWorld.convertInstanceToUnit(inst)
+    return ViewWorld.convertInstanceToTile(inst) 
+            or ViewWorld.convertInstanceToUnit(inst)
 end
 
 function ViewWorld.convertObjectToInst(object)
-    return ViewTile.getInstFromTile(object) or ViewUnit.getInstFromUnit(object)
+    return ViewTile.getInstFromTile(object) 
+            or ViewUnit.getInstFromUnit(object)
 end
 
 return ViewWorld

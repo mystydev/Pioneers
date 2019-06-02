@@ -70,15 +70,15 @@ function Tile.serialise(tile)
 end
 
 function Tile.deserialise(index, data)
-    local data = HttpService:JSONDecode(data)
-    local tile = {}
+    local data    = HttpService:JSONDecode(data)
+    local tile    = {}
+    local x, y    = unpack(string.split(index, ':'))
 
-    local x, y = unpack(string.split(index, ':'))
-    tile.Type = data.Type
-    tile.OwnerId = data.OwnerId
+    tile.Type     = data.Type
+    tile.OwnerId  = data.OwnerId
     tile.Position = Vector2.new(tonumber(x), tonumber(y))
-    tile.Health = data.Health
-    tile.MHealth = data.MHealth or Tile.MaxHealth[data.Type]
+    tile.Health   = data.Health
+    tile.MHealth  = data.MHealth or Tile.MaxHealth[data.Type]
     tile.unitlist = data.unitlist
 
     return tile

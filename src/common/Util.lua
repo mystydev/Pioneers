@@ -46,4 +46,16 @@ function Util.circularCollection(tiles, posx, posy, startRadius, endRadius)
     return collection
 end
 
+function Util.getNeighbours(tiles, pos)
+    
+    return {
+        World.getTile(tiles, pos.x    , pos.y + 1),
+        World.getTile(tiles, pos.x + 1, pos.y + 1),
+        World.getTile(tiles, pos.x + 1, pos.y    ),
+        World.getTile(tiles, pos.x    , pos.y - 1),
+        World.getTile(tiles, pos.x - 1, pos.y - 1),
+        World.getTile(tiles, pos.x - 1, pos.y    ),
+    }
+end
+
 return Util
