@@ -4,10 +4,10 @@ var Redis = require('ioredis');
 var express = require("express");
 var bodyParser = require('body-parser');
 var cors = require('cors');
-var redis = new Redis();
+var redis = new Redis('35.236.34.15:6379');
 var app = express();
-var privateKey  = fs.readFileSync('/certs/private.key', 'utf8');
-var certificate = fs.readFileSync('/certs/public.pem', 'utf8');
+var privateKey  = fs.readFileSync('certs/private.key', 'utf8');
+var certificate = fs.readFileSync('certs/public.pem', 'utf8');
 
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = https.createServer(credentials, app);
