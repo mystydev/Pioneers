@@ -116,8 +116,8 @@ local function select(object, inst, reselect)
         focusInst(ViewWorld.convertObjectToInst(currentWorld.Tiles[Tile.getIndex(selectedObject.Work)]))
     end
 
-    if selectedObject.unitlist then
-        for _, unitid in pairs(selectedObject.unitlist) do
+    if selectedObject.UnitList then
+        for _, unitid in pairs(selectedObject.UnitList) do
             focusInst(ViewWorld.convertObjectToInst(currentWorld.Units[unitid]))
         end
     end
@@ -256,7 +256,7 @@ function ObjectSelection.startUnitTileSelectPrompt(action)
                 or tile.Type == Tile.FORESTRY
                 or tile.Type == Tile.MINE
                 or tile.Type == Tile.BARRACKS) 
-                and #(tile.unitlist or {}) == 0 then
+                and #(tile.UnitList or {}) == 0 then
 
                 local inst = ViewWorld.convertObjectToInst(tile)
                 focusInst(inst)

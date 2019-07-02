@@ -79,7 +79,7 @@ function Tile.deserialise(index, data)
     tile.Position = Vector2.new(tonumber(x), tonumber(y))
     tile.Health   = data.Health
     tile.MHealth  = data.MHealth or Tile.MaxHealth[data.Type]
-    tile.unitlist = data.unitlist
+    tile.UnitList = data.UnitList
 
     return tile
 end

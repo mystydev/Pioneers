@@ -18,9 +18,9 @@ function UnitList:render()
     local units = {}
     local state = self.state
 
-    local unitlist = state.Obj and state.Obj.unitlist or {}
+    local UnitList = state.Obj and state.Obj.UnitList or {}
 
-    for _, unit in pairs(unitlist) do
+    for _, unit in pairs(UnitList) do
         table.insert(units, state.World.Units[unit])
     end
 

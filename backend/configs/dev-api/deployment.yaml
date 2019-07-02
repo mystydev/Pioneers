@@ -1,0 +1,33 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pioneers-dev-api
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      run: pioneers-dev-api
+  template:
+    metadata:
+      labels:
+        run: pioneers-dev-api
+    spec:
+      containers:
+      - image: gcr.io/pioneers-237219/devpionapi@sha256:94bbf547da8120d89a3489df3ffeb4cfd5d53e785e73c34771c100eee795e3d2
+        imagePullPolicy: Always
+        name: pioneers-dev-api
+        ports:
+        - containerPort: 443
+        readinessProbe:
+          httpGet:
+            port: 443
+            path: /
+          initialDelaySeconds: 1
+          periodSeconds: 2
+          timeoutSeconds: 2
+          successThreshold: 2
+          failureThreshold: 2
+      nodeSelector:
+        static: "false"
+        

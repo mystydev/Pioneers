@@ -1,0 +1,33 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pioneers-dev-redis
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      run: pioneers-dev-redis
+  template:
+    metadata:
+      labels:
+        run: pioneers-dev-redis
+    spec:
+      volumes:
+        - name: host-sys
+          hostPath:
+            path: /sys
+      initContainers:
+        - name: disable-thp
+          image: redis:4.0-alpine 
+          volumeMounts:
+            - name: host-sys
+              mountPath: /host-sys
+          command: ["sh", "-c", "echo never > /host-sys/kernel/mm/transparent_hugepage/enabled"]
+      containers:
+      - image: gcr.io/pioneers-237219/devpionredis@sha256:a9aa474a040eead681974a618143ac5b07aa439da2fe7d3923ed012b02bc8fcc
+        imagePullPolicy: Always
+        name: pioneers-dev-redis
+      nodeSelector:
+        static: "false"
+        

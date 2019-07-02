@@ -1,0 +1,16 @@
+{
+  "name": "pioncompute",
+  "version": "1.0.0",
+  "description": "Game processing package for Pioneers.",
+  "main": "index.js",
+  "scripts": {
+    "master": "node master.js",
+    "node": "node node.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "ioredis": "^4.10.0"
+  }
+}

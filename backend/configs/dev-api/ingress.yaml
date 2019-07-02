@@ -1,0 +1,12 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: pioneers-dev-api-ingress
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: "dev-api"
+    kubernetes.io/ingress.allow-http: "false"
+    ingress.gcp.kubernetes.io/pre-shared-cert: "cloudflare"
+spec:
+  backend:
+    serviceName: pioneers-dev-api-service
+    servicePort: 443

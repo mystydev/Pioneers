@@ -1,0 +1,20 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pioneers-dev-compute-master
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: pioneers-dev-compute-master
+  template:
+    metadata:
+      labels:
+        run: pioneers-dev-compute-master
+    spec:
+      containers:
+      - image: gcr.io/pioneers-237219/devpioncomputemaster:latest
+        imagePullPolicy: Always
+        name: pioneers-dev-compute-master
+        

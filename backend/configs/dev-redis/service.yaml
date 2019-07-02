@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pioneers-dev-redis-service
+  namespace: default
+spec:
+  clusterIP: 10.20.5.101
+  ports:
+  - port: 6379
+    name: primary
+    protocol: TCP
+    targetPort: 6379
+  - port: 16379
+    name: gossip
+    protocol: TCP
+    targetPort: 16379
+  selector:
+    run: pioneers-dev-redis
+  type: ClusterIP

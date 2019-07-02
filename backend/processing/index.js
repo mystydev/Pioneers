@@ -2,7 +2,11 @@ const process = require('process');
 var performance = require('perf_hooks').performance;
 var SortedSet = require("collections/sorted-set");
 var Redis = require('ioredis');
-var redis = new Redis();
+
+let redis = new Redis.Cluster([{
+    port: 6379,
+    host: '10.128.15.236'
+  }]);
 
 const STARTING_FOOD = 1000;
 const STARTING_WOOD = 2500;
@@ -145,7 +149,7 @@ function makeDefaultTile() {
     return {Type:TileType.GRASS, unitlist:[]};
 }
 
-function addResource(id, resource, redispipe){
+function addResource(id, resource, redis){
     var stats = UserStats[id];
 
     if (!stats){
@@ -154,10 +158,10 @@ function addResource(id, resource, redispipe){
     }
 
     stats[resource.Type] += resource.Amount;
-    //redispipe.hset('stats', id, JSON.stringify(stats));
+    //redis.hset('stats', id, JSON.stringify(stats));
 }
 
-function useResource(id, resource, redispipe){
+function useResource(id, resource, redis){
     var stats = UserStats[id];
 
     if (!stats){
@@ -166,7 +170,7 @@ function useResource(id, resource, redispipe){
     }
 
     stats[resource.Type] -= resource.Amount;
-    //redispipe.hset('stats', id, JSON.stringify(stats));
+    //redis.hset('stats', id, JSON.stringify(stats));
 }
 
 function canBuild(id, tile, position, type){
@@ -277,7 +281,7 @@ function calculateEfficiencyStats(id, unit){
     UserStats[id]["MFood"] += (MAX_FATIGUE * FOOD_PER_FATIGUE) / unit.TripLength;
 }
 
-function verifyTilePlacement(redispipe, id, position, type){
+function verifyTilePlacement(redis, id, position, type){
     let tile = Tiles[position];
     
     if (canBuild(id, tile, position, type)){
@@ -285,21 +289,21 @@ function verifyTilePlacement(redispipe, id, position, type){
         let req = TileConstructionCosts[type];
 
         for (res in req){
-            useResource(id, {Type:res, Amount:req[res]}, redispipe);
+            useResource(id, {Type:res, Amount:req[res]}, redis);
         }
 
         tile = JSON.parse(JSON.stringify(DefaultTile[type]));
         tile.OwnerId = id;
 
         Tiles[position] = tile;
-        redispipe.hset('tiles', position, JSON.stringify(tile));
+        redis.hset('tiles', position, JSON.stringify(tile));
 
         UserStats[id].MWood += TileMaintenanceCosts[type].Wood;
         UserStats[id].MStone += TileMaintenanceCosts[type].Stone;
-        redispipe.hset('stats', id, JSON.stringify(UserStats[id]));
+        redis.hset('stats', id, JSON.stringify(UserStats[id]));
 
         if (type == TileType.HOUSE){
-            redispipe.hset('unitspawns', position, 0);
+            redis.hset('unitspawns', position, 0);
             UnitSpawns[position] = 0;
         }
 
@@ -312,7 +316,7 @@ function verifyTilePlacement(redispipe, id, position, type){
                 t.OwnerId = id;
 
                 Tiles[pos] = t;
-                redispipe.hset('tiles', pos, JSON.stringify(t));
+                redis.hset('tiles', pos, JSON.stringify(t));
             }
 
             UserStats[id].Keep = position;
@@ -324,7 +328,7 @@ function verifyTilePlacement(redispipe, id, position, type){
     }
 }
 
-function verifyAttackAssignment(redispipe, id, unitid, position){
+function verifyAttackAssignment(redis, id, unitid, position){
     
     let unit = Units[unitid];
     let tile = Tiles[position];
@@ -337,10 +341,10 @@ function verifyAttackAssignment(redispipe, id, unitid, position){
     if (costHeuristic(unit.Posx+":"+unit.Posy, position) != 1) {console.log("Attack target too far!", costHeuristic(unit.Posx+":"+unit.Posy, position), unit.Posx+":"+unit.Posy, position); return}
     unit.Attack = position;
     console.log(unit.Attack, Units[unitid]);
-    redispipe.hset('units', unitid, JSON.stringify(unit));
+    redis.hset('units', unitid, JSON.stringify(unit));
 }
 
-function verifyWorkAssignment(redispipe, id, unitid, position){
+function verifyWorkAssignment(redis, id, unitid, position){
 
     let unit = Units[unitid];
     let tile = Tiles[position];
@@ -387,7 +391,7 @@ function verifyWorkAssignment(redispipe, id, unitid, position){
             if (unit.Work && Tiles[unit.Work]) {
                 let work = Tiles[unit.Work];
                 work.unitlist = [];
-                redispipe.hset('tiles', unit.Work, JSON.stringify(work));
+                redis.hset('tiles', unit.Work, JSON.stringify(work));
             }
             
             Tiles[position] = tile;
@@ -398,13 +402,13 @@ function verifyWorkAssignment(redispipe, id, unitid, position){
             calculateEfficiencyStats(id, unit);
 
             tile.unitlist.push(unit.Id);
-            redispipe.hset('tiles', position, JSON.stringify(tile));      
-            redispipe.hset('units', unitid, JSON.stringify(unit));
+            redis.hset('tiles', position, JSON.stringify(tile));      
+            redis.hset('units', unitid, JSON.stringify(unit));
         }
     }
 }
 
-function deleteCiv(redispipe, id){
+function deleteCiv(redis, id){
     let tileQueue = new Set();
     let tiles = new Set();
 
@@ -434,40 +438,40 @@ function deleteCiv(redispipe, id){
 
     for (pos of tiles) {
         delete Tiles[pos];
-        redispipe.hdel('tiles', pos);
+        redis.hdel('tiles', pos);
     }
 
     delete UserStats[id];
-    redispipe.hdel('stats', id);
+    redis.hdel('stats', id);
 
     for (unit of UnitCollections[id]) {
         delete Units[unit];
-        redispipe.hdel('units', unit);
+        redis.hdel('units', unit);
     }
 
     let t = (performance.now() - start).toFixed(1).toString().padStart(5, " ");
     console.log("Took: " + t + "ms");
-    handleNewPlayer(redispipe, id);
+    handleNewPlayer(redis, id);
 }
 
-function deleteTile(redispipe, id, position){
+function deleteTile(redis, id, position){
     let tile = Tiles[position];
 
     if (tile && tile.Type == TileType.KEEP){
-        return deleteCiv(redispipe, id);
+        return deleteCiv(redis, id);
     } 
     
     if (tile && (!tile.unitlist || tile.unitlist.length == 0)){
         UserStats[id].MWood -= TileMaintenanceCosts[tile.Type].Wood;
         UserStats[id].MStone -= TileMaintenanceCosts[tile.Type].Stone;
-        redispipe.hset('stats', id, JSON.stringify(UserStats[id]));
+        redis.hset('stats', id, JSON.stringify(UserStats[id]));
 
         Tiles[position] = makeDefaultTile();
-        redispipe.hset('tiles', position, JSON.stringify(Tiles[position]));
+        redis.hset('tiles', position, JSON.stringify(Tiles[position]));
     }
 }  
 
-function verifyTileDelete(redispipe, id, position){
+function verifyTileDelete(redis, id, position){
     let tile = Tiles[position];
 
     if (tile.OwnerId == id){
@@ -489,22 +493,22 @@ function verifyTileDelete(redispipe, id, position){
             tile.Type = type;
 
             if (!fragmented)
-                deleteTile(redispipe, id, position);
+                deleteTile(redis, id, position);
 
         } else {
-            deleteTile(redispipe, id, position);
+            deleteTile(redis, id, position);
         }
     }
 }
 
-function handleNewPlayer(redispipe, id){
+function handleNewPlayer(redis, id){
     let stats = {Food:STARTING_FOOD, Wood:STARTING_WOOD, Stone:STARTING_STONE, PlayerId:id, MFood:0,MWood:0,MStone:0,PFood:0,PWood:0,PStone:0};
     UnitCollections[id] = [];
     UserStats[id] = stats;
-    redispipe.hset('stats', id, JSON.stringify(stats));
+    redis.hset('stats', id, JSON.stringify(stats));
 }
 
-async function processActionQueue(redispipe){
+async function processActionQueue(redis){
     let actions = await redis.lrange('actionQueue', 0, -1);
     redis.ltrim('actionQueue', actions.length, -1);
 
@@ -515,19 +519,19 @@ async function processActionQueue(redispipe){
         switch(action.action){
 
             case Actions.NEW_PLAYER:
-                handleNewPlayer(redispipe, action.id);
+                handleNewPlayer(redis, action.id);
                 break;
             case Actions.PLACE_TILE:
-                verifyTilePlacement(redispipe, action.id, action.position, action.type);
+                verifyTilePlacement(redis, action.id, action.position, action.type);
                 break;
             case Actions.SET_WORK:
-                verifyWorkAssignment(redispipe, action.id, action.unit, action.position);
+                verifyWorkAssignment(redis, action.id, action.unit, action.position);
                 break;
             case Actions.ATTACK:
-                verifyAttackAssignment(redispipe, action.id, action.unit, action.position);
+                verifyAttackAssignment(redis, action.id, action.unit, action.position);
                 break;
             case Actions.DELETE_TILE:
-                verifyTileDelete(redispipe, action.id, action.position);
+                verifyTileDelete(redis, action.id, action.position);
                 break;
             default:
                 console.log("Unknown action!", action);
@@ -753,7 +757,7 @@ function establishUnitState(unit) {
         return [UnitState.IDLE, pos, hasTarget];
 }  
 
-function spawnUnit(redispipe, position){
+function spawnUnit(redis, position){
 
     let tile = Tiles[position];
     let id = (UnitCount++).toString()
@@ -772,14 +776,14 @@ function spawnUnit(redispipe, position){
 
     Units[id] = unit;
     UnitCollections[unit.OwnerId].push(id);
-    useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:100}, redispipe);
-    redispipe.hset('units', id, JSON.stringify(unit));
-    redispipe.set('unitcount', UnitCount);
+    useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:100}, redis);
+    redis.hset('units', id, JSON.stringify(unit));
+    redis.set('unitcount', UnitCount);
 
     return unit;
 }
 
-async function processUnitSpawns(redispipe){
+async function processUnitSpawns(redis){
 
     for (pos in UnitSpawns) {
         let tile = getTile(pos);
@@ -794,17 +798,17 @@ async function processUnitSpawns(redispipe){
             if(!tile.unitlist)
                 tile.unitlist = [];
 
-            let unit = spawnUnit(redispipe, pos);
+            let unit = spawnUnit(redis, pos);
             tile.unitlist.push(unit.Id);
 
-            redispipe.hset('tiles', pos, JSON.stringify(tile))
+            redis.hset('tiles', pos, JSON.stringify(tile))
 
             if (tile.unitlist.length >= HOUSE_UNIT_NUMBER) {
                 delete UnitSpawns[pos];
-                redispipe.hdel('unitspawns', pos);
+                redis.hdel('unitspawns', pos);
             } else {
                 UnitSpawns[pos] = 0;
-                redispipe.hset('unitspawns', pos, UnitSpawns[pos])
+                redis.hset('unitspawns', pos, UnitSpawns[pos])
             }
         }
     }
@@ -813,13 +817,12 @@ async function processUnitSpawns(redispipe){
 async function processRound() {
     var t1 = performance.now();
     var processed = 0;
-    let redispipe = redis.pipeline();
 
-    let pactions = await processActionQueue(redispipe);
+    let pactions = await processActionQueue(redis);
 
     var t2 = performance.now();
 
-    await processUnitSpawns(redispipe);
+    await processUnitSpawns(redis);
 
     for (id in UserStats){
         let stats = UserStats[id]
@@ -865,12 +868,12 @@ async function processRound() {
                     list[0].Attack = pos;
                     
                     if (list[0].Health <= 0) list[0].State = UnitState.DEAD;
-                    redispipe.hset('units', id, JSON.stringify(unit));
+                    redis.hset('units', id, JSON.stringify(unit));
 
                 } else {
                     
                     attacked.Health -= 1;
-                    redispipe.hset('tiles', unit.Attack, JSON.stringify(attacked));
+                    redis.hset('tiles', unit.Attack, JSON.stringify(attacked));
 
                     if (attacked.Health <= 0){
                         attacked.Type = TileType.DESTROYED;
@@ -911,7 +914,7 @@ async function processRound() {
                 break;
 
             case UnitState.RESTING:
-                useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:FOOD_PER_FATIGUE*FATIGUE_RECOVER_RATE}, redispipe);
+                useResource(unit.OwnerId, {Type:ResourceType.FOOD,Amount:FOOD_PER_FATIGUE*FATIGUE_RECOVER_RATE}, redis);
 
                 unit.Fatigue -= FATIGUE_RECOVER_RATE;
 
@@ -925,7 +928,7 @@ async function processRound() {
                 var t = safeType(pos);
 
                 if (t == TileType.STORAGE || t == TileType.KEEP){
-                    addResource(unit.OwnerId, unit.HeldResource, redispipe);
+                    addResource(unit.OwnerId, unit.HeldResource, redis);
                     unit.HeldResource = undefined;
 
                     if (unit.Fatigue > 0)
@@ -942,19 +945,15 @@ async function processRound() {
                 break;
         }
 
-        redispipe.hset('units', id, JSON.stringify(unit));
+        redis.hset('units', id, JSON.stringify(unit));
     }
 
     var t4 = performance.now();
 
     for (id in UserStats) {
         let stats = UserStats[id];
-        redispipe.hset('stats', id, JSON.stringify(stats));
+        redis.hset('stats', id, JSON.stringify(stats));
     }
-
-    redispipe.exec((err, results) => {
-        if (err) console.warn("Error executing redis pipeline! ", err);
-    });
 
     var t5 = performance.now();
 

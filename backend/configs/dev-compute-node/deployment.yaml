@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pioneers-dev-compute-node
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: pioneers-dev-compute-node
+  template:
+    metadata:
+      labels:
+        run: pioneers-dev-compute-node
+    spec:
+      containers:
+      - image: gcr.io/pioneers-237219/devpioncomputenode:latest
+        imagePullPolicy: Always
+        name: pioneers-dev-compute-node
+      nodeSelector:
+        static: "false"        
