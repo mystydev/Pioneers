@@ -11,19 +11,33 @@ var certificate = fs.readFileSync('certs/public.pem', 'utf8');
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = https.createServer(credentials, app);
 
-let cluster = new Redis.Cluster([{
-    port: 6379,
-    host: 'redis.dev',
-    retryStrategy: function(times) {
-        console.error("Connection to redis lost!")
-        return 1000
-        },
-    reconnectOnError: function(err) {
-        console.error("Encountered an error: " + err)
-        console.log("Reconnecting")
-        return true
-        }
-  }]);
+let cluster
+
+function connectoToRedis() {
+    cluster = new Redis.Cluster([{
+        port: 6379,
+        host: 'redis.dev',
+        retryStrategy: function(times) {
+            console.error("Connection to redis lost!")
+            return 1000
+            },
+        reconnectOnError: function(err) {
+            console.error("Encountered an error: " + err)
+            console.log("Reconnecting")
+            return true
+            }
+      }]);
+
+    cluster.on("error", (err) => {
+        console.log("Error occurred: " + err)
+        cluster.disconnect()
+        cluster.quit()
+        console.log("Attempting to reconnect to db")
+        setTimeout(connectoToRedis, 1000)
+    })
+}
+
+connectoToRedis()
 
 const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3,DELETE_TILE:4};
 //PLACE_TILE = user id, action enum, tile type enum, tile as position string

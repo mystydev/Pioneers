@@ -105,6 +105,10 @@ database.updateTile = (pos, tile) => {
     redis.hset("tiles", pos, JSON.stringify(tile))
 }
 
+database.deleteTile = (pos) => {
+    redis.hdel("tiles", pos)
+}
+
 database.updateStatus = (time, status) => {
     redis.set("lastprocess", time)
     redis.set("status", status)

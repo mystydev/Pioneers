@@ -58,6 +58,14 @@ local function syncprocess(world)
             Replication.pushTileChange(world.Tiles[i])
         end
 
+        for i, tile in pairs(world.Tiles) do
+            if not tiles[i] and tile.Type ~= Tile.GRASS then
+                print("Removing deleted tile")
+                world.Tiles[i] = nil
+                Replication.pushTileChange(Tile.defaultGrass(i))
+            end
+        end
+
         wait(SYNC_RATE)
     end
 end
@@ -85,7 +93,6 @@ local function tempSyncAll(world)
 end
 
 local function syncStats(player, world)
-
     local syncTime = 0
 
     while syncing and player do
@@ -101,13 +108,19 @@ local function syncStats(player, world)
     end
 end
 
+local function protectedCall(f, ...)
+    pcall(f, ...)
+    wait(1)
+    protectedCall(f, ...)
+end
+
 function Sync.begin(world)
     syncing = true
     currentWorld = world
 
     globalSync(world)
-    delay(2, function() syncprocess(world) end)
-    delay(0, function() tempSyncAll(world) end)
+    delay(2, function() protectedCall(syncprocess, world) end)
+    delay(0, function() protectedCall(tempSyncAll, world) end)
 end
 
 local function playerJoined(player)
@@ -122,13 +135,13 @@ local function playerJoined(player)
         UserStats.Store[player.UserId] = stats
     end
 
-    delay(2, function() syncStats(player, currentWorld) end)
+    delay(2, function() protectedCall(syncStats, player, currentWorld) end)
 end
 
-Players.PlayerAdded:Connect(playerJoined)
+Players.PlayerAdded:Connect(function(p) pcall(playerJoined, p) end)
 
 for _, player in pairs(Players:GetChildren()) do
-    playerJoined(player)
+    pcall(playerJoined, player)
 end
 
 

@@ -19,6 +19,7 @@ function shutdown(code) {
 function computeRequest(data) {
     console.log("Handling compute request")
     let start = performance.now()
+    let response = {}
     let statChanges = []
 
     for (let id in data) {
@@ -31,7 +32,10 @@ function computeRequest(data) {
     let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
     console.log("Compute request took: " + timeTaken + "ms")
 
-    return statChanges
+    response.units = data
+    response.statChanges = statChanges
+
+    return response
 }
 
 function init() {
@@ -47,8 +51,8 @@ function init() {
 }
 
 httpserver.post("/", (req, res) => {
-    let statChanges = computeRequest(req.body)
-    res.json({"statChanges":statChanges})
+    let response = computeRequest(req.body)
+    res.json(response)
 })
 
 init()

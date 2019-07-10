@@ -15,6 +15,7 @@ common.MAX_FATIGUE = 10
 common.MAX_STORAGE_DIST = 15
 common.FOOD_PER_FATIGUE = 2
 common.FATIGUE_RECOVER_RATE = 5
+common.LAND_CLAIM_RADIUS = 30
 
 common.strToPosition = (pos) => {
     let [x, y] = pos.split(":")

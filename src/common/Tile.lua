@@ -32,18 +32,30 @@ Tile.Localisation[Tile.BARRACKS] = "Barracks"
 Tile.Localisation[Tile.WALL]     = "Wall"
 Tile.Localisation[Tile.GATE]     = "Gate" 
 
-Tile.ConstructionCosts = {
-    {Stone =   0,   Wood =   0}, -- keep
-    {Stone =  20,   Wood =   0}, -- path
-    {Stone =  100,  Wood =  100}, -- house
-    {Stone =  75,   Wood =  75}, -- farm
-    {Stone =   0,   Wood =  150}, -- mine
-    {Stone =  150,  Wood =   0}, -- forestry
-    {Stone = 500,   Wood = 500}, -- storage
-    {Stone = 500,  Wood = 300}, -- barracks
-    {Stone = 1000, Wood =  1000}, -- wall
-    {Stone = 1000, Wood = 1500}  -- gate
-}   
+Tile.Description = {}
+Tile.Description[Tile.KEEP]     = "The foundation and heart of a civilisation"
+Tile.Description[Tile.PATH]     = "Pave down some stone where villagers can walk"
+Tile.Description[Tile.HOUSE]    = "A cosy place for villagers to live and rest"
+Tile.Description[Tile.FARM]     = "Everyone needs some food, this is where it's made"
+Tile.Description[Tile.MINE]     = "Smash up some stone to use it elsewhere"
+Tile.Description[Tile.FORESTRY] = "Chop down trees to build with"
+Tile.Description[Tile.STORAGE]  = "All this stuff has to go somewhere"
+Tile.Description[Tile.BARRACKS] = "Train villagers how to attack others"
+Tile.Description[Tile.WALL]     = "Keep your villagers safe from hostile enemies"
+Tile.Description[Tile.GATE]     = "As safe as a wall but now villagers can freely move" 
+
+Tile.ConstructionCosts = {}
+Tile.ConstructionCosts[Tile.KEEP]     = {Stone =   0,   Wood =    0}
+Tile.ConstructionCosts[Tile.PATH]     = {Stone =   20,  Wood =    0}
+Tile.ConstructionCosts[Tile.HOUSE]    = {Stone =  100,  Wood =  100}
+Tile.ConstructionCosts[Tile.FARM]     = {Stone =   75,  Wood =   75}
+Tile.ConstructionCosts[Tile.MINE]     = {Stone =    0,  Wood =  150}
+Tile.ConstructionCosts[Tile.FORESTRY] = {Stone =  150,  Wood =    0}
+Tile.ConstructionCosts[Tile.STORAGE]  = {Stone =  500,  Wood =  500}
+Tile.ConstructionCosts[Tile.BARRACKS] = {Stone =  500,  Wood =  300}
+Tile.ConstructionCosts[Tile.WALL]     = {Stone = 1000,  Wood = 1000}
+Tile.ConstructionCosts[Tile.GATE]     = {Stone = 1000,  Wood = 1500}
+
 
 Tile.MaxHealth = {}
 Tile.MaxHealth[Tile.DESTROYED]= 0
@@ -82,6 +94,10 @@ function Tile.deserialise(index, data)
     tile.UnitList = data.UnitList
 
     return tile
+end
+
+function Tile.defaultGrass(pos)
+    return Tile.deserialise(pos, "{\"Type\":0}")
 end
 
 function Tile.getIndex(tile)

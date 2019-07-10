@@ -89,6 +89,12 @@ function Tile(type, id, pos, unitlist) {
 
 tiles.Tile = Tile
 
+tiles.deleteTile = (pos) => {
+    delete Tiles[pos]
+    units.removeSpawn(pos)
+    database.deleteTile(pos)
+}
+
 tiles.tileFromJSON = (rawdata, pos) => {
     let data = JSON.parse(rawdata)
     let tile = new Tile(data.Type, data.OwnerId, pos, data.UnitList)
@@ -109,6 +115,10 @@ tiles.fromPosString = (pos) => {
     return Tiles[pos]
 }
 
+tiles.fromCoords = (posx, posy) => {
+    return Tiles[posx + ":" + posy]
+}
+
 tiles.getSafeType = (pos) => {
     let tile = Tiles[pos]
     return tile ? tile.Type : TileType.GRASS
@@ -119,12 +129,25 @@ tiles.getNeighbours = (pos) => {
 
     return [
         (x    ) + ":" + (y + 1),
-        (x + 1) + ":" + (y + 1),
-        (x + 1) + ":" + (y    ),
         (x    ) + ":" + (y - 1),
+        (x + 1) + ":" + (y + 1),
         (x - 1) + ":" + (y - 1),
+        (x + 1) + ":" + (y    ),
         (x - 1) + ":" + (y    )
     ]
+}
+
+tiles.isWallGap = (pos) => {
+    let neighbours = tiles.getNeighbours(pos)
+
+    if (tiles.getSafeType(neighbours[0]) == TileType.WALL && tiles.getSafeType(neighbours[1]) == TileType.WALL)
+        return true
+    else if (tiles.getSafeType(neighbours[2]) == TileType.WALL && tiles.getSafeType(neighbours[3]) == TileType.WALL)
+        return true
+    else if (tiles.getSafeType(neighbours[4]) == TileType.WALL && tiles.getSafeType(neighbours[5]) == TileType.WALL)
+        return true
+    else
+        return false
 }
 
 tiles.isWalkable = (pos) => {
@@ -251,4 +274,65 @@ tiles.getOutput = (pos) => {
             produce++
 
     return [TileOutputs[tile.Type], produce]
+}
+
+tiles.isEmpty = (pos) => {
+    return tiles.getSafeType(pos) == TileType.GRASS
+}
+
+tiles.assignWorker = (pos, unit) => {
+    let tile = tiles.fromPosString(pos)
+    tile.UnitList.push(unit.Id)
+    database.updateTile(pos, tile)
+}
+
+tiles.unassignWorker = (pos, unit) => {
+    let tile = tiles.fromPosString(pos)
+    tile.UnitList = tile.UnitList.filter(id => id != unit.Id)
+    database.updateTile(pos, tile)
+}
+
+tiles.getCircularCollection = (pos, radius) => {
+    let [posx, posy] = common.strToPosition(pos)
+    let collection = []
+
+    for (let r = 0; r < radius; r++) {
+        for (let i = 0; i < radius; i++) {
+            collection.push(tiles.fromCoords(posx     + i, posy + r    ))
+            collection.push(tiles.fromCoords(posx + r    , posy + r - i))
+            collection.push(tiles.fromCoords(posx + r - i, posy     - i))
+            collection.push(tiles.fromCoords(posx     - i, posy - r    ))
+            collection.push(tiles.fromCoords(posx - r    , posy - r + i))
+            collection.push(tiles.fromCoords(posx - r + i, posy     + i))
+        }
+    }
+
+    return collection.filter(t => t != undefined)
+}
+
+tiles.isProductivityTile = (pos) => {
+    let t = tiles.getSafeType(pos)
+    return t == TileType.FARM || t == TileType.FORESTRY || t == TileType.MINE
+}
+
+tiles.canAssignWorker = (pos, unit) => {
+    let tile = tiles.fromPosString(pos)
+
+    //Is there a tile
+    if (!tile)
+        return false
+
+    //Is it a tile we can assign a worker to
+    if (!tiles.isProductivityTile(pos))
+        return false
+    
+    //Is there already a worker assigned
+    if (tile.UnitList.length > 0)
+        return false
+        
+    //Is the tile owned by the worker owner
+    if (unit.OwnerId != tile.OwnerId)
+        return false
+
+    return true
 }

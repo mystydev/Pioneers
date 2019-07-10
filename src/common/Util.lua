@@ -2,6 +2,7 @@ local Util   = {}
 local Common = game.ReplicatedStorage.Pioneers.Common
 
 local World = require(Common.World)
+local Tile  = require(Common.Tile)
 
 local TILESPACING = 10 --Distance from center of hexagon to edge vertex
 local EDGESPACING = TILESPACING * (0.5 * 3^.5)
@@ -56,6 +57,10 @@ function Util.getNeighbours(tiles, pos)
         World.getTile(tiles, pos.x - 1, pos.y - 1),
         World.getTile(tiles, pos.x - 1, pos.y    ),
     }
+end
+
+function Util.isWalkable(tile)
+    return tile.Type == Tile.PATH or tile.Type == Tile.GATE
 end
 
 return Util

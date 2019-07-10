@@ -176,11 +176,12 @@ function preload.displayTesterStatus(status)
 
             local function onAgree()
                 TweenService:Create(game.Lighting.LoadingBlur, tweenInfo, {Size = 0}):Play()
-                Roact.unmount(handle)
+                --Roact.unmount(handle)
             end
 
             TweenService:Create(game.Lighting.LoadingBlur, tweenInfo, {Size = 15}):Play()
-            handle = Roact.mount(TesterAlert({Approved = status, Clicked = onAgree}), loadingGui, "Tester Alert")
+            --handle = Roact.mount(TesterAlert({Approved = status, Clicked = onAgree}), loadingGui, "Tester Alert")
+            onAgree()
         end
     end)
 end

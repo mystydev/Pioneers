@@ -5,9 +5,10 @@ local function start()
 
     local ClientPreload = require(Client.ClientPreload)
     ClientPreload.init()
-
+    
+    local ActionHandler   = require(Client.ActionHandler)
     local ViewWorld       = require(Client.ViewWorld)
-    local ViewStats       = require(Client.ViewStats)
+    local UIBase          = require(Client.UIBase)
     Replication           = require(Client.Replication)
     local ObjectSelection = require(Client.ObjectSelection)
     local SoundManager    = require(Client.SoundManager)
@@ -30,9 +31,11 @@ local function start()
 
     ClientPreload.tellReady()
 
-    ObjectSelection.init(world, stats)
-    ViewStats.init(stats)
-
+    --ObjectSelection.init(world, stats)
+    ActionHandler.init(world)
+    UIBase.init(world)
+    UIBase.showStats(stats)
+    UIBase.showBuildButton()
 end
 
 local LogService = game:GetService("LogService")
@@ -55,7 +58,9 @@ LogService.MessageOut:Connect(function(message, type)
             world.Dead = true
         end
 
-        game.Lighting.Blur:Destroy()
+        if game.Lighting:FindFirstChild("Blur") then
+            game.Lighting.Blur:Destroy()
+        end
 
         script:Clone().Parent = script.Parent
         script:Destroy()

@@ -100,8 +100,8 @@ function ResourceLabel:didMount()
 
                 self.state.lastupdate = tick()
 
-                local cost = self.state.stats["M"..self.state.Type] or 0
-                local produce = self.state.stats["P"..self.state.Type] or 0
+                local cost = self.state.stats[self.state.Type.."Cost"] or 0
+                local produce = self.state.stats[self.state.Type.."Produced"] or 0
 
                 return {
                     display = newval,

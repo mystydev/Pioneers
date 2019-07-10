@@ -87,7 +87,7 @@ local function unselect(dontunmount)
 
     if not dontunmount then
         local panel = Roact.createElement(ObjectInfoPanel, {info = currentSelectionInfo})
-        handle = Roact.reconcile(handle, panel)
+        handle = Roact.update(handle, panel)
         inPrompt = nil
         SoundManager.endFocus()
     end
@@ -95,6 +95,10 @@ end
 
 local function select(object, inst, reselect)
     unselect(true)
+
+    if object.Position then
+        print(object.Position)
+    end
 
     if not reselect then
         SoundManager.pullFocus()
@@ -149,6 +153,8 @@ local function processInput(input, processed)
         mouseClicked()
     elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
         unselect()
+    elseif input.UserInputType == Enum.UserInputType.Touch then
+        mouseClicked()
     end
 end
 

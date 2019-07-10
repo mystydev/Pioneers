@@ -4,16 +4,19 @@ local Common   = game.ReplicatedStorage.Pioneers.Common
 local Assets   = game.ReplicatedStorage.Pioneers.Assets
 
 local ClientUtil = require(Client.ClientUtil)
-local World = require(Common.World)
-local Tile = require(Common.Tile)
-local Util = require(Common.Util)
+local World      = require(Common.World)
+local Tile       = require(Common.Tile)
+local Util       = require(Common.Util)
 
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
+local RunService   = game:GetService("RunService")
+local Players      = game:GetService("Players")
 
 local clamp = math.clamp
+local playerId = Players.LocalPlayer.UserId
 
 local TileToInstMap = {}
+local playerTiles = {}
 local sizeTween = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local meshes = {}
@@ -67,12 +70,14 @@ local gptLookup = {
 }
 gptLookup[0] = {0, 0}
 
-currentTiles = {}
+local currentTiles = {}
 function ViewTile.init(tiles)
     currentTiles = tiles
 end
 
 function ViewTile.displayTile(tile, displaySize)
+
+
 
     if TileToInstMap[tile] then
         ViewTile.updateDisplay(tile, displaySize)
@@ -110,13 +115,20 @@ function ViewTile.updateDisplay(tile, displaySize)
 
     if not model then
         return ViewTile.displayTile(tile)
+    else
+        if tile.OwnerId == playerId then
+            playerTiles[model] = tile
+        else
+            playerTiles[model] = nil
+        end
     end
 
     local displayInfo = meshes[tile.Type]
 
     if model.Name ~= displayInfo.mesh.Name then
-        TileToInstMap[tile]:Destroy()
+        model:Destroy()
         TileToInstMap[tile] = nil
+        playerTiles[model] = nil
         return ViewTile.displayTile(tile, displaySize)
     end
 
@@ -193,6 +205,10 @@ end
 
 function ViewTile.getInstFromTile(tile)
     return TileToInstMap[tile]
+end
+
+function ViewTile.getPlayerTiles()
+    return playerTiles
 end
 
 return ViewTile
