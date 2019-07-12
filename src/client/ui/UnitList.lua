@@ -1,6 +1,8 @@
 local ui = script.Parent
+local Client = ui.Parent
 local Roact = require(game.ReplicatedStorage.Roact)
 
+local ViewUnit = require(Client.ViewUnit)
 local UnitInfoLabel = require(ui.UnitInfoLabel)
 
 local RunService = game:GetService("RunService")
@@ -9,20 +11,14 @@ local UnitList = Roact.Component:extend("UnitInfoLabel")
 
 local infotable
 
-function UnitList:init(props)
-    infotable = props.info
-    self:setState(props.info)
+function UnitList:init()
 end
 
 function UnitList:render()
-    local units = {}
-    local state = self.state
+   
 
-    local UnitList = state.Obj and state.Obj.UnitList or {}
-
-    for _, unit in pairs(UnitList) do
-        table.insert(units, state.World.Units[unit])
-    end
+    local list = self.props.object and self.props.object.UnitList or {}
+    local units = ViewUnit.convertIdListToUnits(list)
 
     local unitLabels = {}
 
@@ -30,13 +26,14 @@ function UnitList:render()
         table.insert(unitLabels, Roact.createElement(UnitInfoLabel, {
                                     Position = UDim2.new(0.5, 0, 0, 42 * i),
                                     Unit = unit,
+                                    SetObject = self.props.SetObject,
         }))
     end
 
     return Roact.createElement("Frame", {
         Name = "UnitList",
         BackgroundTransparency = 1,
-        Position = state.Position or UDim2.new(0.146, 0, 0.4, 0),
+        Position = self.props.Position or UDim2.new(0.146, 0, 0.4, 0),
         Size = UDim2.new(0, 239, 0, 73),
     }, unitLabels)
 end
@@ -44,16 +41,12 @@ end
 function UnitList:didMount()
     self.running = true
 
-    spawn(function()
-        while self.running do
-            self:setState(infotable)
-            RunService.Stepped:Wait()
-        end
-    end)
-end
-
-function UnitList.getDerivedStateFromProps(nextProps, lastState)
-    return nextProps
+    --spawn(function()
+    --    while self.running do
+    --        self:setState(infotable)
+    --        RunService.Stepped:Wait()
+    --    end
+    --end)
 end
 
 function UnitList:willUnmount()

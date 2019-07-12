@@ -69,7 +69,7 @@ function UnitInfoLabel:render()
         Size = self.state.Size or UDim2.new(0, 232, 0, 32),
         AnchorPoint = Vector2.new(0.5, 0.5),
         Image = displayImage,
-        [Roact.Event.MouseButton1Click] = function() ObjectSelection.select(self.state.Unit) end
+        [Roact.Event.MouseButton1Click] = function() self.props.SetObject(self.state.Unit) end
     }, {
         Label = Roact.createElement(Label, {Text = text})
     })

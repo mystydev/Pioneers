@@ -11,7 +11,7 @@ local function Title(props)
         Size                   = props.Size or UDim2.new(0,200,0,32),
         Font                   = "SourceSans",
         TextSize               = props.TextSize or 36,
-        TextColor3             = Color3.fromRGB(61,61,61),
+        TextColor3             = props.Color or Color3.fromRGB(61,61,61),
         TextXAlignment         = props.TextXAlignment or "Left",
         AnchorPoint            = props.AnchorPoint or Vector2.new(0,0),
     })

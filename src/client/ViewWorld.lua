@@ -13,14 +13,6 @@ local RunService = game:GetService("RunService")
 local CurrentWorld
 local UPDATE_THROTTLE = 300
 
-local function isTile(inst)
-    if not inst then return end
-    
-    if inst:IsA("MeshPart") then
-        return true
-    end
-end
-
 local updateCount = 0
 function ViewWorld.displayWorld(world)
     CurrentWorld = world
@@ -32,8 +24,7 @@ function ViewWorld.displayWorld(world)
     ViewUnit.init(world)
 
     spawn(function()
-        while true do
-
+        while false do
             local pos  = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
             local area = Util.circularCollection(tiles, pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
 
@@ -74,12 +65,7 @@ function ViewWorld.displayWorld(world)
 end
 
 function ViewWorld.convertInstanceToTile(inst)
-
-    if not isTile(inst) then
-        return end
-
-    local pos = Util.worldCoordToAxialCoord(inst.Position)
-    return World.getTile(CurrentWorld.Tiles, pos.x, pos.y)
+    return ViewTile.getTileFromInst(inst)
 end
 
 function ViewWorld.convertInstanceToUnit(inst)
@@ -92,6 +78,10 @@ function ViewWorld.convertInstanceToObject(inst)
 end
 
 function ViewWorld.convertObjectToInst(object)
+    if type(object) == "string" then --reference tile by position id, doesn't make sense to do so with units
+        object = CurrentWorld.Tiles[object]
+    end
+
     return ViewTile.getInstFromTile(object) 
             or ViewUnit.getInstFromUnit(object)
 end

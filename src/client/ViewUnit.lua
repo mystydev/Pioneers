@@ -84,8 +84,16 @@ end
 function ViewUnit.getUnitFromInst(inst)
     if not inst then
         return end
+    
+    if inst.Name == "Handle" then
+        inst = inst.Parent
+    end
 
-    return instToUnitMap[inst] or instToUnitMap[inst.Parent]
+    if not inst:IsA("Model") and inst.Parent:IsA("Model") then
+        inst = inst.Parent
+    end
+    
+    return instToUnitMap[inst]
 end
 
 function ViewUnit.getInstFromUnit(unit)
@@ -450,6 +458,33 @@ function ViewUnit.updateDisplay(unit)
         lastanims[model] = nil
     end
 
+end
+
+function ViewUnit.convertIdListToUnits(list)
+    local units = {}
+
+    for _, unit in pairs(list) do
+        table.insert(units, currentWorld.Units[unit])
+    end
+
+    return units
+end
+
+function ViewUnit.convertIdListToInsts(list)
+    if not list then
+        return end
+
+    local units = {}
+
+    for _, unit in pairs(ViewUnit.convertIdListToUnits(list)) do
+        local inst = ViewUnit.getInstFromUnit(unit)
+
+        if inst then
+            table.insert(units, inst)
+        end
+    end
+
+    return units
 end
 
 spawn(autoUnload)

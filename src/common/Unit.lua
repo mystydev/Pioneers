@@ -51,16 +51,9 @@ function Unit.serialise(unit)
     data.Posy    = unit.Position.y
     data.Health  = unit.Health 
     data.Fatigue = unit.Fatigue
-
-    data.Home = string.format("%d:%d", unit.Home.Position.x, unit.Home.Position.y)
-
-    if unit.Work then
-        data.Work = string.format("%d:%d", unit.Work.Position.x, unit.Work.Position.y)
-    end
-
-    if unit.Target then
-        data.Target = string.format("%d:%d", unit.Target.Position.x, unit.Target.Position.y)
-    end
+    data.Home    = unit.Home
+    data.Work    = unit.Work
+    data.Target  = unit.Target
 
     return HttpService:JSONEncode({index = index, data = data})
 end
@@ -79,10 +72,10 @@ function Unit.deserialise(index, sdata, tiles)
     unit.MFatigue = data.MFatigue or 10
     unit.Training = data.Training
     unit.MTraining= data.MTraining or 10000
-    unit.Home     = tiles[data.Home]
-    unit.Work     = tiles[data.Work] or {Type = 0}
-    unit.Target   = tiles[data.Target]
-    unit.Attack   = tiles[data.Attack]
+    unit.Home     = data.Home
+    unit.Work     = data.Work
+    unit.Target   = data.Target
+    unit.Attack   = data.Attack
     unit.State    = data.State
     unit.HeldResource = data.HeldResource or false
 

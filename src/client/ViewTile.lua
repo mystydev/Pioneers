@@ -16,6 +16,7 @@ local clamp = math.clamp
 local playerId = Players.LocalPlayer.UserId
 
 local TileToInstMap = {}
+local InstToTileMap = {}
 local playerTiles = {}
 local sizeTween = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
@@ -97,6 +98,7 @@ function ViewTile.displayTile(tile, displaySize)
     end
 
     TileToInstMap[tile] = model
+    InstToTileMap[model] = tile
     model.CFrame = CFrame.new(Util.axialCoordToWorldCoord(tile.Position) + meshInfo.offset)
 
     if tile.Type == Tile.GATE then
@@ -128,6 +130,7 @@ function ViewTile.updateDisplay(tile, displaySize)
     if model.Name ~= displayInfo.mesh.Name then
         model:Destroy()
         TileToInstMap[tile] = nil
+        InstToTileMap[model] = nil
         playerTiles[model] = nil
         return ViewTile.displayTile(tile, displaySize)
     end
@@ -205,6 +208,10 @@ end
 
 function ViewTile.getInstFromTile(tile)
     return TileToInstMap[tile]
+end
+
+function ViewTile.getTileFromInst(inst)
+    return InstToTileMap[inst]
 end
 
 function ViewTile.getPlayerTiles()
