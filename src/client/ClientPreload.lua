@@ -1,8 +1,10 @@
 local preload = {}
 local Client  = script.Parent
+local Common  = game.ReplicatedStorage.Pioneers.Common
 local Roact   = require(game.ReplicatedStorage.Roact)
 
-local TesterAlert = require(Client.ui.TesterAlert)
+local UserSettings = require(Common.UserSettings)
+local TesterAlert  = require(Client.ui.TesterAlert)
 
 local RunService      = game:GetService("RunService")
 local ContentProvider = game:GetService("ContentProvider")
@@ -174,14 +176,24 @@ function preload.displayTesterStatus(status)
 
             local handle
 
-            local function onAgree()
+            local function onAgree(showWarning)
                 TweenService:Create(game.Lighting.LoadingBlur, tweenInfo, {Size = 0}):Play()
-                --Roact.unmount(handle)
+                if handle then
+                    Roact.unmount(handle)
+                end
+                
+                if not showWarning then
+                    UserSettings.dontShowDeveloptmentWarning()
+                end
             end
 
             TweenService:Create(game.Lighting.LoadingBlur, tweenInfo, {Size = 15}):Play()
-            --handle = Roact.mount(TesterAlert({Approved = status, Clicked = onAgree}), loadingGui, "Tester Alert")
-            onAgree()
+
+            if UserSettings.shouldShowDevelopmentWarning() then
+                handle = Roact.mount(TesterAlert({Approved = status, Clicked = onAgree}), loadingGui, "Tester Alert")
+            else
+                onAgree()
+            end
         end
     end)
 end

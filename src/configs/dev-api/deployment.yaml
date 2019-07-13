@@ -14,7 +14,7 @@ spec:
         run: pioneers-dev-api
     spec:
       containers:
-      - image: gcr.io/pioneers-237219/devpionapi@sha256:94bbf547da8120d89a3489df3ffeb4cfd5d53e785e73c34771c100eee795e3d2
+      - image: gcr.io/pioneers-237219/devpionapi:latest
         imagePullPolicy: Always
         name: pioneers-dev-api
         ports:

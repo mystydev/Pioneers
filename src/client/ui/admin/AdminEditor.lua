@@ -20,7 +20,7 @@ function AdminEditor:render()
     local children = {}
 
     children.Title = Roact.createElement(Title, {
-        Title = "Admin Object editor",
+        Title = "Admin Object Editor",
         TextTransparency = 0.1, 
         Position = UDim2.new(0.5, 0, 0.05, 0),
         Size = UDim2.new(1, 0, 0, 32),

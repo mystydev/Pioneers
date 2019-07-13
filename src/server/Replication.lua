@@ -1,11 +1,12 @@
 local Replication = {}
 local Common      = game.ReplicatedStorage.Pioneers.Common
 
-local Tile      = require(Common.Tile)
-local Unit      = require(Common.Unit)
-local UserStats = require(Common.UserStats)
-local Util      = require(Common.Util)
-local World     = require(Common.World)
+local Tile         = require(Common.Tile)
+local Unit         = require(Common.Unit)
+local UserStats    = require(Common.UserStats)
+local UserSettings = require(Common.UserSettings)
+local Util         = require(Common.Util)
+local World        = require(Common.World)
 
 local Network = game.ReplicatedStorage.Network
 local Players = game:GetService("Players")
@@ -22,6 +23,19 @@ end
 
 local function statsRequest(player)
     return UserStats.Store[player.UserId]
+end
+
+local function settingsRequest(player)
+    return UserSettings.getUserSettings(player)
+end
+
+local function settingsUpdate(player, settings)
+    local url = API_URL .. "updateusersettings"
+    local payload = Http:JSONEncode({
+        Id = player.userId,
+        Settings = settings,
+    })
+    Http:PostAsync(url, payload)
 end
 
 local function tilePlacementRequest(player, tile, type)
@@ -111,6 +125,8 @@ function Replication.assignWorld(w)
 
     Network.RequestWorldState.OnServerInvoke    = worldStateRequest
     Network.RequestStats.OnServerInvoke         = statsRequest
+    Network.RequestSettings.OnServerInvoke      = settingsRequest
+    Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
     Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
     Network.RequestTileDelete.OnServerInvoke    = tileDeleteRequest
     Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest

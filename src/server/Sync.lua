@@ -2,10 +2,11 @@ local Sync   = {}
 local Server = script.Parent
 local Common = game.ReplicatedStorage.Pioneers.Common
 
-local Replication = require(Server.Replication)
-local Tile        = require(Common.Tile)
-local Unit        = require(Common.Unit)
-local UserStats   = require(Common.UserStats)
+local Replication  = require(Server.Replication)
+local Tile         = require(Common.Tile)
+local Unit         = require(Common.Unit)
+local UserStats    = require(Common.UserStats)
+local UserSettings = require(Common.UserSettings)
 
 local Players     = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -138,10 +139,19 @@ local function playerJoined(player)
     delay(2, function() protectedCall(syncStats, player, currentWorld) end)
 end
 
+local function loadPlayerSettings(player)
+    local requestUrl = API_URL.."getusersettings"
+    local payload = HttpService:JSONEncode({Id=player.userId})
+    local settings = HttpService:PostAsync(requestUrl, payload)
+    UserSettings.parseJSON(player, settings)
+end 
+
 Players.PlayerAdded:Connect(function(p) pcall(playerJoined, p) end)
+Players.PlayerAdded:Connect(function(player) loadPlayerSettings(player) end)
 
 for _, player in pairs(Players:GetChildren()) do
     pcall(playerJoined, player)
+    loadPlayerSettings(player)
 end
 
 

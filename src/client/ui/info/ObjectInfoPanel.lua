@@ -48,9 +48,9 @@ function ObjectInfoPanel:render()
         elements.UnitList = Roact.createElement(UnitList, {object = state.object, SetObject = self.props.SetObject})
     else
         state.Title = Unit.Localisation[state.object.Type]
-
+        
         if state.Owner == Player.userId then
-            elements.UnitActionButton = Roact.createElement(UnitActionButton, {Position = UDim2.new(-0.098, 0, 0.875, 0)})
+            elements.UnitActionButton = Roact.createElement(UnitActionButton, {Position = UDim2.new(-0.098, 0, 0.875, 0), UIBase = self.props.UIBase})
         end
 
         elements.UnitStatus = Roact.createElement(UnitInfoLabel, {

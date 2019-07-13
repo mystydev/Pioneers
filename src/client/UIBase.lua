@@ -10,6 +10,8 @@ local ViewTile            = require(Client.ViewTile)
 local ViewUnit            = require(Client.ViewUnit)
 local ViewWorld           = require(Client.ViewWorld)
 local ActionHandler       = require(Client.ActionHandler)
+local Replication         = require(Client.Replication)
+local ClientUtil          = require(Client.ClientUtil)
 local StatsPanel          = require(ui.StatsPanel)
 local InitiateBuildButton = require(ui.build.InitiateBuildButton)
 local BuildList           = require(ui.build.BuildList)
@@ -27,6 +29,7 @@ UIBase.State.MAIN = 1
 UIBase.State.BUILD = 2
 UIBase.State.TILEBUILD = 3
 UIBase.State.INFO = 4
+UIBase.State.SELECTWORK = 5
 
 local buildListHandle
 local infoHandle
@@ -208,7 +211,7 @@ end
 function UIBase.transitionToInfoView()
     UIState = UIBase.State.INFO
     UIBase.unfocusBackground()
-    infoHandle = Roact.mount(Roact.createElement(ObjectInfoPanel, {InfoObject = infoObjectBinding, SetObject = UIBase.showObjectInfo}), screengui)
+    infoHandle = Roact.mount(Roact.createElement(ObjectInfoPanel, {InfoObject = infoObjectBinding, SetObject = UIBase.showObjectInfo, UIBase = UIBase}), screengui)
     adminHandle = Roact.mount(Roact.createElement(AdminEditor, {object = infoObjectBinding}), screengui)
 end
 
@@ -216,9 +219,49 @@ function UIBase.exitInfoView()
     if UIState == UIBase.State.INFO then
         UIBase.unHighlightAllInsts()
         UIState = UIBase.State.MAIN
-        Roact.unmount(infoHandle)
+        if infoHandle then Roact.unmount(infoHandle) end
         if adminHandle then Roact.unmount(adminHandle) end
         UIBase.refocusBackground()
+    end
+end
+
+function UIBase.promptSelectWork(workType)
+    if UIState == UIBase.State.INFO then
+        UIBase.transitionToSelectWorkView()
+    end
+
+    UIBase.unHighlightAllInsts()
+
+    for _, tile in pairs(ViewTile.getPlayerTiles()) do
+        if Tile.canAssignWorker(tile) then
+            local inst = ViewTile.getInstFromTile(tile)
+            UIBase.highlightInst(inst)
+            UIBase.listenToInst(inst, function()
+                Replication.requestUnitWork(infoObjectBinding:getValue(), tile)
+                UIBase.exitSelectWorkView()
+            end)
+        end
+    end
+    
+end
+
+function UIBase.transitionToSelectWorkView()
+    UIState = UIBase.State.SELECTWORK
+end
+
+function UIBase.exitSelectWorkView()
+    if UIState == UIBase.State.SELECTWORK or UIState == UIBase.State.INFO then
+        UIState = UIBase.State.INFO
+        UIBase.exitInfoView()
+    end
+end
+
+function UIBase.keepPlacementPrompt()
+    local playerPos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
+    local tiles     = Util.circularCollection(currentWorld.Tiles, playerPos.x, playerPos.y, 0, 10)
+
+    for _, tile in pairs(tiles) do
+        UIBase.highlightBuildableTile(tile, Tile.KEEP)
     end
 end
 
@@ -252,7 +295,10 @@ function UIBase.highlightBuildableTile(tile, type)
 end
 
 function UIBase.highlightBuildableArea(type)
-    local buildableTiles = {}
+    if type == Tile.KEEP then
+        return UIBase.keepPlacementPrompt()
+    end
+
     local tiles = ViewTile.getPlayerTiles()
 
     for _, tile in pairs(tiles) do
@@ -285,10 +331,6 @@ end
 local function mouseClicked(input)
     local inst = mouse.Target
 
-    if instEvents[inst] and instEvents[inst].onClick then
-        instEvents[inst].onClick()
-    end
-
     if UIState == UIBase.State.MAIN or UIState == UIBase.State.INFO then
         local object = ViewWorld.convertInstanceToObject(inst)
         
@@ -296,11 +338,17 @@ local function mouseClicked(input)
             UIBase.showObjectInfo(object)
         end
     end
+
+    if instEvents[inst] and instEvents[inst].onClick then
+        instEvents[inst].onClick()
+    end
 end
 
 local function mouseRightClicked(input)
     if UIState == UIBase.State.INFO then
         UIBase.exitInfoView()
+    elseif UIState == UIBase.State.SELECTWORK then
+        UIBase.exitSelectWorkView()
     end
 end
 

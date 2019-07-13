@@ -189,7 +189,7 @@ function ViewUnit.displayUnit(unit, oldModel)
                     end
                 end
 
-                RunService.RenderStepped:Wait()
+                RunService.Heartbeat:Wait()
             end
 
             oldModel:Destroy()
@@ -341,7 +341,7 @@ function ViewUnit.updateDisplay(unit)
         
         if (unit.State == Unit.UnitState.WORKING 
             and unit.Target 
-            and unit.Target.Position == unit.Work.Position)
+            and unit.Target == unit.Work)
             or unit.State == Unit.UnitState.COMBAT then
 
             if onBack[model] then
@@ -405,7 +405,7 @@ function ViewUnit.updateDisplay(unit)
     elseif unit.State == Unit.UnitState.COMBAT then
         local cpos = model.HumanoidRootPart.Position
         local pos = Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET
-        local apos = Util.axialCoordToWorldCoord(unit.Attack.Position) + POSITION_OFFSET
+        local apos = Util.axialCoordToWorldCoord(unit.Attack) + POSITION_OFFSET
 
         local dir = (apos - cpos).unit
         local targetcf = CFrame.new(pos:Lerp(apos, 0.15), apos)
@@ -439,7 +439,7 @@ function ViewUnit.updateDisplay(unit)
             actionAnim:Play(1)
         end
 
-    elseif unit.State == Unit.UnitState.WORKING and unit.Target and unit.Target.Position == unit.Work.Position then
+    elseif unit.State == Unit.UnitState.WORKING and unit.Target and unit.Target == unit.Work then
 
         animMoving[model]:Stop(3)
         

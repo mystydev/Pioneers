@@ -27,6 +27,7 @@ local function start()
     ViewWorld.displayWorld(world)
 
     local stats = Replication.getUserStats()
+    Replication.getUserSettings()
 
     ClientPreload.tellReady()
 

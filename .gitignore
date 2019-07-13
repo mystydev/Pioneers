@@ -3,7 +3,7 @@ site/*
 *.mtl
 *.obj
 **/node_modules/**
-backend/api/certs/*
+src/api/certs/*
 Roact/*
 TestEZ/*
 assets/sounds/*

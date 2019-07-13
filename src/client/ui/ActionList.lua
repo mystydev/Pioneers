@@ -31,7 +31,7 @@ function ActionListButton:render()
         PressedImage = "rbxassetid://3064056895",
         Position = self.Position or UDim2.new(0,0,0,0),
         [Roact.Ref] = self.instRef,
-        [Roact.Event.MouseButton1Click] = function() ObjectSelection.assignTilePrompt(self.state.Type) end,
+        [Roact.Event.MouseButton1Click] = function() self.props.UIBase.promptSelectWork() end,
         [Roact.Event.MouseEnter] = SoundManager.highlight,
     }, {
         Label = Roact.createElement(Label, {
@@ -51,4 +51,4 @@ for index, action in pairs(World.UnitActions) do
     table.insert(buttons, Roact.createElement(ActionListButton, {Type = action, index = index}))
 end
 
-return buttons
+return ActionListButton

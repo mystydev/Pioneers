@@ -56,6 +56,21 @@ database.getAllStats = async () => {
     return Stats
 }
 
+database.getAllSettings = async () => {
+    let Settings = {}
+    let settings = await redis.hgetall('settings')
+    let num = 0
+
+    for (key in settings) {
+        Settings[key] = JSON.parse(settings[key])
+        num++
+    }
+
+    console.log("Loaded", num, "user settings!")
+
+    return Settings
+}
+
 database.getUnitCount = async () => {
     return await redis.get("unitcount")
 }
@@ -83,6 +98,10 @@ database.getActionQueue = async () => {
 
 database.updateStats = (id, stats) => {
     redis.hset("stats", id, JSON.stringify(stats))
+}
+
+database.updateSettings = (id, settings) => {
+    redis.hset("settings", id, JSON.stringify(settings))
 }
 
 database.updateUnit = (id, unit) => {

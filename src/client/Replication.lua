@@ -3,14 +3,15 @@ local Client      = script.Parent
 local Common      = game.ReplicatedStorage.Pioneers.Common
 
 local ClientPreload = require(Client.ClientPreload)
-local ViewUnit    = require(Client.ViewUnit)
-local ViewTile    = require(Client.ViewTile)
-local ClientUtil  = require(Client.ClientUtil)
-local World       = require(Common.World)
-local Tile        = require(Common.Tile)
-local Util        = require(Common.Util)
-local UserStats   = require(Common.UserStats)
-local Network     = game.ReplicatedStorage.Network
+local ViewUnit      = require(Client.ViewUnit)
+local ViewTile      = require(Client.ViewTile)
+local ClientUtil    = require(Client.ClientUtil)
+local World         = require(Common.World)
+local Tile          = require(Common.Tile)
+local Util          = require(Common.Util)
+local UserStats     = require(Common.UserStats)
+local UserSettings  = require(Common.UserSettings)
+local Network       = game.ReplicatedStorage.Network
 
 local currentWorld
 local currentStats = {}
@@ -52,9 +53,25 @@ function Replication.getUserStats()
 
     repeat
         currentStats = Network.RequestStats:InvokeServer()
+        wait(0.5)
     until currentStats
     
     return currentStats
+end
+
+function Replication.getUserSettings()
+    local settings
+    
+    _G.updateLoadStatus("Fetching user settings...")
+
+    repeat
+        settings = Network.RequestSettings:InvokeServer()
+        wait(0.5)
+    until settings
+
+    UserSettings.defineLocalSettings(settings)
+
+    return settings
 end
 
 local buildCostBuffer = {}

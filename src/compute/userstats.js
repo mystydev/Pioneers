@@ -79,9 +79,9 @@ userstats.addPerRoundProduce = (id, type, amount) => {
     if (type == resource.Type.FOOD)
         stats.FoodProduced += amount
     else if (type == resource.Type.WOOD)
-        woodProduced += amount
+        stats.WoodProduced += amount
     else if (type == resource.Type.STONE)
-        stoneProduced += amount
+        stats.StoneProduced += amount
 
     database.updateStats(id, stats)
 }

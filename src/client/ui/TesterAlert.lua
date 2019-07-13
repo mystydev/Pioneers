@@ -8,6 +8,8 @@ local Label       = require(ui.Label)
 local approved = {id = "rbxassetid://3137922987", size = UDim2.new(0, 492, 0, 540)}
 local declined = {id = "rbxassetid://3137923052", size = UDim2.new(0, 492, 0, 191)}
 
+local showWarning = true
+
 local function TesterAlert(props)
 
     elements = {}
@@ -15,12 +17,12 @@ local function TesterAlert(props)
     if props.Approved then
         elements.agreeButton = Roact.createElement(AgreeButton, {
             Position = UDim2.new(1, -210, 1, -110),
-            Clicked = props.Clicked,
+            Clicked = function() props.Clicked(showWarning) end,
         })
 
         elements.checkBox = Roact.createElement(CheckBox, {
             Position = UDim2.new(0, 65, 1, -90),
-            Clicked = function(checked) print(checked) end,
+            Clicked = function(checked) showWarning = not checked end,
         })
 
         elements.checkLabel = Roact.createElement(Label, {

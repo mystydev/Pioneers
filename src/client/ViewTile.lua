@@ -218,4 +218,16 @@ function ViewTile.getPlayerTiles()
     return playerTiles
 end
 
+function ViewTile.getPlayerTilesOfType(type)
+    local tiles = {}
+    
+    for _, tile in pairs(playerTiles) do
+        if tile.Type == type then
+            table.insert(tiles, tile)
+        end
+    end
+
+    return tiles
+end
+
 return ViewTile

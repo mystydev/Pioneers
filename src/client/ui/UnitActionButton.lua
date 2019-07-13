@@ -1,26 +1,43 @@
 local ui = script.Parent
 local Roact = require(game.ReplicatedStorage.Roact)
+local Common = game.ReplicatedStorage.Pioneers.Common
 
+local World = require(Common.World)
 local ActionList = require(ui.ActionList)
 
 local UnitActionButton = Roact.Component:extend("UnitActionButton")
 
 function UnitActionButton:init(props)
-    self:setState(props)
+    self:setState({
+        clicked = false
+    })
 end
 
 function UnitActionButton:render()
+
+    local children = {}
+
+    if self.state.clicked then
+        for index, action in pairs(World.UnitActions) do 
+            table.insert(children, Roact.createElement(ActionList, {
+                Type = action, 
+                index = index,
+                UIBase = self.props.UIBase,
+            }))
+        end
+    end
+
     return Roact.createElement("ImageButton", {
         Name                   = "UnitActionButton",
         BackgroundTransparency = 1,
-        Position               = self.state.Position,
+        Position               = self.props.Position,
         Size                   = UDim2.new(0,64,0,64),
         AnchorPoint            = Vector2.new(0.5, 0.5),
         Image                  = "rbxassetid://3077218297",
         HoverImage             = "rbxassetid://3077212059",
         PressedImage           = "rbxassetid://3077212059",
-        [Roact.Event.MouseButton1Click] = function() self:setState({actionList = ActionList}) end,
-    }, self.state.actionList)
+        [Roact.Event.MouseButton1Click] = function() self:setState({clicked = true}) end,
+    }, children)
 end
 
 return UnitActionButton

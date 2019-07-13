@@ -106,4 +106,19 @@ function Tile.getIndex(tile)
     end
 end
 
+function Tile.canAssignWorker(tile)
+    if not Tile.isProductivityTile(tile) then
+        return end
+
+    if not tile.UnitList or #tile.UnitList == 0 then
+        return true
+    end
+
+    return false
+end
+
+function Tile.isProductivityTile(tile)
+    return tile.Type == Tile.FARM or tile.Type == Tile.FORESTRY or tile.Type == Tile.MINE
+end
+
 return Tile
