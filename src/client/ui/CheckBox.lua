@@ -1,5 +1,10 @@
+local ui = script.Parent
+local Client = ui.Parent
 local Roact = require(game.ReplicatedStorage.Roact)
+
+local SoundManager = require(Client.SoundManager)
 local TweenService = game:GetService("TweenService")
+
 
 local empty = "rbxassetid://3137132874"
 local filled = "rbxassetid://3137569139"
@@ -14,6 +19,7 @@ local fadeTime = 0.1
 
 function CheckBox:onClick()
     self:setState({lastClick = tick(), Checked = not self.state.Checked})
+    SoundManager.highlight() 
 
     if self.state.Checked then
         self.checkRef.current.Size = UDim2.new(0,0,0,13)

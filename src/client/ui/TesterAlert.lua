@@ -1,6 +1,8 @@
 local ui = script.Parent
+local Client = ui.Parent
 local Roact = require(game.ReplicatedStorage.Roact)
 
+local SoundManager = require(Client.SoundManager)
 local AgreeButton = require(ui.AgreeButton)
 local CheckBox    = require(ui.CheckBox)
 local Label       = require(ui.Label)
@@ -11,7 +13,7 @@ local declined = {id = "rbxassetid://3137923052", size = UDim2.new(0, 492, 0, 19
 local showWarning = true
 
 local function TesterAlert(props)
-
+    SoundManager.urgentAlert()
     elements = {}
 
     if props.Approved then

@@ -101,6 +101,8 @@ function Replication.requestTileDelete(tile)
         print("Tile delete request failed!")
     end
 
+    ViewTile.simulateDeletion(tile)
+
     return success
 end
 

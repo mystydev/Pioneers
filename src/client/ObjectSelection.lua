@@ -96,10 +96,6 @@ end
 local function select(object, inst, reselect)
     unselect(true)
 
-    if object.Position then
-        print(object.Position)
-    end
-
     if not reselect then
         SoundManager.pullFocus()
     end

@@ -19,6 +19,11 @@ common.LAND_CLAIM_RADIUS = 30
 common.TRAINING_FOR_SOLDIER = 100
 
 common.strToPosition = (pos) => {
+    if (!pos) {
+        console.error("Undefined position string passed to strToPosition!")
+        return [0, 0]
+    }
+
     let [x, y] = pos.split(":")
     return [parseInt(x), parseInt(y)]
 }

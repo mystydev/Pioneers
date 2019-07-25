@@ -85,7 +85,8 @@ function ObjectInfoPanel:render()
     if state.Owner == Player.userId then
         elements.DemolishButton = Roact.createElement(DemolishButton, 
                             {Position = UDim2.new(0.65, 0, 0.865, 0),
-                            Obj = state.object})
+                            Obj = state.object,
+                            UIBase = self.props.UIBase})
     end
 
     if state.object.Health then

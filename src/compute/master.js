@@ -74,23 +74,24 @@ function canBuild(id, pos, type) {
 		return true
 
 	//Tile is attached to a path
-	let neighbours = tiles.getNeighbours(pos)
-
-	for (let neighbour of neighbours)
+	for (let neighbour of tiles.getNeighbours(pos))
 		if (tiles.isWalkable(neighbour))
 			return true
 }
 
 function verifyTilePlacement(id, pos, type) {
 
+	//Can the player build a tile of this type here
 	if (!canBuild(id, pos, type))
 		return
 	
+	//Update users stats
 	let cost = tiles.TileConstructionCosts[type]
 	userstats.use(id, resource.Type.WOOD, cost[resource.Type.WOOD])
 	userstats.use(id, resource.Type.STONE, cost[resource.Type.STONE])
 	userstats.addTileMaintenance(id, tiles.TileMaintenanceCosts[type])
 	
+	//Create tile and recompute cached values (like unit trips)
 	new tiles.Tile(type, id, pos)
 	units.recomputeCiv(id)
 }
@@ -98,15 +99,19 @@ function verifyTilePlacement(id, pos, type) {
 function verifyWorkAssignment(id, unitid, pos) {
 	let unit = units.fromid(unitid)
 
+	//Does the unit exist and is the unit owned by the player making the request
 	if (!unit || id != unit.OwnerId)
 		return
 
+	//Is it a military unit and if not can it be assigned work
 	if (!units.isMilitary(unit) && !tiles.canAssignWorker(pos, unit))
 		return 
 	
+	//If it is a military unit can it be assigned military work
 	if (units.isMilitary(unit) && !tiles.canAssignMilitaryWorker(pos, unit))
 		return 
 
+	//Assign the worker
 	tiles.assignWorker(pos, unit)
 	units.assignWork(unit, pos)
 }
@@ -137,10 +142,26 @@ function verifyAttackAssignment(id, unitid, pos) {
 function verifyTileDeletion(id, pos) {
 	let tile = tiles.fromPosString(pos)
 
-	if (tile && tile.OwnerId == id && tile.UnitList.length == 0) {
-		userstats.removeTileMaintenance(id, tiles.TileMaintenanceCosts[tile.Type])
-		tiles.deleteTile(pos)
-	}
+	//Does the tile exist
+	if (!tile)
+		return false
+
+	//Is the tile owned by the player making the request
+	if (tile.OwnerId != id)
+		return false
+
+	//Does the tile have any units assigned to it
+	if (tile.UnitList.length > 0)
+		return false
+
+	//Will deleting this tile cause a kingdom fragmentation
+	if (tiles.isFragmentationDependant(pos, userstats.getKeep(id)))
+		return false
+
+	//Remove maintenance cost from users stats, delete the tile and update cached unit values
+	userstats.removeTileMaintenance(id, tiles.TileMaintenanceCosts[tile.Type])
+	tiles.deleteTile(pos)
+	units.recomputeCiv(id)
 }
 
 async function processActionQueue() {

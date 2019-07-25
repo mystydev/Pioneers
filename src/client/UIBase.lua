@@ -13,6 +13,7 @@ local ViewWorld           = require(Client.ViewWorld)
 local ActionHandler       = require(Client.ActionHandler)
 local Replication         = require(Client.Replication)
 local ClientUtil          = require(Client.ClientUtil)
+local SoundManager        = require(Client.SoundManager)
 local StatsPanel          = require(ui.StatsPanel)
 local InitiateBuildButton = require(ui.build.InitiateBuildButton)
 local BuildList           = require(ui.build.BuildList)
@@ -78,11 +79,13 @@ function UIBase.init(world, displaystats)
 end
 
 function UIBase.unfocusBackground()
+    SoundManager.pullFocus()
     TweenService:Create(blur, tweenSlow, {Size = 20}):Play()
     TweenService:Create(desaturate, tweenSlow, {Saturation = -0.5}):Play()
 end
 
 function UIBase.refocusBackground()
+    SoundManager.endFocus()
     TweenService:Create(blur, tweenSlow, {Size = 0}):Play()
     TweenService:Create(desaturate, tweenFast, {Saturation = 0.5}):Play()
 end
@@ -213,6 +216,7 @@ function UIBase.showObjectInfo(object)
     UIBase.highlightInsts(ViewUnit.convertIdListToInsts(object.UnitList))
 
     setInfoObject(object)
+    SoundManager.softSelect()
 end
 
 function UIBase.transitionToInfoView()
@@ -375,7 +379,7 @@ function UIBase.highlightGuardableArea()
 end
 
 function UIBase.showInDevelopmentWarning(status)
-    if UserSettings.shouldShowDevelopmentWarning() then
+    if UserSettings.shouldShowDevelopmentWarning() or true then
         UIBase.disableManagedInput()
         TweenService:Create(blur, tweenSlow, {Size = 15}):Play()
         promptHandle = Roact.mount(TesterAlert({
@@ -398,6 +402,7 @@ function UIBase.showTutorialPrompt()
     UIBase.disableManagedInput()
     TweenService:Create(blur, tweenSlow, {Size = 15}):Play()
     promptHandle = Roact.mount(Roact.createElement(NewPlayerPrompt, {UIBase = UIBase}), screengui)
+    SoundManager.alert()
 end
 
 function UIBase.startTutorial()
@@ -406,6 +411,10 @@ function UIBase.startTutorial()
     UIBase.disableManagedInput()
     UIBase.showStats()
     promptHandle = Roact.mount(Roact.createElement(TutorialPrompt, {UIBase = UIBase}), worldgui)
+end
+
+function UIBase.endTutorial()
+    UIBase.dismissPrompt()
 end
 
 function UIBase.dismissPrompt()

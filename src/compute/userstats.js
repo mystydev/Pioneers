@@ -65,6 +65,10 @@ userstats.hasKeep = (id) => {
     return Stats[id].Keep != undefined
 }
 
+userstats.getKeep = (id) => {
+    return Stats[id].Keep
+}
+
 userstats.setPerRoundProduce = (id, food, wood, stone) => {
     let stats = Stats[id]
     stats.FoodProduced = food

@@ -10,6 +10,7 @@ local SmallResourceLabel = require(ui.common.SmallResourceLabel)
 
 local BuildToolTip  = Roact.Component:extend("BuildToolTip")
 local CostBinding, CostUpdate = Roact.createBinding(nil)
+local MaintenanceBinding, MaintenanceUpdate = Roact.createBinding(nil)
 
 function BuildToolTip:init()
     self:setState({
@@ -48,25 +49,48 @@ function BuildToolTip:render()
     })
 
     children.CostTitle = Roact.createElement(Title, {
-        Title = "Cost",
+        Title = "Build",
         TextSize = 28,
         TextTransparency = self.state.Transparency + 0.1, 
-        Position = UDim2.new(0.5, 0, 0.6, 0),
+        Position = UDim2.new(0.5, 0, 0.55, 0),
         Size = UDim2.new(0, 250, 0, 32),
         AnchorPoint = Vector2.new(0.5, 0),
     })
 
     children.WoodCost = Roact.createElement(SmallResourceLabel, {
         Type = "Wood",
-        Position = UDim2.new(0.3, 0, 0.7, 5),
+        Position = UDim2.new(0.375, 0, 0.65, 5),
         Value = CostBinding,
         Transparency = self.state.Transparency + 0.1,
     })
 
     children.StoneCost = Roact.createElement(SmallResourceLabel, {
         Type = "Stone",
-        Position = UDim2.new(0.6, 0, 0.7, 5),
+        Position = UDim2.new(0.65, 0, 0.65, 5),
         Value = CostBinding,
+        Transparency = self.state.Transparency + 0.1,
+    })
+
+    children.MaintenanceTitle = Roact.createElement(Title, {
+        Title = "Upkeep",
+        TextSize = 28,
+        TextTransparency = self.state.Transparency + 0.1, 
+        Position = UDim2.new(0.5, 0, 0.7, 0),
+        Size = UDim2.new(0, 250, 0, 32),
+        AnchorPoint = Vector2.new(0.5, 0),
+    })
+
+    children.WoodMaintenance = Roact.createElement(SmallResourceLabel, {
+        Type = "Wood",
+        Position = UDim2.new(0.375, 0, 0.8, 5),
+        Value = MaintenanceBinding,
+        Transparency = self.state.Transparency + 0.1,
+    })
+
+    children.StoneMaintenance = Roact.createElement(SmallResourceLabel, {
+        Type = "Stone",
+        Position = UDim2.new(0.65, 0, 0.8, 5),
+        Value = MaintenanceBinding,
         Transparency = self.state.Transparency + 0.1,
     })
 
@@ -95,6 +119,7 @@ function BuildToolTip:didMount()
                 end
                 
                 CostUpdate(Tile.ConstructionCosts[self.props.Type:getValue()])
+                MaintenanceUpdate(Tile.MaintenanceCosts[self.props.Type:getValue()])
 
                 return {
                     DisplayPosition = state.DisplayPosition:Lerp(self.props.Position:getValue(), alpha),

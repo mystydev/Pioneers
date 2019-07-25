@@ -247,4 +247,15 @@ function ViewTile.getPlayerTilesOfType(type)
     return tiles
 end
 
+function ViewTile.simulateDeletion(tile)
+    tile.Type = Tile.GRASS
+
+    ViewTile.updateDisplay(tile)
+    tile.lastChange = tick()
+
+    for _, neighbour in pairs(Util.getNeighbours(currentTiles, tile.Position)) do
+        ViewTile.updateDisplay(neighbour)
+    end
+end
+
 return ViewTile

@@ -14,7 +14,10 @@ local function DeleteButton(props)
         TextSize               = 24,
         TextTransparency       = 0.4,
         TextColor3             = Color3.fromRGB(170, 0, 0),
-        [Roact.Event.MouseButton1Click] = function() print("deleting", props.Obj) Replication.requestTileDelete(props.Obj) end,
+        [Roact.Event.MouseButton1Click] = function() 
+            Replication.requestTileDelete(props.Obj)
+            props.UIBase.exitInfoView()
+        end,
     })
 end
 

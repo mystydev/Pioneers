@@ -203,6 +203,16 @@ function reconstructPath(start, target, cameFrom) {
 }
 
 tiles.findPath = (start, target, isMilitary) => {
+    if (!start) {
+        console.error("Undefined start tile passed to findPath!")
+        return undefined
+    }
+
+    if (!target) {
+        console.error("Undefined target tile passed to findPath!")
+        return undefined
+    }
+
     let openSet = []
     let closedSet = new Set()
     let cameFrom = {}
@@ -376,4 +386,29 @@ tiles.canAssignMilitaryWorker = (pos, unit) => {
     //If it is grass we can assign
     if (type == TileType.GRASS)
         return true
+}
+
+tiles.isFragmentationDependant = (pos, keepPos) => {
+    let tile = tiles.fromPosString(pos)
+    
+    //If this isn't walkable then it cannot be dependant
+    if (!tiles.isWalkable(pos))
+        return false
+
+    //Can surrounding tiles still get to the keep if this tile is removed
+    let willFragment = false
+    let originalType = tile.Type
+    tile.Type = TileType.GRASS //Simulate removing tile
+
+    for (let neighbourPos of tiles.getNeighbours(pos)) {
+        if (tiles.getSafeType(neighbourPos) != TileType.GRASS) {
+            if (!tiles.findPath(neighbourPos, keepPos)) {
+                willFragment = true
+                break 
+            }
+        }
+    }
+
+    tile.Type = originalType
+    return willFragment
 }

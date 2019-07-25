@@ -8,11 +8,13 @@ local UserSettings = require(Common.UserSettings)
 local Util         = require(Common.Util)
 local World        = require(Common.World)
 
-local Network = game.ReplicatedStorage.Network
-local Players = game:GetService("Players")
-local Http    = game:GetService("HttpService")
+local Network       = game.ReplicatedStorage.Network
+local Players       = game:GetService("Players")
+local Http          = game:GetService("HttpService")
+local ServerStorage = game:GetService("ServerStorage")
 
 local API_URL = "https://api.mysty.dev/pion/"
+local API_KEY = ServerStorage.APIKey.Value
 local Actions = World.Actions
 
 local currentWorld
@@ -32,6 +34,7 @@ end
 local function settingsUpdate(player, settings)
     local url = API_URL .. "updateusersettings"
     local payload = Http:JSONEncode({
+        apikey = API_KEY,
         Id = player.userId,
         Settings = settings,
     })
@@ -43,6 +46,7 @@ local function tilePlacementRequest(player, tile, type)
     local stile = World.getTile(currentWorld.Tiles, tile.Position.x, tile.Position.y)
 
     local payload = {
+        apikey = API_KEY,
         id = player.UserId,
         action = Actions.PLACE_TILE,
         type = type,
@@ -57,17 +61,14 @@ end
 
 local function tileDeleteRequest(player, tile)
     local payload = {
+        apikey = API_KEY,
         id = player.UserId,
         action = Actions.DELETE_TILE,
         position = Tile.getIndex(tile)
     }
 
-    for i, v in pairs(payload) do print(i,v) end
-
     local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
     res = Http:JSONDecode(res)
-
-    for i, v in pairs(res) do print(i,v) end
 
     return res.status == "Ok"
 end
@@ -75,13 +76,12 @@ end
 local function unitWorkRequest(player, unit, tile)
     
     local payload = {
+        apikey = API_KEY,
         id = player.UserId,
         action = Actions.SET_WORK,
         unitId = unit.Id,
         position = Tile.getIndex(tile)
     }
-
-    print("WorkRequest:", Actions.SET_WORK, Tile.getIndex(tile))
 
     local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
     res = Http:JSONDecode(res)
@@ -92,6 +92,7 @@ end
 local function unitAttackRequest(player, unit, tile)
 
     local payload = {
+        apikey = API_KEY,
         id = player.UserId,
         action = Actions.ATTACK,
         unitId = unit.Id,
@@ -101,8 +102,6 @@ local function unitAttackRequest(player, unit, tile)
     local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
     res = Http:JSONDecode(res)
 
-    print("Attack:", res.status)
-
     return res.status == "Ok"
 end
 
@@ -111,7 +110,11 @@ local function getCircularTiles(player, pos, radius)
 end
 
 local function getTesterStatus(player)
-    local res = Http:GetAsync(API_URL.."isTester?id="..player.UserId)
+    local payload = {
+        apikey = API_KEY,
+        id = player.UserId,
+    }
+    local res = Http:PostAsync(API_URL.."isTester", Http:JSONEncode(payload))
 
     if res == "\"0\"" then
         return false

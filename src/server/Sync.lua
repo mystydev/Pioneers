@@ -8,21 +8,24 @@ local Unit         = require(Common.Unit)
 local UserStats    = require(Common.UserStats)
 local UserSettings = require(Common.UserSettings)
 
-local Players     = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
+local Players       = game:GetService("Players")
+local Http          = game:GetService("HttpService")
+local ServerStorage = game:GetService("ServerStorage")
 
 local SYNC_RATE = 1
 local API_URL = "https://api.mysty.dev/pion/"
+local API_KEY = ServerStorage.APIKey.Value
 local syncing, currentWorld
 
 local function globalSync(world)
     print("Requesting world data")
 
-    local tiles = HttpService:GetAsync(API_URL.."alltiles")
-    local units = HttpService:GetAsync(API_URL.."allunits")
+    local payload = Http:JSONEncode({apikey = API_KEY})
+    local tiles = Http:PostAsync(API_URL.."alltiles", payload)
+    local units = Http:PostAsync(API_URL.."allunits", payload)
 
-    tiles = HttpService:JSONDecode(tiles)
-    units = HttpService:JSONDecode(units)
+    tiles = Http:JSONDecode(tiles)
+    units = Http:JSONDecode(units)
 
     local n = 0
 
@@ -47,8 +50,9 @@ local function syncprocess(world)
 
     while syncing do
         
-        local tiles = HttpService:GetAsync(API_URL.."alltiles")
-        tiles = HttpService:JSONDecode(tiles)
+        local payload = Http:JSONEncode({apikey = API_KEY})
+        local tiles = Http:PostAsync(API_URL.."alltiles", payload)
+        tiles = Http:JSONDecode(tiles)
         
         local t = tick()
 
@@ -77,8 +81,8 @@ local function tempSyncAll(world)
 
     while syncing do
         
-        local payload = HttpService:JSONEncode({time = syncTime})
-        local res = HttpService:JSONDecode(HttpService:PostAsync(API_URL.."longpollunit", payload))
+        local payload = Http:JSONEncode({apikey = API_KEY, time = syncTime})
+        local res = Http:JSONDecode(Http:PostAsync(API_URL.."longpollunit", payload))
 
         syncTime = res.time
 
@@ -98,11 +102,11 @@ local function syncStats(player, world)
 
     while syncing and player do
 
-        local payload = HttpService:JSONEncode({time = syncTime, userId = player.UserId})
-        local res = HttpService:JSONDecode(HttpService:PostAsync(API_URL.."longpolluserstats", payload))
+        local payload = Http:JSONEncode({apikey = API_KEY, time = syncTime, userId = player.UserId})
+        local res = Http:JSONDecode(Http:PostAsync(API_URL.."longpolluserstats", payload))
 
         syncTime = res.time
-        UserStats.Store[player.UserId] = HttpService:JSONDecode(res.data)
+        UserStats.Store[player.UserId] = Http:JSONDecode(res.data)
         Replication.pushStatsChange(UserStats.Store[player.UserId])
 
         wait(SYNC_RATE + math.random())
@@ -125,8 +129,8 @@ function Sync.begin(world)
 end
 
 local function playerJoined(player)
-    local jsonStats = HttpService:PostAsync(API_URL.."userjoin", HttpService:JSONEncode({Id=player.userId}))
-    local stats = HttpService:JSONDecode(jsonStats)
+    local jsonStats = Http:PostAsync(API_URL.."userjoin", Http:JSONEncode({apikey = API_KEY, Id=player.userId}))
+    local stats = Http:JSONDecode(jsonStats)
 
     if stats.status and stats.status == "NewUser" then
         UserStats.Store[player.UserId] = {Food = 0, Wood = 0, Stone = 0, 
@@ -141,8 +145,8 @@ end
 
 local function loadPlayerSettings(player)
     local requestUrl = API_URL.."getusersettings"
-    local payload = HttpService:JSONEncode({Id=player.userId})
-    local settings = HttpService:PostAsync(requestUrl, payload)
+    local payload = Http:JSONEncode({apikey = API_KEY, Id=player.userId})
+    local settings = Http:PostAsync(requestUrl, payload)
     UserSettings.parseJSON(player, settings)
 end 
 

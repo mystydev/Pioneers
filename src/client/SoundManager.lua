@@ -52,12 +52,16 @@ function SoundManager.tempWorld(sound, inst)
 end
 
 function SoundManager.pullFocus()
-    SoundManager.tempGlobal(Sounds.Effects.SoftSelect:Clone())
+    
     TweenService:Create(masterGroup.FocusMute, FocusMuteVals.info, FocusMuteVals.on):Play()
 end
 
 function SoundManager.endFocus()
     TweenService:Create(masterGroup.FocusMute, FocusMuteVals.info, FocusMuteVals.off):Play()
+end
+
+function SoundManager.softSelect()
+    SoundManager.tempGlobal(Sounds.Effects.SoftSelect:Clone())
 end
 
 function SoundManager.success()
@@ -75,12 +79,32 @@ function SoundManager.highlight()
     SoundManager.tempGlobal(Sounds.Effects.Highlight:Clone())
 end
 
+function SoundManager.alert()
+    SoundManager.tempGlobal(Sounds.Effects.Alert:Clone())
+end
+
+function SoundManager.urgentAlert()
+    SoundManager.tempGlobal(Sounds.Effects.UrgentAlert:Clone())
+end
+
 function SoundManager.animSounds(inst, anim)
     spawn(function()
         local hitSignal = anim:GetMarkerReachedSignal("Hit")
-        local sound = Sounds.Effects.HollowHit:Clone()
+        local sound
+
+        if inst.Name == "Hoe" then
+            sound = Sounds.Effects.HitWheat:Clone()
+        elseif inst.Name == "Axe" then
+            sound = Sounds.Effects.HitTree:Clone()
+        elseif inst.Name == "Pickaxe" then
+            sound = Sounds.Effects.HitRock:Clone()
+        else
+            return
+        end
+
         sound.Archivable = false
         sound.Parent = inst
+        sound.SoundGroup = masterGroup
         
         while anim do
             hitSignal:Wait()

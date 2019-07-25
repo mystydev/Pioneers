@@ -7,6 +7,7 @@ var cors = require('cors');
 var app = express();
 var privateKey  = fs.readFileSync('certs/private.key', 'utf8');
 var certificate = fs.readFileSync('certs/public.pem', 'utf8');
+let APIKey      = fs.readFileSync("certs/apikey.key", "utf8")
 
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = https.createServer(credentials, app);
@@ -50,6 +51,14 @@ const PORT = 443;
 app.use(cors())
 app.use(bodyParser.json())
 
+app.use(function(req, res, next) {
+    if (!req.body.apikey || req.body.apikey != APIKey) {
+        res.send("Invalid API key used!")
+    } else {
+        next()
+    }
+})
+
 app.listen(PORT, () => {
     console.log("Pioneers HTTP API "+VERSION+" is now running on port "+PORT+"!");
 });
@@ -58,14 +67,14 @@ app.get("/", (req, res) => {
     res.send("alive");
 })
 
-app.get("/pion/status", (req, res) => {
+app.post("/pion/status", (req, res) => {
     cluster.get('status').then(s => {
         res.json(s);
     })
 })
 
-app.get("/pion/isTester", (req, res) => {
-    cluster.hget('tester', req.query.id).then(s => {
+app.post("/pion/isTester", (req, res) => {
+    cluster.hget('tester', req.body.id).then(s => {
         if (s) {
             res.json(s);
         } else {
@@ -216,13 +225,13 @@ app.post("/pion/updateusersettings", (req, res) => {
 })
 
 ///OLD-------------------------------------------------------------------------
-app.get("/pion/alltiles", (req, res) => {
+app.post("/pion/alltiles", (req, res) => {
     cluster.hgetall('tiles').then(tiles => {
         res.json(tiles);
     });
 });
 
-app.get("/pion/allunits", (req, res) => {
+app.post("/pion/allunits", (req, res) => {
     cluster.hgetall('units').then(units => {
         res.json(units);
     });

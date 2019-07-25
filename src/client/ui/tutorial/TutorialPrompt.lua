@@ -1,6 +1,8 @@
 local ui    = script.Parent.Parent
+local Client = ui.Parent
 local Roact = require(game.ReplicatedStorage.Roact)
 
+local SoundManager = require(Client.SoundManager)
 local NextPromptButton = require(ui.tutorial.NextPromptButton)
 local PreviousPromptButton = require(ui.tutorial.PreviousPromptButton)
 
@@ -25,6 +27,7 @@ local tutorialSequence = {
 }
 
 function TutorialPrompt:init()
+    SoundManager.alert()
     self:setState({
         index = 1,
     })
@@ -32,6 +35,10 @@ end
 
 function TutorialPrompt:render()
     local children = {}
+
+    if self.state.index > #tutorialSequence then
+        return self.props.UIBase.endTutorial()
+    end
 
     if self.state.index ~= 3 and self.state.index ~= 5 then
         children.next = Roact.createElement(NextPromptButton, {
@@ -56,7 +63,9 @@ end
 
 function TutorialPrompt:nextPrompt()
     self:setState({index = self.state.index + 1})
-    self:dynamicPromptState()
+    if self.state.index <= #tutorialSequence then
+        self:dynamicPromptState()
+    end
 end
 
 function TutorialPrompt:previousPrompt()
@@ -65,6 +74,7 @@ function TutorialPrompt:previousPrompt()
 end
 
 function TutorialPrompt:dynamicPromptState()
+    SoundManager.alert()
     if self.state.index == 3 then
         self.props.UIBase.showBuildButton()
         self.props.UIBase.waitForUIState(self.props.UIBase.State.BUILD)

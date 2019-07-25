@@ -57,6 +57,17 @@ Tile.ConstructionCosts[Tile.BARRACKS] = {Stone =  500,  Wood =  300}
 Tile.ConstructionCosts[Tile.WALL]     = {Stone = 1000,  Wood = 1000}
 Tile.ConstructionCosts[Tile.GATE]     = {Stone = 1000,  Wood = 1500}
 
+Tile.MaintenanceCosts = {}
+Tile.MaintenanceCosts[Tile.KEEP]     = {Stone = 0,  Wood = 0}
+Tile.MaintenanceCosts[Tile.PATH]     = {Stone = 0,  Wood = 0}
+Tile.MaintenanceCosts[Tile.HOUSE]    = {Stone = 0,  Wood = 0}
+Tile.MaintenanceCosts[Tile.FARM]     = {Stone = 0,  Wood = 0}
+Tile.MaintenanceCosts[Tile.MINE]     = {Stone = 0,  Wood = 0}
+Tile.MaintenanceCosts[Tile.FORESTRY] = {Stone = 0,  Wood = 0}
+Tile.MaintenanceCosts[Tile.STORAGE]  = {Stone = 1,  Wood = 1}
+Tile.MaintenanceCosts[Tile.BARRACKS] = {Stone = 2,  Wood = 2}
+Tile.MaintenanceCosts[Tile.WALL]     = {Stone = 3,  Wood = 3}
+Tile.MaintenanceCosts[Tile.GATE]     = {Stone = 3,  Wood = 3}
 
 Tile.MaxHealth = {}
 Tile.MaxHealth[Tile.DESTROYED]= 0
