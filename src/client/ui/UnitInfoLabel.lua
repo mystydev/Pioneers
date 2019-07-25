@@ -49,7 +49,7 @@ function UnitInfoLabel:render()
 
         local res = self.state.Unit.HeldResource
 
-        if res and res.Amount > 0 then
+        if res and res.Type and res.Amount > 0 then
             displayImage = CarryDisplay[res.Type] or StateDisplay[Unit.UnitState.LOST]
             text = "Carrying " .. (res.Amount or "?") .. " " .. res.Type
         else

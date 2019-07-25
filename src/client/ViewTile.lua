@@ -21,19 +21,20 @@ local playerTiles = {}
 local sizeTween = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local meshes = {}
-meshes[Tile.DESTROYED]= {mesh = Assets.Ruins,    offset = Vector3.new(0,     0,    0)}
-meshes[Tile.GRASS]    = {mesh = Assets.Grass,    offset = Vector3.new(0,     0,    0)}
+meshes[Tile.DESTROYED]= {mesh = Assets.Ruins,    offset = Vector3.new(0,     0 + 0.5,    0)}
+meshes[Tile.GRASS]    = {mesh = Assets.Grass,    offset = Vector3.new(0,     0 + 0.5,    0)}
 meshes[Tile.KEEP]     = {mesh = Assets.Keep,     offset = Vector3.new(0, 11.007, 0)}
 meshes[Tile.HOUSE]    = {mesh = Assets.House,    offset = Vector3.new(0, 5.479, 0)}
-meshes[Tile.PATH]     = {mesh = Assets.Path,     offset = Vector3.new(0,     0,    0)}
+meshes[Tile.PATH]     = {mesh = Assets.Path,     offset = Vector3.new(0,     0 + 0.5,    0)}
 meshes[Tile.FARM]     = {mesh = Assets.Farm,     offset = Vector3.new(-0.015, 1.594, 0.059)}
 meshes[Tile.FORESTRY] = {mesh = Assets.Forestry, offset = Vector3.new(0, 7.682, 0.131)}
 meshes[Tile.MINE]     = {mesh = Assets.Mine,     offset = Vector3.new(0, 1.795,    0)}
 meshes[Tile.STORAGE]  = {mesh = Assets.Storage,  offset = Vector3.new(0, 16.842, -0.459)}
 meshes[Tile.BARRACKS] = {mesh = Assets.Barracks, offset = Vector3.new(0, 5.407, -0)}
 meshes[Tile.WALL]     = {mesh = Assets.Wall,     offset = Vector3.new(0, 12.5, 0)}
-meshes[Tile.GATE]     = {mesh = Assets.Gate,     offset = Vector3.new(0, 11.009 - 0.25, 0)}
+meshes[Tile.GATE]     = {mesh = Assets.Gate,     offset = Vector3.new(0, 11.009 - 0.25 + 0.5, 0)}
 
+local ruinTexture = "rbxassetid://3522322649"
 
 local grassPathTextures = {}
 grassPathTextures[0]  = "rbxassetid://3080817017"
@@ -41,7 +42,7 @@ grassPathTextures[1]  = "rbxassetid://3237288852"
 grassPathTextures[5]  = "rbxassetid://3237282190"
 grassPathTextures[9]  = "rbxassetid://3237282264"
 grassPathTextures[21] = "rbxassetid://3237282124"
-grassPathTextures[3]  = "rbxassetid://3242019037"
+grassPathTextures[3]  = "rbxassetid://3522375154"
 grassPathTextures[11] = "rbxassetid://3237281850"
 grassPathTextures[19] = "rbxassetid://3237281781"
 grassPathTextures[27] = "rbxassetid://3237279828"
@@ -201,8 +202,12 @@ function ViewTile.updateDisplay(tile, displaySize)
         local texture = grassPathTextures[info[1]]
         local rotation = (info[2] + 1)%6
 
-        model.CFrame = CFrame.new(model.Position) * CFrame.Angles(0, -1.0471975512 * rotation, 0)
+        model.CFrame = CFrame.new(model.Position) * CFrame.Angles(0, -(math.pi/3) * rotation, 0)
         model.TextureID = texture
+    end
+
+    if tile.Health and tile.Health <= 0 then
+        model.TextureID = ruinTexture
     end
 end
 
@@ -216,6 +221,18 @@ end
 
 function ViewTile.getPlayerTiles()
     return playerTiles
+end
+
+function ViewTile.getOtherPlayerTiles(userId)
+    local tiles = {}
+
+    for pos, tile in pairs(currentTiles) do
+        if tile.OwnerId and tile.OwnerId ~= userId then
+            table.insert(tiles, tile)
+        end
+    end
+
+    return tiles
 end
 
 function ViewTile.getPlayerTilesOfType(type)

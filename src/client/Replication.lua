@@ -2,7 +2,6 @@ local Replication = {}
 local Client      = script.Parent
 local Common      = game.ReplicatedStorage.Pioneers.Common
 
-local ClientPreload = require(Client.ClientPreload)
 local ViewUnit      = require(Client.ViewUnit)
 local ViewTile      = require(Client.ViewTile)
 local ClientUtil    = require(Client.ClientUtil)
@@ -196,9 +195,7 @@ function Replication.ready()
     _G.updateLoadStatus("Waiting for server to be ready...")
     local status = Network.Ready:InvokeServer()
 
-    ClientPreload.displayTesterStatus(status)
-
-    return status ~= nil
+    return status
 end
 
 return Replication

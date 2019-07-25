@@ -13,10 +13,15 @@ local function start()
     local SoundManager    = require(Client.SoundManager)
     local NightCycle      = require(Client.Nightcycle)
     local World           = require(Common.World)
+    local UserSettings    = require(Common.UserSettings)
 
     print("Pioneers client waiting for server to be ready")
+    local status
 
-    repeat wait() until Replication.ready()
+    repeat 
+        wait() 
+        status = Replication.ready()
+    until status ~= nil
 
     print("Pioneers client starting...")
     
@@ -32,8 +37,17 @@ local function start()
     ClientPreload.tellReady()
 
     ActionHandler.init(world)
-    UIBase.init(world)
-    UIBase.showStats(stats)
+    UIBase.init(world, stats)
+
+
+    UIBase.showInDevelopmentWarning(status)
+
+    if not UserSettings.hasDoneTutorial() then
+        UIBase.showTutorialPrompt()
+    end
+
+    UIBase.waitForPromptDismissal()
+    UIBase.showStats()
     UIBase.showBuildButton()
 end
 

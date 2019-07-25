@@ -73,10 +73,10 @@ function BuildToolTip:render()
     return Roact.createElement("ImageLabel", {
         Name                   = "BuildToolTip",
         BackgroundTransparency = 1,
-        Position               = self.state.DisplayPosition + UDim2.new(0, 25, 0, -30),
+        Position               = self.state.DisplayPosition + UDim2.new(0, 30, 0, -25),
         Size                   = UDim2.new(0, 326, 0, 304),
         AnchorPoint            = Vector2.new(0.5, 1),
-        Image                  = "rbxassetid://3437122618",
+        Image                  = "rbxassetid://3464218676",
         ImageTransparency      = self.state.Transparency,
     }, children)
 end

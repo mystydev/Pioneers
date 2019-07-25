@@ -31,4 +31,13 @@ function UserSettings.dontShowDeveloptmentWarning()
     UserSettings.pushLocalUpdate()
 end
 
+function UserSettings.hasDoneTutorial()
+    return UserSettings.Settings.DismissedTutorial
+end
+
+function UserSettings.finishedTutorial()
+    UserSettings.Settings.DismissedTutorial = true
+    UserSettings.pushLocalUpdate()
+end
+
 return UserSettings

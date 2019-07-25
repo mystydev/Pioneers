@@ -10,8 +10,8 @@ local StatusBar        = require(ui.StatusBar)
 local Label            = require(ui.Label)
 local UnitList         = require(ui.UnitList)
 local BuildButton      = require(ui.BuildButton)
-local UnitActionButton = require(ui.UnitActionButton)
 local UnitInfoLabel    = require(ui.UnitInfoLabel)
+local AssignWorkButton = require(ui.info.AssignWorkButton)
 
 local Tile = require(Common.Tile)
 local Unit = require(Common.Unit)
@@ -50,7 +50,16 @@ function ObjectInfoPanel:render()
         state.Title = Unit.Localisation[state.object.Type]
         
         if state.Owner == Player.userId then
-            elements.UnitActionButton = Roact.createElement(UnitActionButton, {Position = UDim2.new(-0.098, 0, 0.875, 0), UIBase = self.props.UIBase})
+            if not Unit.isMilitary(state.object) then
+                elements.FarmWork = Roact.createElement(AssignWorkButton, {Type = Tile.FARM, UIBase = self.props.UIBase})
+                elements.ForestryWork = Roact.createElement(AssignWorkButton, {Type = Tile.FORESTRY, UIBase = self.props.UIBase})
+                elements.MineWork = Roact.createElement(AssignWorkButton, {Type = Tile.MINE, UIBase = self.props.UIBase})
+            else
+                elements.AttackWork = Roact.createElement(AssignWorkButton, {Type = Tile.OTHERPLAYER, UIBase = self.props.UIBase})
+                elements.GuardWork = Roact.createElement(AssignWorkButton, {Type = Tile.GRASS, UIBase = self.props.UIBase})
+            end
+
+            elements.TrainingWork = Roact.createElement(AssignWorkButton, {Type = Tile.BARRACKS, UIBase = self.props.UIBase})
         end
 
         elements.UnitStatus = Roact.createElement(UnitInfoLabel, {
@@ -71,11 +80,11 @@ function ObjectInfoPanel:render()
     elements.Title = Roact.createElement(Title, state)
     elements.Owner = Roact.createElement(OwnerLabel, state)
     elements.CloseButton = Roact.createElement(CloseButton, 
-                            {Position = UDim2.new(0.049, 0, 0.852, 0)})
+                            {Position = UDim2.new(0.04, 0, 0.865, 0)})
     
     if state.Owner == Player.userId then
         elements.DemolishButton = Roact.createElement(DemolishButton, 
-                            {Position = UDim2.new(0.613, 0, 0.852, 0),
+                            {Position = UDim2.new(0.65, 0, 0.865, 0),
                             Obj = state.object})
     end
 
@@ -135,10 +144,10 @@ function ObjectInfoPanel:render()
 
     return Roact.createElement("ImageLabel", {
         Name                   = "ObjectInfoPanel",
-        Position               = UDim2.new(1,0,1,0),
-        Size                   = UDim2.new(0, 328, 0, 586),
+        Position               = UDim2.new(1,-10,1,-10),
+        Size                   = UDim2.new(0, 326, 0, 521),
         BackgroundTransparency = 1,
-        Image                  = "rbxassetid://3063744675",
+        Image                  = "rbxassetid://3480808269",
         AnchorPoint            = Vector2.new(1,1)
     }, elements)
 end

@@ -7,7 +7,7 @@ let bodyParser = require("body-parser")
 let PORT = 6420;
 
 let httpserver = express()
-httpserver.use(bodyParser.json())
+httpserver.use(bodyParser.json({ limit: '5mb' }))
 
 function shutdown(code) {
     console.log("Compute node shutting down: " + code)
@@ -21,19 +21,26 @@ function computeRequest(data) {
     let start = performance.now()
     let response = {}
     let statChanges = []
+    let damages = []
 
     for (let id in data) {
-        let statChange = units.processUnit(data[id])
+        let change = units.processUnit(data[id])
 
-        if (statChange)
-            statChanges.push(statChange)
+        if (change.Stats) {
+            statChanges.push(change.Stats)
+        }
+
+        if (change.Damage) {
+            damages.push(change.Damage)
+        }
     }
 
     let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
     console.log("Compute request took: " + timeTaken + "ms")
 
     response.units = data
-    response.statChanges = statChanges
+    response.stats = statChanges
+    response.damage = damages
 
     return response
 }
@@ -52,6 +59,7 @@ function init() {
 
 httpserver.post("/", (req, res) => {
     let response = computeRequest(req.body)
+    console.log("Response length:", JSON.stringify(response).length)
     res.json(response)
 })
 

@@ -25,6 +25,11 @@ function Util.worldCoordToAxialCoord(position)
     return Vector2.new(x, y)
 end
 
+function Util.positionStringToVector(posStr)
+    local x, y = unpack(string.split(posStr, ':'))
+    return Vector2.new(tonumber(x), tonumber(y))
+end
+
 function Util.circularCollection(tiles, posx, posy, startRadius, endRadius)
 
     local collection = {}

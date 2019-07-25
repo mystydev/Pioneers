@@ -21,24 +21,28 @@ Unit.Localisation[Unit.APPRENTICE] = "Apprentice"
 Unit.Localisation[Unit.SOLDIER]    = "Soldier"
 
 Unit.UnitState = {}
-Unit.UnitState.IDLE    = 0
-Unit.UnitState.DEAD    = 1
-Unit.UnitState.MOVING  = 2
-Unit.UnitState.WORKING = 3
-Unit.UnitState.RESTING = 4
-Unit.UnitState.STORING = 5
-Unit.UnitState.COMBAT  = 6
-Unit.UnitState.LOST    = 7
+Unit.UnitState.IDLE     = 0
+Unit.UnitState.DEAD     = 1
+Unit.UnitState.MOVING   = 2
+Unit.UnitState.WORKING  = 3
+Unit.UnitState.RESTING  = 4
+Unit.UnitState.STORING  = 5
+Unit.UnitState.TRAINING = 6
+Unit.UnitState.GUARDING = 7
+Unit.UnitState.COMBAT   = 8
+Unit.UnitState.LOST     = 9
 
 Unit.StateLocalisation = {}
-Unit.StateLocalisation[Unit.UnitState.IDLE]    = "Idle"
-Unit.StateLocalisation[Unit.UnitState.DEAD]    = "Dead"
-Unit.StateLocalisation[Unit.UnitState.MOVING]  = "Moving"
-Unit.StateLocalisation[Unit.UnitState.WORKING] = "Working"
-Unit.StateLocalisation[Unit.UnitState.RESTING] = "Resting"
-Unit.StateLocalisation[Unit.UnitState.STORING] = "Storing"
-Unit.StateLocalisation[Unit.UnitState.COMBAT]  = "In Combat"
-Unit.StateLocalisation[Unit.UnitState.LOST]    = "Lost"
+Unit.StateLocalisation[Unit.UnitState.IDLE]     = "Idle"
+Unit.StateLocalisation[Unit.UnitState.DEAD]     = "Dead"
+Unit.StateLocalisation[Unit.UnitState.MOVING]   = "Moving"
+Unit.StateLocalisation[Unit.UnitState.WORKING]  = "Working"
+Unit.StateLocalisation[Unit.UnitState.RESTING]  = "Resting"
+Unit.StateLocalisation[Unit.UnitState.STORING]  = "Storing"
+Unit.StateLocalisation[Unit.UnitState.TRAINING] = "Training"
+Unit.StateLocalisation[Unit.UnitState.GUARDING] = "Guarding"
+Unit.StateLocalisation[Unit.UnitState.COMBAT]   = "In Combat"
+Unit.StateLocalisation[Unit.UnitState.LOST]     = "Lost"
 
 function Unit.serialise(unit)
     local index = unit.Id
@@ -71,7 +75,7 @@ function Unit.deserialise(index, sdata, tiles)
     unit.Fatigue  = data.Fatigue
     unit.MFatigue = data.MFatigue or 10
     unit.Training = data.Training
-    unit.MTraining= data.MTraining or 10000
+    unit.MTraining= data.MaxTraining or 100
     unit.Home     = data.Home
     unit.Work     = data.Work
     unit.Target   = data.Target

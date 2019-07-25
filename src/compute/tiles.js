@@ -19,7 +19,8 @@ let TileType = tiles.TileType = {
     STORAGE:7,
     BARRACKS:8,
     WALL:9,
-    GATE:10
+    GATE:10,
+    OTHERPLAYER:1000,
 };
 
 let defaults = tiles.defaults = {}
@@ -150,8 +151,13 @@ tiles.isWallGap = (pos) => {
         return false
 }
 
-tiles.isWalkable = (pos) => {
-    return tiles.getSafeType(pos) == TileType.PATH
+tiles.isWalkable = (pos, isMilitary) => {
+    let type = tiles.getSafeType(pos)
+
+    if (!isMilitary)
+        return type == TileType.PATH || type == TileType.GATE
+    else
+        return type == TileType.PATH || type == TileType.GATE || type == TileType.GRASS
 }
 
 function getMin(set){
@@ -196,7 +202,7 @@ function reconstructPath(start, target, cameFrom) {
     return path
 }
 
-tiles.findPath = (start, target) => {
+tiles.findPath = (start, target, isMilitary) => {
     let openSet = []
     let closedSet = new Set()
     let cameFrom = {}
@@ -223,7 +229,7 @@ tiles.findPath = (start, target) => {
 
         for (let neighbour of neighbours) {
             if (closedSet.has(neighbour)) continue
-            if (!tiles.isWalkable(neighbour) && neighbour != target) continue
+            if (!tiles.isWalkable(neighbour, isMilitary) && neighbour != target) continue
             if (!gScore[neighbour]) gScore[neighbour] = Infinity
 
             let g = gScore[current.p] + 1
@@ -235,6 +241,10 @@ tiles.findPath = (start, target) => {
             }
         }
     }
+}
+
+tiles.findMilitaryPath = (start, target) => {
+    return tiles.findPath(start, target, true)
 }
 
 tiles.findClosestStorage = (pos) => {
@@ -281,7 +291,7 @@ tiles.isEmpty = (pos) => {
 }
 
 tiles.assignWorker = (pos, unit) => {
-    let tile = tiles.fromPosString(pos)
+    let tile = tiles.fromPosString(pos) || new Tile(TileType.GRASS, unit.OwnerId, pos)
     tile.UnitList.push(unit.Id)
     database.updateTile(pos, tile)
 }
@@ -289,7 +299,12 @@ tiles.assignWorker = (pos, unit) => {
 tiles.unassignWorker = (pos, unit) => {
     let tile = tiles.fromPosString(pos)
     tile.UnitList = tile.UnitList.filter(id => id != unit.Id)
-    database.updateTile(pos, tile)
+   
+    if (tile.Type == TileType.GRASS) {
+        database.deleteTile(pos)
+    } else {
+        database.updateTile(pos, tile)
+    }
 }
 
 tiles.getCircularCollection = (pos, radius) => {
@@ -315,24 +330,50 @@ tiles.isProductivityTile = (pos) => {
     return t == TileType.FARM || t == TileType.FORESTRY || t == TileType.MINE
 }
 
+tiles.isMilitaryTile = (pos) => {
+    let t = tiles.getSafeType(pos)
+    return t == TileType.BARRACKS
+}
+
 tiles.canAssignWorker = (pos, unit) => {
     let tile = tiles.fromPosString(pos)
 
     //Is there a tile
     if (!tile)
         return false
-
-    //Is it a tile we can assign a worker to
-    if (!tiles.isProductivityTile(pos))
-        return false
     
     //Is there already a worker assigned
     if (tile.UnitList.length > 0)
         return false
         
+    //Should we take the military route instead
+    if (tiles.isMilitaryTile(pos))
+        return tiles.canAssignMilitaryWorker(pos, unit)
+
     //Is the tile owned by the worker owner
     if (unit.OwnerId != tile.OwnerId)
         return false
 
+    //Is it a tile we can assign a worker to
+    if (!tiles.isProductivityTile(pos))
+        return false
+
     return true
+}
+
+tiles.canAssignMilitaryWorker = (pos, unit) => {
+    let tile = tiles.fromPosString(pos)
+    let type = tiles.getSafeType(pos)
+
+    //Is there already a worker assigned
+    if ((tile ? tile.UnitList : []).length > 0)
+        return false
+
+    //If it is a barracks we can assign if owned by same owner
+    if (type == TileType.BARRACKS && unit.OwnerId == tile.OwnerId)
+        return true
+
+    //If it is grass we can assign
+    if (type == TileType.GRASS)
+        return true
 }

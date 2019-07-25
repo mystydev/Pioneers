@@ -66,7 +66,7 @@ function AdminEditor:render()
         Position               = pos or UDim2.new(-10, 0, 0, 0),
         Size                   = UDim2.new(0, 326, 0, 304),
         AnchorPoint            = Vector2.new(0.5, 0.9),
-        Image                  = "rbxassetid://3437122618",
+        Image                  = "rbxassetid://3464218676",
         ImageColor3            = Color3.new(0.1, 0.1, 0.1),
         ImageTransparency      = 0,
     }, children)

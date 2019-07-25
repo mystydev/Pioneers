@@ -15,6 +15,7 @@ Tile.STORAGE = 7
 Tile.BARRACKS = 8
 Tile.WALL = 9
 Tile.GATE = 10
+Tile.OTHERPLAYER = 1000
 
 Tile.NumberTypes = 10
 
@@ -118,7 +119,7 @@ function Tile.canAssignWorker(tile)
 end
 
 function Tile.isProductivityTile(tile)
-    return tile.Type == Tile.FARM or tile.Type == Tile.FORESTRY or tile.Type == Tile.MINE
+    return tile.Type == Tile.FARM or tile.Type == Tile.FORESTRY or tile.Type == Tile.MINE or tile.Type == Tile.BARRACKS
 end
 
 return Tile

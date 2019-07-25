@@ -101,11 +101,37 @@ function verifyWorkAssignment(id, unitid, pos) {
 	if (!unit || id != unit.OwnerId)
 		return
 
-	if (!tiles.canAssignWorker(pos, unit))
+	if (!units.isMilitary(unit) && !tiles.canAssignWorker(pos, unit))
 		return 
 	
+	if (units.isMilitary(unit) && !tiles.canAssignMilitaryWorker(pos, unit))
+		return 
+
 	tiles.assignWorker(pos, unit)
 	units.assignWork(unit, pos)
+}
+
+function verifyAttackAssignment(id, unitid, pos) {
+	let unit = units.fromid(unitid)
+
+	//Check if the unit exists, is owned by the same owner and is a military unit
+	if (!unit || id != unit.OwnerId || !units.isMilitary(unit))
+		return
+
+	let tile = tiles.fromPosString(pos)
+
+	//Check if the tile to attack exists and is not owned by the unit owner
+	if (!tile || tiles.isWalkable(tile) || tile.OwnerId == unit.OwnerId)
+		return
+
+	//Find path to tile
+	let path = tiles.findMilitaryPath(units.getPosition(unit), pos)
+
+	//Check if path is found
+	if (!path)
+		return
+
+	units.assignAttack(unit, pos, path)
 }
 
 function verifyTileDeletion(id, pos) {
@@ -135,7 +161,7 @@ async function processActionQueue() {
                 verifyWorkAssignment(action.id, action.unit, action.position)
                 break
             case common.Actions.ATTACK:
-                //verifyAttackAssignment(redis, action.id, action.unit, action.position)
+                verifyAttackAssignment(action.id, action.unit, action.position)
                 break
             case common.Actions.DELETE_TILE:
                 verifyTileDeletion(action.id, action.position)
@@ -151,7 +177,11 @@ async function processRound() {
 	await processActionQueue()
 	units.processSpawns()
 	userstats.processMaintenance()
-	await sendComputeRequest(units.getRange(0, 100))
+
+	let unitCount = units.getUnitCount()
+	//for (let i = 0; i < unitCount; i += 1000){
+		await sendComputeRequest(units.getRange(0, 1000))
+	//}	
 
 	let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
 	let outInfo = `Total: ${timeTaken}ms`;
@@ -173,13 +203,45 @@ async function sendComputeRequest(data) {
 	return new Promise ((resolve, reject) => {
 		req.on("response", (res) => {
 			res.setEncoding("utf8")
-			res.on("data", (rawdata) => {
-				let data = JSON.parse(rawdata)
-				
-				for (statChange of data.statChanges)
-					userstats.add(statChange.Id, statChange.Type, statChange.Amount)
+			let rawdata = []
 
-				units.updateState(data.units)
+			res.on("data", (rawdataSlice) => {
+				rawdata.push(rawdataSlice)
+			})
+
+			res.on("end", () => {
+				try {
+					let data = JSON.parse(rawdata.join(''))
+
+					units.updateState(data.units)
+					
+					for (statChange of data.stats)
+						userstats.add(statChange.Id, statChange.Type, statChange.Amount)
+
+					for (damage of data.damage){
+						let tile = tiles.fromPosString(damage.Pos)
+
+						if (tile) {
+							tile.Health -= damage.Health
+
+							if (tile.Health <= 0) {
+								tile.Health = 0
+								units.revokeAttack(units.fromid(damage.UnitId))
+							}
+						}
+
+						database.updateTile(damage.Pos, tile)
+					}
+
+
+					
+				} catch (error) {
+					console.error("Error parsing returned json from compute node")
+					console.error("Returned json:")
+					console.error(rawdata)
+					console.error("Error message:")
+					console.error(error)
+				}
 
 				resolve()
 			})
@@ -193,4 +255,7 @@ process.on("exit", shutdown)
 process.on("SIGHUP", shutdown)
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
-process.on("uncaughtException", (error) => {console.log("!!Encountered an error: " + error)})
+process.on("uncaughtException", (error) => {
+	console.log("!!Encountered an error: " + error.message)
+	console.log(error.stack)
+})

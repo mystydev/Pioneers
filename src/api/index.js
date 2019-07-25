@@ -11,7 +11,7 @@ var certificate = fs.readFileSync('certs/public.pem', 'utf8');
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = https.createServer(credentials, app);
 
-let VERSION = "1.0.1"
+let VERSION = "1.0.2"
 
 let cluster
 
@@ -196,6 +196,7 @@ app.post("/pion/getusersettings", (req, res) => {
         } else {
             settings = {
                 ShowDevelopmentWarning: true,
+                DismissedTutorial: false,
             }
             console.log("New user settings: ", req.body.Id)
             cluster.hset("settings", req.body.Id, JSON.stringify(settings))
@@ -253,3 +254,12 @@ app.post("/pion/userjoin", (req, res) => {
 });
 
 
+process.on("uncaughtException", (error) => {
+    console.log("!!Encountered an error: " + error)
+    console.log("Pedantic database reconnect...")
+
+    if (cluster)
+        cluster.quit()
+
+    setTimeout(connectoToRedis, 1000)
+})  

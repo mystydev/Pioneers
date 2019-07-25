@@ -26,10 +26,18 @@ let UnitState = units.UnitState = {
     MOVING:2, 
     WORKING:3, 
     RESTING:4, 
-    STORING:5, 
-    COMBAT:6, 
-    LOST:7
+    STORING:5,
+    TRAINING:6,
+    GUARDING:7, 
+    COMBAT:8,
+    LOST:9
 };
+
+let MilitaryWorkType = units.MilitaryWorkType = {
+    BARRACKS:0,
+    GUARDPOST:1,
+    ATTACKPOST:2
+}
 
 function Unit(unitId, ownerId, x, y) {
     this.Id = unitId
@@ -40,6 +48,7 @@ function Unit(unitId, ownerId, x, y) {
     this.Health = 200
     this.Fatigue = 0
     this.Training = 0
+    this.MaxTraining = common.TRAINING_FOR_SOLDIER
     this.State = UnitState.IDLE
     this.Home = undefined
     this.Work = undefined
@@ -51,6 +60,7 @@ function Unit(unitId, ownerId, x, y) {
     this.ProduceAmount = undefined
     this.Trip = undefined
     this.TripIndex = 0
+    this.MilitaryWorkType = undefined
 
     Units[unitId] = this
         
@@ -130,14 +140,45 @@ units.computeTrip = (unit) => {
     database.updateUnit(unit.Id, unit)
 }
 
+units.computeMilitaryTrip = (unit) => {
+    let pos = units.getPosition(unit)
+    let workType = tiles.getSafeType(unit.Work)
+
+    unit.Trip = tiles.findPath(pos, unit.Target, true)
+    unit.Storage = undefined
+    unit.ProduceType = undefined
+    unit.ProduceAmount = undefined
+    unit.TripIndex = 0
+
+    if (!unit.Trip) {
+        unit.State = UnitState.LOST
+        database.updateUnit(unit.Id, unit)
+        return
+    }
+
+    if (unit.Attack == unit.Target) {
+        unit.MilitaryWorkType = MilitaryWorkType.ATTACKPOST
+        unit.Target = unit.Trip[unit.Trip.length - 2]
+        unit.Work = unit.Target
+        unit.Trip.pop()
+    } else if (workType == tiles.TileType.BARRACKS) {
+        unit.MilitaryWorkType = MilitaryWorkType.BARRACKS
+    } else if (workType == tiles.TileType.GRASS) {
+        unit.MilitaryWorkType = MilitaryWorkType.GUARDPOST
+    }
+
+    database.updateUnit(unit.Id, unit)
+}
+
+units.isMilitary = (unit) => {
+    return unit.Type == UnitType.APPRENTICE || unit.Type == UnitType.SOLDIER
+}
+
 units.establishState = (unit) => {
     let pos = units.getPosition(unit)
     
     if (unit.Health <= 0)
         return UnitState.DEAD
-
-    if (unit.Attack)
-        return UnitState.COMBAT
 
     if (unit.Target && pos != unit.Target)
         return UnitState.MOVING
@@ -157,8 +198,39 @@ units.establishState = (unit) => {
     return UnitState.LOST
 }
 
+units.establishMiliatryState = (unit) => {
+    let pos = units.getPosition(unit)
+
+    if (unit.Health <= 0)
+        return UnitState.DEAD
+
+    if (unit.Target && pos != unit.Target)
+        return UnitState.MOVING
+
+    if (unit.Attack)
+        return UnitState.COMBAT
+
+    if (unit.MilitaryWorkType == MilitaryWorkType.BARRACKS)
+        return UnitState.TRAINING
+
+    if (unit.MilitaryWorkType == MilitaryWorkType.GUARDPOST)
+        return UnitState.GUARDING
+
+    if (unit.Fatigue > 0 && pos == unit.Home)
+        return UnitState.RESTING
+    
+    if (!unit.Work)
+        return UnitState.IDLE
+
+    return UnitState.LOST
+}
+
 units.processUnit = (unit) => {
-    let statChange = undefined
+
+    if (units.isMilitary(unit))
+        return units.processMilitaryUnit(unit)
+
+    let changes = {}
     let state = units.establishState(unit)
     unit.State = state
 
@@ -188,7 +260,7 @@ units.processUnit = (unit) => {
             break
 
         case UnitState.RESTING:
-            statChange = {
+            changes.Stats = {
                 Id: unit.OwnerId, 
                 Type: resource.Type.FOOD, 
                 Amount: -common.FATIGUE_RECOVER_RATE * common.FOOD_PER_FATIGUE
@@ -204,7 +276,7 @@ units.processUnit = (unit) => {
             break
         
         case UnitState.STORING:
-            statChange = {
+            changes.Stats = {
                 Id: unit.OwnerId, 
                 Type: unit.HeldResource.Type, 
                 Amount: unit.HeldResource.Amount
@@ -218,7 +290,46 @@ units.processUnit = (unit) => {
     }
 
     database.updateUnit(unit.Id, unit)
-    return statChange
+    return changes
+}
+
+units.processMilitaryUnit = (unit) => {
+    let changes = {}
+    let state = units.establishMiliatryState(unit)
+    unit.State = state
+
+    switch (state) {
+        case UnitState.MOVING:
+            let trip = unit.Trip
+            unit.TripIndex = Math.min(unit.TripIndex + 1, trip.length - 1) || 0;
+            [unit.Posx, unit.Posy] = common.strToPosition(trip[unit.TripIndex])
+            break
+
+        case UnitState.TRAINING:
+            unit.Training++
+
+            if (unit.Training >= common.TRAINING_FOR_SOLDIER){
+                unit.Type = UnitType.SOLDIER
+                unit.Training = 0
+                unit.MaxTraining = 10000
+            }
+
+            if (!unit.Target)
+                unit.State = UnitState.LOST
+
+            break
+
+        case UnitState.COMBAT:
+            changes.Damage = {
+                Pos: unit.Attack,
+                UnitId: unit.Id,
+                Health: 1,
+            }
+            break
+    }
+
+    database.updateUnit(unit.Id, unit)
+    return changes
 }
 
 units.updateState = (data) => {
@@ -273,6 +384,10 @@ units.spawn = (pos) => {
     }
 
     return unit
+}
+
+units.getUnitCount = () => {
+    return UnitCount
 }
 
 //recompute cached unit info on civ changes (ie path might change due to tile placement)
@@ -343,7 +458,10 @@ units.assignWork = (unit, pos) => {
 			unit.Type = units.UnitType.MINER
 			break
 		case tiles.TileType.BARRACKS:
-			unit.Type = units.UnitType.APPRENTICE
+            if (unit.Type == units.UnitType.VILLAGER)
+			    unit.Type = units.UnitType.APPRENTICE
+            break
+        case tiles.TileType.GRASS:
             break
         default:
             console.log("Attempted to assign unit to an invalid tile")
@@ -355,7 +473,26 @@ units.assignWork = (unit, pos) => {
     unit.Work = pos
     unit.Target = pos
     
-    units.computeTrip(unit)
-    userstats.addPerRoundProduce(unit.OwnerId, unit.ProduceType, unit.ProduceAmount / unit.Trip.length)
+    if (units.isMilitary(unit)) {
+        units.computeMilitaryTrip(unit)
+    } else {
+        units.computeTrip(unit)
+        userstats.addPerRoundProduce(unit.OwnerId, unit.ProduceType, unit.ProduceAmount / unit.Trip.length)
+    }
+
+    database.updateUnit(unit.Id, unit)
+}
+
+units.assignAttack = (unit, pos) => {
+    unit.Target = pos
+    unit.Attack = pos
+    units.computeMilitaryTrip(unit)
+}
+
+units.revokeAttack = (unit) => {
+    delete unit.Target
+    delete unit.Attack
+    delete unit.Work
+
     database.updateUnit(unit.Id, unit)
 }

@@ -153,7 +153,7 @@ local UpdateFreecam do
 		local kz = (IsDirectionDown(DIRECTION_BACKWARD) and 1 or 0) - (IsDirectionDown(DIRECTION_FORWARD) and 1 or 0)
 		local km = (kx * kx) + (ky * ky) + (kz * kz)
 		if km > 1e-15 then
-			km = ((UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.RightShift)) and 1/4 or 1)/math.sqrt(km)
+			km = ((UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.RightShift)) and 10 or 1)/math.sqrt(km)
 			kx = kx * km
 			ky = ky * km
 			kz = kz * km

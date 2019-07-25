@@ -6,6 +6,7 @@ local Roact  = require(game.ReplicatedStorage.Roact)
 
 local Util                = require(Common.Util)
 local Tile                = require(Common.Tile)
+local UserSettings        = require(Common.UserSettings)
 local ViewTile            = require(Client.ViewTile)
 local ViewUnit            = require(Client.ViewUnit)
 local ViewWorld           = require(Client.ViewWorld)
@@ -17,6 +18,9 @@ local InitiateBuildButton = require(ui.build.InitiateBuildButton)
 local BuildList           = require(ui.build.BuildList)
 local ObjectInfoPanel     = require(ui.info.ObjectInfoPanel)
 local AdminEditor         = require(ui.admin.AdminEditor)
+local TesterAlert         = require(Client.ui.TesterAlert)
+local NewPlayerPrompt     = require(Client.ui.tutorial.NewPlayerPrompt)
+local TutorialPrompt      = require(Client.ui.tutorial.TutorialPrompt)
 
 local Players             = game:GetService("Players")
 local TweenService        = game:GetService("TweenService")
@@ -34,6 +38,8 @@ UIBase.State.SELECTWORK = 5
 local buildListHandle
 local infoHandle
 local adminHandle
+local promptHandle
+local stats
 local currentWorld = {}
 local highlighted  = {}
 local modelUpdates = {}
@@ -48,10 +54,12 @@ local blur         = Instance.new("BlurEffect")
 local desaturate   = Lighting.BaseCorrection
 local tweenSlow    = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local tweenFast    = TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local buildButtonPosition = UDim2.new(0, 25, 1, -85)
 local infoObjectBinding, setInfoObject = Roact.createBinding()
 
-function UIBase.init(world)
+local adminEditorEnabled = false
+
+function UIBase.init(world, displaystats)
+    stats = displaystats 
     currentWorld = world
     worldgui.Name = "World UI"
     screengui.Name = "Screen UI"
@@ -156,41 +164,40 @@ function UIBase.unHighlightAllInsts()
     end
 end
 
-function UIBase.showStats(stats)
+function UIBase.showStats()
     Roact.mount(Roact.createElement(StatsPanel, {stats = stats}), screengui)
 end
 
 function UIBase.showBuildButton()
     Roact.mount(Roact.createElement(InitiateBuildButton, {
-        Position = buildButtonPosition, 
         UIBase = UIBase,
     }), screengui)
 end
 
 function UIBase.showBuildList()
-    if UIState == UIBase.State.MAIN then
-        buildListHandle = Roact.mount(Roact.createElement(BuildList, {Position = buildButtonPosition, UIBase = UIBase}), screengui)
-        UIBase.transitionToBuildView()
-    end
+    buildListHandle = Roact.mount(Roact.createElement(BuildList, {UIBase = UIBase}), screengui)
 end
 
 function UIBase.hideBuildList()
-    if UIState == UIBase.State.BUILD or UIState == UIBase.State.TILEBUILD then
-        Roact.unmount(buildListHandle)
-        buildListHandle = nil
-        UIBase.exitBuildView()
-    end
+    Roact.unmount(buildListHandle)
+    buildListHandle = nil
 end
 
 function UIBase.exitBuildView()
-    UIState = UIBase.State.MAIN
-    UIBase.unHighlightAllInsts()
-    UIBase.refocusBackground()
+    if UIState == UIBase.State.BUILD or UIState == UIBase.State.TILEBUILD then
+        UIState = UIBase.State.MAIN
+        UIBase.hideBuildList()
+        UIBase.unHighlightAllInsts()
+        UIBase.refocusBackground()
+    end
 end
 
 function UIBase.transitionToBuildView()
-    UIState = UIBase.State.BUILD
-    UIBase.unfocusBackground()
+    if UIState == UIBase.State.MAIN then
+        UIState = UIBase.State.BUILD
+        UIBase.showBuildList()
+        UIBase.unfocusBackground()
+    end
 end
 
 function UIBase.showObjectInfo(object)
@@ -212,7 +219,10 @@ function UIBase.transitionToInfoView()
     UIState = UIBase.State.INFO
     UIBase.unfocusBackground()
     infoHandle = Roact.mount(Roact.createElement(ObjectInfoPanel, {InfoObject = infoObjectBinding, SetObject = UIBase.showObjectInfo, UIBase = UIBase}), screengui)
-    adminHandle = Roact.mount(Roact.createElement(AdminEditor, {object = infoObjectBinding}), screengui)
+
+    if adminEditorEnabled then
+        adminHandle = Roact.mount(Roact.createElement(AdminEditor, {object = infoObjectBinding}), screengui)
+    end
 end
 
 function UIBase.exitInfoView()
@@ -232,8 +242,16 @@ function UIBase.promptSelectWork(workType)
 
     UIBase.unHighlightAllInsts()
 
+    if workType == Tile.OTHERPLAYER then
+        return UIBase.promptSelectAttack()
+    end
+
+    if workType == Tile.GRASS then
+        return UIBase.highlightGuardableArea()
+    end
+
     for _, tile in pairs(ViewTile.getPlayerTiles()) do
-        if Tile.canAssignWorker(tile) then
+        if tile.Type == workType and Tile.canAssignWorker(tile) then
             local inst = ViewTile.getInstFromTile(tile)
             UIBase.highlightInst(inst)
             UIBase.listenToInst(inst, function()
@@ -243,6 +261,23 @@ function UIBase.promptSelectWork(workType)
         end
     end
     
+end
+
+function UIBase.promptSelectAttack()
+    for _, tile in pairs(ViewTile.getOtherPlayerTiles(player.UserId)) do
+        local inst = ViewTile.getInstFromTile(tile)
+        local clone = UIBase.highlightInst(inst, 0.5)
+
+        if clone then
+            UIBase.listenToInst(inst, 
+            function()
+                Replication.requestUnitAttack(infoObjectBinding:getValue(), tile)
+                UIBase.exitSelectWorkView()
+            end,
+            function() clone.Transparency = 0 end,
+            function() clone.Transparency = 0.5 end)
+        end
+    end
 end
 
 function UIBase.transitionToSelectWorkView()
@@ -312,6 +347,90 @@ function UIBase.highlightBuildableArea(type)
     end
 end
 
+function UIBase.highlightGuardableTile(tile)
+    local inst = ViewTile.getInstFromTile(tile)
+    local clone = UIBase.highlightInst(inst, 0.5)
+
+    if clone then
+        UIBase.listenToInst(inst,
+            function() 
+                Replication.requestUnitWork(infoObjectBinding:getValue(), tile)
+                UIBase.exitSelectWorkView()
+            end, 
+            function() clone.Transparency = 0 end,
+            function() clone.Transparency = 0.5 end)
+    end
+end
+
+function UIBase.highlightGuardableArea()
+    local tiles = ViewTile.getPlayerTiles()
+
+    for _, tile in pairs(tiles) do
+        for _, neighbour in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
+            if neighbour.Type == Tile.GRASS then
+                UIBase.highlightGuardableTile(neighbour)
+            end
+        end
+    end
+end
+
+function UIBase.showInDevelopmentWarning(status)
+    if UserSettings.shouldShowDevelopmentWarning() then
+        UIBase.disableManagedInput()
+        TweenService:Create(blur, tweenSlow, {Size = 15}):Play()
+        promptHandle = Roact.mount(TesterAlert({
+            Approved = status, 
+            Clicked = UIBase.dismissDevelopmentWarning,
+        }), screengui, "Tester Alert")
+    end
+end
+
+function UIBase.dismissDevelopmentWarning(showWarning)
+    UIBase.dismissPrompt()
+
+    if not showWarning then
+        UserSettings.dontShowDeveloptmentWarning()
+    end
+end
+
+function UIBase.showTutorialPrompt()
+    UIBase.waitForPromptDismissal()
+    UIBase.disableManagedInput()
+    TweenService:Create(blur, tweenSlow, {Size = 15}):Play()
+    promptHandle = Roact.mount(Roact.createElement(NewPlayerPrompt, {UIBase = UIBase}), screengui)
+end
+
+function UIBase.startTutorial()
+    UIBase.dismissPrompt()
+    TweenService:Create(blur, tweenSlow, {Size = 15}):Play()
+    UIBase.disableManagedInput()
+    UIBase.showStats()
+    promptHandle = Roact.mount(Roact.createElement(TutorialPrompt, {UIBase = UIBase}), worldgui)
+end
+
+function UIBase.dismissPrompt()
+    TweenService:Create(blur, tweenSlow, {Size = 0}):Play()
+
+    if promptHandle then
+        Roact.unmount(promptHandle)
+        promptHandle = nil
+    end
+
+    UIBase.enableManagedInput()
+end
+
+function UIBase.waitForPromptDismissal()
+    repeat
+        wait()
+    until promptHandle == nil
+end
+
+function UIBase.waitForUIState(state)
+    repeat
+        wait()
+    until UIState == state
+end
+
 local lastHover
 local mouse = player:GetMouse()
 local function mouseMoved(input)
@@ -347,6 +466,8 @@ end
 local function mouseRightClicked(input)
     if UIState == UIBase.State.INFO then
         UIBase.exitInfoView()
+    elseif UIState == UIBase.State.BUILD or UIState == UIBase.State.TILEBUILD then
+        UIBase.exitBuildView()
     elseif UIState == UIBase.State.SELECTWORK then
         UIBase.exitSelectWorkView()
     end
@@ -366,8 +487,19 @@ local function processInput(input, processed)
     end
 end
 
-UIS.InputBegan:Connect(processInput)
-UIS.InputChanged:Connect(processInput)
-UIS.InputEnded:Connect(processInput)
+function UIBase.enableManagedInput()
+    beganConnection = UIS.InputBegan:Connect(processInput)
+    endedConnection = UIS.InputEnded:Connect(processInput)
+    changedConnection = UIS.InputChanged:Connect(processInput)
+end
+
+function UIBase.disableManagedInput()
+    if beganConnection then
+        beganConnection:Disconnect()
+        endedConnection:Disconnect()
+        changedConnection:Disconnect()
+    end
+end
+
 
 return UIBase

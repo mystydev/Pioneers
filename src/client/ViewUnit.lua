@@ -312,7 +312,7 @@ function ViewUnit.updateDisplay(unit)
         equipped[unit] = currentItem
         currentItem.CFrame = model.UpperTorso.ToolBackAttach.WorldCFrame
 
-        if unit.State == Unit.UnitState.WORKING then
+        if unit.State == Unit.UnitState.WORKING or unit.State == Unit.UnitState.TRAINING then
             currentItem.Handle.AlignPosition.Attachment1 = model.LeftHand.LeftGripAttachment
             currentItem.Handle.AlignOrientation.Attachment1 = model.LeftHand.LeftGripAttachment
             currentItem.SecondHandle.AlignPosition.Attachment1 = model.RightHand.RightGripAttachment
@@ -328,7 +328,7 @@ function ViewUnit.updateDisplay(unit)
     local actionAnim
 
     if unit.Type == Unit.APPRENTICE or unit.Type == Unit.SOLDIER then
-        if unit.Work.Type == Tile.BARRACKS or unit.State == Unit.UnitState.COMBAT then
+        if unit.State == Unit.UnitState.TRAINING or unit.State == Unit.UnitState.COMBAT then
             actionAnim = animSpear[model]
         else
             actionAnim = animSpearGuard[model]
@@ -339,7 +339,7 @@ function ViewUnit.updateDisplay(unit)
 
     if currentItem then
         
-        if (unit.State == Unit.UnitState.WORKING 
+        if ((unit.State == Unit.UnitState.WORKING or unit.State == Unit.UnitState.TRAINING or unit.State == Unit.UnitState.COMBAT or unit.State == Unit.UnitState.GUARDING)
             and unit.Target 
             and unit.Target == unit.Work)
             or unit.State == Unit.UnitState.COMBAT then
@@ -405,7 +405,8 @@ function ViewUnit.updateDisplay(unit)
     elseif unit.State == Unit.UnitState.COMBAT then
         local cpos = model.HumanoidRootPart.Position
         local pos = Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET
-        local apos = Util.axialCoordToWorldCoord(unit.Attack) + POSITION_OFFSET
+        local astr = Util.positionStringToVector(unit.Attack)
+        local apos = Util.axialCoordToWorldCoord(astr) + POSITION_OFFSET
 
         local dir = (apos - cpos).unit
         local targetcf = CFrame.new(pos:Lerp(apos, 0.15), apos)
@@ -439,7 +440,7 @@ function ViewUnit.updateDisplay(unit)
             actionAnim:Play(1)
         end
 
-    elseif unit.State == Unit.UnitState.WORKING and unit.Target and unit.Target == unit.Work then
+    elseif (unit.State == Unit.UnitState.WORKING or unit.State == Unit.UnitState.TRAINING or unit.State == Unit.UnitState.COMBAT or unit.State == Unit.UnitState.GUARDING) and unit.Target and unit.Target == unit.Work then
 
         animMoving[model]:Stop(3)
         

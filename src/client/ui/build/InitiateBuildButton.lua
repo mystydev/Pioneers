@@ -11,12 +11,12 @@ function InitiateBuildButton:render()
     return Roact.createElement("ImageButton", {
         Name                   = "InitiateBuildButton",
         BackgroundTransparency = 1,
-        Position               = self.props.Position,
-        Size                   = UDim2.new(0,50,0,50),
+        Position               = UDim2.new(0, 670, 1, -12),
+        Size                   = UDim2.new(0,60,0,60),
         AnchorPoint            = Vector2.new(0, 1),
-        Image                  = "rbxassetid://3437143987",
-        [Roact.Event.MouseButton1Click] = self.props.UIBase.showBuildList,
-        [Roact.Event.MouseButton2Click] = self.props.UIBase.hideBuildList,
+        Image                  = "rbxassetid://3464282669",
+        [Roact.Event.MouseButton1Click] = self.props.UIBase.transitionToBuildView,
+        [Roact.Event.MouseButton2Click] = self.props.UIBase.exitBuildView,
     })
 end
 
