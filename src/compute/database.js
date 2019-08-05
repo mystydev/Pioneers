@@ -29,6 +29,15 @@ database.getAllTiles = async () => {
     console.log("Loaded", num, "tiles!")
 }
 
+database.getTile = async (pos) => {
+    let data = await redis.hget("tiles", pos)
+    
+    if (data)
+        return tiles.tileFromJSON(data, pos)
+    else
+        return undefined
+}
+
 database.getAllUnits = async () => {
     let data = await redis.hgetall('units')
     let num = 0
@@ -39,6 +48,11 @@ database.getAllUnits = async () => {
     }
 
     console.log("Loaded", num, "units!")
+}
+
+database.getUnit = async (id) => {
+    let data = await redis.hget("units", id)
+    return units.unitFromJSON(data)
 }
 
 database.getAllStats = async () => {
@@ -126,6 +140,10 @@ database.updateTile = (pos, tile) => {
 
 database.deleteTile = (pos) => {
     redis.hdel("tiles", pos)
+}
+
+database.deleteUnit = (unitId) => {
+    redis.hdel("units", unitId)
 }
 
 database.updateStatus = (time, status) => {

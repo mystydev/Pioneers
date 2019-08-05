@@ -1,5 +1,5 @@
 local function start()
-
+    
     local Client = script
     local Common = game.ReplicatedStorage.Pioneers.Common
 
@@ -28,7 +28,7 @@ local function start()
     SoundManager.init()
     world = World.new()
 
-    Replication.init(world)
+    Replication.init(world, UIBase)
     ViewWorld.displayWorld(world)
 
     local stats = Replication.getUserStats()

@@ -7,7 +7,6 @@ local UnitInfoLabel = require(ui.UnitInfoLabel)
 local Label = require(ui.Label)
 local Tile = require(Common.Tile)
 local World = require(Common.World)
-local ObjectSelection = require(Client.ObjectSelection)
 local SoundManager    = require(Client.SoundManager)
 
 local TweenService = game:GetService("TweenService")

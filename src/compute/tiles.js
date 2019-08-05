@@ -69,6 +69,7 @@ function Tile(type, id, pos, unitlist) {
     this.Type = type
     this.OwnerId = id
     this.Health = defaults[type].Health
+    this.MaxHealth = defaults[type].Health
     this.UnitList = unitlist || []
 
     Tiles[pos] = this
@@ -118,6 +119,10 @@ tiles.fromPosString = (pos) => {
 
 tiles.fromCoords = (posx, posy) => {
     return Tiles[posx + ":" + posy]
+}
+
+tiles.dbFromCoords = async (posx, posy) => {
+    return await database.getTile(posx + ":" + posy) 
 }
 
 tiles.getSafeType = (pos) => {
@@ -275,10 +280,11 @@ tiles.findClosestStorage = (pos) => {
             distance[neighbour] = dist
             let type = tiles.getSafeType(neighbour)
 
-            if (type == TileType.STORAGE || type == TileType.KEEP)
+            if ((type == TileType.STORAGE || type == TileType.KEEP) && tiles.fromPosString(neighbour).Health > 0)
                 return neighbour
-            else
+            else if (tiles.isWalkable(neighbour)) {
                 searchQueue.push(neighbour)
+            }
         }
     }
 }
@@ -296,8 +302,21 @@ tiles.getOutput = (pos) => {
     return [TileOutputs[tile.Type], produce]
 }
 
+//Nothing is built here
 tiles.isEmpty = (pos) => {
     return tiles.getSafeType(pos) == TileType.GRASS
+}
+
+//No units are assigned here
+tiles.isVacant = (pos) => {
+    let tile = tiles.fromPosString(pos)
+
+    console.log(tile, tile.UnitList, (tile && tile.UnitList.length > 0))
+
+    if (tile && tile.UnitList.length > 0)
+        return false
+    else
+        return true
 }
 
 tiles.assignWorker = (pos, unit) => {
@@ -308,7 +327,12 @@ tiles.assignWorker = (pos, unit) => {
 
 tiles.unassignWorker = (pos, unit) => {
     let tile = tiles.fromPosString(pos)
-    tile.UnitList = tile.UnitList.filter(id => id != unit.Id)
+
+    if (!tile) 
+        return
+
+    if (tile.UnitList)
+        tile.UnitList = tile.UnitList.filter(id => id != unit.Id)
    
     if (tile.Type == TileType.GRASS) {
         database.deleteTile(pos)
@@ -411,4 +435,17 @@ tiles.isFragmentationDependant = (pos, keepPos) => {
 
     tile.Type = originalType
     return willFragment
+}
+
+tiles.getRepairCost = (pos) => {
+    let tile = tiles.fromPosString(pos)
+    console.log(tile)
+    let cost = TileConstructionCosts[tile.Type]
+    let repairAmount = 1 - (tile.Health / tile.MaxHealth)
+    let repairCost = {
+        Stone: Math.floor(cost.Stone * repairAmount),
+        Wood: Math.floor(cost.Wood * repairAmount),
+    }
+
+    return repairCost
 }

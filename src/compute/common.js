@@ -5,7 +5,8 @@ common.Actions = {
     PLACE_TILE:1,
     SET_WORK:2,
     ATTACK:3,
-    DELETE_TILE:4
+    DELETE_TILE:4,
+    REPAIR_TILE:5,
 };
 
 common.SPAWN_REQUIRED_FOOD = 100

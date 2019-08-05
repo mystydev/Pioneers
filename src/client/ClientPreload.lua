@@ -28,7 +28,7 @@ local preloadList = {
     "rbxassetid://3134628736","rbxassetid://3237284972","rbxassetid://3144182667","rbxassetid://3064039535","rbxassetid://3137891616",
     "rbxassetid://3237281781","rbxassetid://3470328016","rbxassetid://3464269947","rbxassetid://3137923052","rbxassetid://3144305681",
     "rbxassetid://3080817017","rbxassetid://3242019037","rbxassetid://03090713020","rbxassetid://3144305819","rbxassetid://3077218297",
-    "rbxassetid://3064039406","rbxassetid://3064022555","rbxassetid://3077211985","rbxassetid://3470328336",
+    "rbxassetid://3064039406","rbxassetid://3064022555","rbxassetid://3077211985","rbxassetid://3470328336", "rbxassetid://3569229445",
     }
 
 local loading = true

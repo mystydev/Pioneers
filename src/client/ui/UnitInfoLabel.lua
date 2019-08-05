@@ -4,7 +4,6 @@ local Common = game.ReplicatedStorage.Pioneers.Common
 local Roact = require(game.ReplicatedStorage.Roact)
 
 local Label = require(ui.Label)
-local ObjectSelection = require(Client.ObjectSelection)
 local Unit = require(Common.Unit)
 local Resource = require(Common.Resource)
 

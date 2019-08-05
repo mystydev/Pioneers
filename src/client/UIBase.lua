@@ -19,9 +19,11 @@ local InitiateBuildButton = require(ui.build.InitiateBuildButton)
 local BuildList           = require(ui.build.BuildList)
 local ObjectInfoPanel     = require(ui.info.ObjectInfoPanel)
 local AdminEditor         = require(ui.admin.AdminEditor)
-local TesterAlert         = require(Client.ui.TesterAlert)
-local NewPlayerPrompt     = require(Client.ui.tutorial.NewPlayerPrompt)
-local TutorialPrompt      = require(Client.ui.tutorial.TutorialPrompt)
+local HealthBar           = require(ui.world.HealthBar)
+local TesterAlert         = require(ui.TesterAlert)
+local NewPlayerPrompt     = require(ui.tutorial.NewPlayerPrompt)
+local TutorialPrompt      = require(ui.tutorial.TutorialPrompt)
+local CombatWarning       = require(ui.common.CombatWarning)
 
 local Players             = game:GetService("Players")
 local TweenService        = game:GetService("TweenService")
@@ -40,24 +42,27 @@ local buildListHandle
 local infoHandle
 local adminHandle
 local promptHandle
+local combatHandle
 local stats
 local currentWorld = {}
 local highlighted  = {}
 local modelUpdates = {}
 local instChanges  = {}
 local instEvents   = {}
+local healthBars   = {}
 local UIState      = UIBase.State.MAIN
 local player       = Players.LocalPlayer
 local worldgui     = Instance.new("ScreenGui", player.PlayerGui)
 local screengui    = Instance.new("ScreenGui", player.PlayerGui)
 local viewport     = Instance.new("ViewportFrame", worldgui)
 local blur         = Instance.new("BlurEffect")
+local vignette     = game:GetService("StarterGui").Vignette:Clone()
 local desaturate   = Lighting.BaseCorrection
 local tweenSlow    = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local tweenFast    = TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local infoObjectBinding, setInfoObject = Roact.createBinding()
 
-local adminEditorEnabled = false
+local adminEditorEnabled = true
 
 function UIBase.init(world, displaystats)
     stats = displaystats 
@@ -67,8 +72,9 @@ function UIBase.init(world, displaystats)
     screengui.DisplayOrder = 2
     blur.Size = 0
     blur.Parent = Lighting
-    desaturate.Saturation = 0.5
+    desaturate.Saturation = 0
     desaturate.Parent = Lighting
+    vignette.Parent = screengui
     viewport.Size = UDim2.new(1, 0, 1, 36)
     viewport.Position = UDim2.new(0, 0, 0, -36)
     viewport.BackgroundTransparency = 1
@@ -87,7 +93,7 @@ end
 function UIBase.refocusBackground()
     SoundManager.endFocus()
     TweenService:Create(blur, tweenSlow, {Size = 0}):Play()
-    TweenService:Create(desaturate, tweenFast, {Saturation = 0.5}):Play()
+    TweenService:Create(desaturate, tweenFast, {Saturation = 0}):Play()
 end
 
 function UIBase.highlightModel(model, transparency)
@@ -239,7 +245,7 @@ function UIBase.exitInfoView()
     end
 end
 
-function UIBase.promptSelectWork(workType)
+function UIBase.promptSelectWork(workType, unitpos) --unitpos is a military units position
     if UIState == UIBase.State.INFO then
         UIBase.transitionToSelectWorkView()
     end
@@ -251,7 +257,7 @@ function UIBase.promptSelectWork(workType)
     end
 
     if workType == Tile.GRASS then
-        return UIBase.highlightGuardableArea()
+        return UIBase.highlightGuardableArea(unitpos)
     end
 
     for _, tile in pairs(ViewTile.getPlayerTiles()) do
@@ -366,14 +372,22 @@ function UIBase.highlightGuardableTile(tile)
     end
 end
 
-function UIBase.highlightGuardableArea()
+function UIBase.highlightGuardableArea(pos)
     local tiles = ViewTile.getPlayerTiles()
 
     for _, tile in pairs(tiles) do
         for _, neighbour in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
-            if neighbour.Type == Tile.GRASS then
+            if neighbour.Type == Tile.GRASS and (not tile.UnitList or #tile.UnitList == 0) then
                 UIBase.highlightGuardableTile(neighbour)
             end
+        end
+    end
+
+    local unitTiles = Util.circularCollection(currentWorld.Tiles, pos.x, pos.y, 0, 10)
+
+    for _, tile in pairs(unitTiles) do
+        if tile.Type == Tile.GRASS and (not tile.UnitList or #tile.UnitList == 0) then
+            UIBase.highlightGuardableTile(tile)
         end
     end
 end
@@ -440,6 +454,29 @@ function UIBase.waitForUIState(state)
     until UIState == state
 end
 
+function UIBase.displayObjectHealth(object)
+    if not healthBars[object] then
+        healthBars[object] = Roact.mount(Roact.createElement(HealthBar, {object = object}), screengui)
+    end
+end
+
+function UIBase.combatAlert()
+    if not combatHandle then
+        SoundManager.urgentAlert()
+        TweenService:Create(vignette, tweenSlow, {ImageColor3 = Color3.new(0.8, 0.15, 0.15)}):Play()
+        combatHandle = Roact.mount(Roact.createElement(CombatWarning), screengui)
+    end
+    
+end
+
+function UIBase.endCombatAlert()
+    TweenService:Create(vignette, tweenSlow, {ImageColor3 = Color3.new(0, 0, 0)}):Play()
+    if combatHandle then 
+        Roact.unmount(combatHandle) 
+        combatHandle = nil
+    end
+end 
+
 local lastHover
 local mouse = player:GetMouse()
 local function mouseMoved(input)
@@ -482,6 +519,7 @@ local function mouseRightClicked(input)
     end
 end
 
+local lastRightDown = tick()
 local function processInput(input, processed)
     if processed then return end
 
@@ -490,9 +528,12 @@ local function processInput(input, processed)
     elseif input.UserInputType == Enum.UserInputType.MouseButton1 
             and input.UserInputState == Enum.UserInputState.End then
         mouseClicked(input)
-    elseif input.UserInputType == Enum.UserInputType.MouseButton2
-            and input.UserInputState == Enum.UserInputState.End then
-        mouseRightClicked(input)
+    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+        if input.UserInputState == Enum.UserInputState.End and tick() - lastRightDown < 0.2 then
+            mouseRightClicked(input)
+        end
+
+        lastRightDown = tick()
     end
 end
 
@@ -510,5 +551,7 @@ function UIBase.disableManagedInput()
     end
 end
 
+ViewTile.provideUIBase(UIBase)
+ViewUnit.provideUIBase(UIBase)
 
 return UIBase

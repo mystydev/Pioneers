@@ -2,6 +2,7 @@ let common = require("./common")
 let database = require("./database")
 let tiles = require("./tiles")
 let resource = require("./resource")
+let performance = require('perf_hooks').performance
 let userstats = {}
 
 let Stats
@@ -36,9 +37,19 @@ userstats.canAfford = (id, type, amount) => {
     return Stats[id][type] > amount
 }
 
+userstats.canAffordCost = (id, cost) => {
+    return userstats.canAfford(id, resource.Type.WOOD, cost[resource.Type.WOOD])
+        && userstats.canAfford(id, resource.Type.STONE, cost[resource.Type.STONE])
+}
+
 userstats.use = (id, type, amount) => {
     Stats[id][type] -= amount
     database.updateStats(id, Stats[id])
+}
+
+userstats.useCost = (id, cost) => {
+    userstats.use(id, resource.Type.WOOD, cost[resource.Type.WOOD])
+	userstats.use(id, resource.Type.STONE, cost[resource.Type.STONE])
 }
 
 userstats.add = (id, type, amount) => {
@@ -130,6 +141,16 @@ userstats.processMaintenance = () => {
 
         database.updateStats(id, stats)
     }
+}
+
+userstats.setInCombat = (id) => {
+    let stats = Stats[id]
+    stats.InCombat = Math.floor(Date.now() / 1000)
+    database.updateStats(id, stats)
+}
+
+userstats.isInCombat = (id) => {
+    return ((Date.now() / 1000) - Stats[id].InCombat) > 10
 }
 
 module.exports = userstats

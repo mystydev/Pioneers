@@ -108,6 +108,27 @@ function Tile.deserialise(index, data)
     return tile
 end
 
+function Tile.isDifferent(original, other)
+    local hasDifference = false
+
+    for i, v in pairs(other) do --Check members of other table
+        if original[i] ~= v then
+            if type(v) == "table" then --If it is a table then we do a slightly deeper shallow check (for UnitList)
+                --for i2, v2 in pairs(v) do
+                --    if original[i][i2] ~= v2 then
+                --        return true
+                --    end
+                --end
+                if (#v ~= #original[i]) then
+                    return true
+                end
+            else
+                return true
+            end
+        end
+    end
+end
+
 function Tile.defaultGrass(pos)
     return Tile.deserialise(pos, "{\"Type\":0}")
 end

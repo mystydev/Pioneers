@@ -46,9 +46,12 @@ function handleNewPlayer(id) {
 }
 
 function canBuild(id, pos, type) {
-	//Tile is currently empty
-	if (!tiles.isEmpty(pos))
+
+	console.log(!tiles.isEmpty(pos), !tiles.isVacant(pos))
+	//Tile is currently empty with no units assigned
+	if (!tiles.isEmpty(pos) || !tiles.isVacant(pos))
 		return false
+	console.log("passed")
 
 	//Tile is not within the land claim range of another civ
 	let area = tiles.getCircularCollection(pos, common.LAND_CLAIM_RADIUS)
@@ -59,10 +62,7 @@ function canBuild(id, pos, type) {
 	//User can afford to build
 	let cost = tiles.TileConstructionCosts[type]
 
-	if (!userstats.canAfford(id, resource.Type.WOOD, cost[resource.Type.WOOD]))
-		return false
-
-	if (!userstats.canAfford(id, resource.Type.STONE, cost[resource.Type.STONE]))	
+	if (!userstats.canAffordCost(id, cost))
 		return false
 
 	//Special case for keep
@@ -84,11 +84,14 @@ function verifyTilePlacement(id, pos, type) {
 	//Can the player build a tile of this type here
 	if (!canBuild(id, pos, type))
 		return
+
+	//Is the user currently in combat
+	if (userstats.isInCombat(id))
+		return
 	
 	//Update users stats
 	let cost = tiles.TileConstructionCosts[type]
-	userstats.use(id, resource.Type.WOOD, cost[resource.Type.WOOD])
-	userstats.use(id, resource.Type.STONE, cost[resource.Type.STONE])
+	userstats.useCost(id, cost)
 	userstats.addTileMaintenance(id, tiles.TileMaintenanceCosts[type])
 	
 	//Create tile and recompute cached values (like unit trips)
@@ -151,7 +154,7 @@ function verifyTileDeletion(id, pos) {
 		return false
 
 	//Does the tile have any units assigned to it
-	if (tile.UnitList.length > 0)
+	if (!tiles.isVacant(pos))
 		return false
 
 	//Will deleting this tile cause a kingdom fragmentation
@@ -161,6 +164,30 @@ function verifyTileDeletion(id, pos) {
 	//Remove maintenance cost from users stats, delete the tile and update cached unit values
 	userstats.removeTileMaintenance(id, tiles.TileMaintenanceCosts[tile.Type])
 	tiles.deleteTile(pos)
+	units.recomputeCiv(id)
+}
+
+function verifyTileRepair(id, pos) {
+	let tile = tiles.fromPosString(pos)
+
+	//Does the tile exist
+	if (!tile)
+		return false
+
+	//Is the tile owned by the player making the request
+	if (tile.OwnerId != id)
+		return false
+
+	//Can the player afford to repair the tile
+	let repairCost = tiles.getRepairCost(pos)
+
+	if (!userstats.canAffordCost(id, repairCost))
+		return false
+
+	//Repair the tile!
+	userstats.useCost(id, repairCost)
+	tile.Health = tile.MaxHealth
+	database.updateTile(pos, tile)
 	units.recomputeCiv(id)
 }
 
@@ -186,7 +213,10 @@ async function processActionQueue() {
                 break
             case common.Actions.DELETE_TILE:
                 verifyTileDeletion(action.id, action.position)
-                break
+				break
+			case common.Actions.REPAIR_TILE:
+				verifyTileRepair(action.id, action.position)
+				break
             default:
                 console.log("Unknown action!", action)
         }
@@ -236,24 +266,54 @@ async function sendComputeRequest(data) {
 
 					units.updateState(data.units)
 					
-					for (statChange of data.stats)
+					for (let statChange of data.stats)
 						userstats.add(statChange.Id, statChange.Type, statChange.Amount)
 
-					for (damage of data.damage){
+					for (let damage of data.damage){
 						let tile = tiles.fromPosString(damage.Pos)
 
 						if (tile) {
-							tile.Health -= damage.Health
 
-							if (tile.Health <= 0) {
-								tile.Health = 0
-								units.revokeAttack(units.fromid(damage.UnitId))
+							if (tile.UnitList.length == 0) {
+
+								tile.Health -= damage.Health
+
+								if (tile.Health <= 0) {
+									console.log("Tile health 0!")
+									tile.Health = 0
+									units.revokeAttack(units.fromid(damage.UnitId))
+									units.recomputeCiv(tile.OwnerId)
+								}
+							} else {
+								let unit = units.fromid(tile.UnitList[0])
+								let attackingUnit = units.fromid(damage.UnitId)
+								
+								unit.Health -= damage.Health
+								attackingUnit.Health -= damage.Health //Replace with real damage
+								unit.UnderAttack = attackingUnit
+
+								if (unit.Health <= 0) {
+									unit.Health = 0
+									units.kill(unit)
+
+									if (attackingUnit.Work != attackingUnit.Attack) {
+										let work = attackingUnit.Work
+										units.revokeAttack(attackingUnit)
+										attackingUnit.Work = work
+										attackingUnit.Target = work
+										database.updateUnit(attackingUnit.Id, attackingUnit)
+									}
+								}
 							}
+
+							userstats.setInCombat(tile.OwnerId)
 						}
 
 						database.updateTile(damage.Pos, tile)
 					}
 
+					for (let userId of data.combat)
+						userstats.setInCombat(userId)
 
 					
 				} catch (error) {
@@ -277,6 +337,10 @@ process.on("SIGHUP", shutdown)
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
 process.on("uncaughtException", (error) => {
-	console.log("!!Encountered an error: " + error.message)
-	console.log(error.stack)
+	console.error("!!Encountered an error: " + error.message)
+	console.error(error.stack)
+})
+process.on('unhandledRejection', (error) => {
+	console.error("!!Encountered a rejection: " + error.message)
+	console.error(error.stack)
 })

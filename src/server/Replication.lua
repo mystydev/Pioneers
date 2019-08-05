@@ -18,6 +18,7 @@ local API_KEY = ServerStorage.APIKey.Value
 local Actions = World.Actions
 
 local currentWorld
+local tilesRequested = {}
 
 local function worldStateRequest(player)
     return currentWorld
@@ -73,6 +74,20 @@ local function tileDeleteRequest(player, tile)
     return res.status == "Ok"
 end
 
+local function tileRepairRequest(player, tile)
+    local payload = {
+        apikey = API_KEY,
+        id = player.UserId,
+        action = Actions.REPAIR_TILE,
+        position = Tile.getIndex(tile)
+    }
+
+    local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
+    res = Http:JSONDecode(res)
+
+    return res.status == "Ok"
+end
+
 local function unitWorkRequest(player, unit, tile)
     
     local payload = {
@@ -109,6 +124,27 @@ local function getCircularTiles(player, pos, radius)
     return Util.circularCollection(currentWorld.Tiles, pos.x, pos.y, 0, radius)
 end
 
+local function tileRequest(player, posList)
+    local tiles = {}
+
+    for _, pos in pairs(posList) do
+        tilesRequested[player][pos] = true
+        table.insert(tiles, World.getTileFromString(currentWorld.Tiles, pos))
+    end
+
+    return tiles
+end
+
+local function unitRequest(player, unitList)
+    local units = {}
+
+    for _, id in pairs(unitList) do
+        units[id] = currentWorld.Units[id]
+    end
+
+    return units
+end
+
 local function getTesterStatus(player)
     local payload = {
         apikey = API_KEY,
@@ -132,8 +168,11 @@ function Replication.assignWorld(w)
     Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
     Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
     Network.RequestTileDelete.OnServerInvoke    = tileDeleteRequest
+    Network.RequestTileRepair.OnServerInvoke    = tileRepairRequest
     Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
     Network.RequestUnitAttack.OnServerInvoke    = unitAttackRequest
+    Network.RequestTiles.OnServerInvoke         = tileRequest
+    Network.RequestUnits.OnServerInvoke         = unitRequest
     Network.GetCircularTiles.OnServerInvoke     = getCircularTiles
     Network.Ready.OnServerInvoke = getTesterStatus
 end
@@ -146,14 +185,35 @@ function Replication.pushStatsChange(stats)
     end
 end
 
-function Replication.pushTileChange(tile)
-    Network.TileUpdate:FireAllClients(tile)
+function Replication.pushTileChange(tilePos)
+    local tile = currentWorld.Tiles[tilePos] or Tile.defaultGrass(tilePos)
+
+    for _, player in pairs(Players:GetChildren()) do
+        if tilesRequested[player][tilePos] then
+            Network.TileUpdate:FireClient(player, tile)
+        end
+    end
 end
 
-function Replication.tempSyncUnit(unit)
-    Network.UnitUpdate:FireAllClients(unit)
+function Replication.pushUnitUpdate(oldUnit, newUnit)
+    local changes = {}
+
+    for i, v in pairs(newUnit) do
+        if oldUnit[i] ~= newUnit[i] then
+            changes[i] = v
+        end
+    end
+
+    Replication.pushUnitChanges(newUnit.Id, changes)
+end
+
+function Replication.pushUnitChanges(unitId, changes)
+    Network.UnitUpdate:FireAllClients(unitId, changes)
 end
 
 Network.Ready.OnServerInvoke = function() return nil end
+
+Players.PlayerAdded:Connect(function(player) tilesRequested[player] = {} end)
+Players.PlayerRemoving:Connect(function(player) tilesRequested[player] = nil end)
 
 return Replication

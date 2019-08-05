@@ -16,15 +16,16 @@ function shutdown(code) {
 	process.exit(0) //Bit forceful, but we don't care, everything should be in a safe state anyway
 }
 
-function computeRequest(data) {
+async function computeRequest(data) {
     console.log("Handling compute request")
     let start = performance.now()
     let response = {}
     let statChanges = []
     let damages = []
+    let combats = []
 
     for (let id in data) {
-        let change = units.processUnit(data[id])
+        let change = await units.processUnit(data[id])
 
         if (change.Stats) {
             statChanges.push(change.Stats)
@@ -32,6 +33,10 @@ function computeRequest(data) {
 
         if (change.Damage) {
             damages.push(change.Damage)
+        }
+
+        if (change.InCombat) {
+            combats.push(change.InCombat)
         }
     }
 
@@ -41,6 +46,7 @@ function computeRequest(data) {
     response.units = data
     response.stats = statChanges
     response.damage = damages
+    response.combat = combats
 
     return response
 }
@@ -58,9 +64,9 @@ function init() {
 }
 
 httpserver.post("/", (req, res) => {
-    let response = computeRequest(req.body)
-    console.log("Response length:", JSON.stringify(response).length)
-    res.json(response)
+    computeRequest(req.body).then(response => {
+        res.json(response)
+    })
 })
 
 init()
@@ -69,4 +75,11 @@ process.on("exit", shutdown)
 process.on("SIGHUP", shutdown)
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
-process.on("uncaughtException", (error) => {console.log("!!Encountered an error: " + error)})
+process.on("uncaughtException", (error) => {
+	console.error("!!Encountered an error: " + error.message)
+	console.error(error.stack)
+})
+process.on('unhandledRejection', (error) => {
+    console.error("!!Encountered a rejection: " + error.message)
+    console.error(error.stack)
+})

@@ -9,9 +9,9 @@ local DemolishButton   = require(ui.DemolishButton)
 local StatusBar        = require(ui.StatusBar)
 local Label            = require(ui.Label)
 local UnitList         = require(ui.UnitList)
-local BuildButton      = require(ui.BuildButton)
 local UnitInfoLabel    = require(ui.UnitInfoLabel)
 local AssignWorkButton = require(ui.info.AssignWorkButton)
+local RepairButton     = require(ui.info.RepairButton)
 
 local Tile = require(Common.Tile)
 local Unit = require(Common.Unit)
@@ -22,7 +22,6 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 
 local ObjectInfoPanel = Roact.Component:extend("ObjectInfoPanel")
-
 local infoTable
 
 function ObjectInfoPanel:init()
@@ -43,9 +42,19 @@ function ObjectInfoPanel:render()
 
     state.Owner = state.object.OwnerId
 
-    if not state.object.Id then --Tile
+    if not state.object.Id and state.object.Type then --Tile
         state.Title = Tile.Localisation[state.object.Type]
         elements.UnitList = Roact.createElement(UnitList, {object = state.object, SetObject = self.props.SetObject})
+
+        if state.object.Type > 0 and state.object.Health < state.object.MHealth then
+            elements.Repair = Roact.createElement(RepairButton, {tile = self.props.InfoObject})
+
+            if state.object.Health <= 0 then
+                state.Title = "Ruined " .. state.Title
+            else
+                state.Title = "Damaged " .. state.Title
+            end
+        end
     else
         state.Title = Unit.Localisation[state.object.Type]
         
@@ -56,7 +65,7 @@ function ObjectInfoPanel:render()
                 elements.MineWork = Roact.createElement(AssignWorkButton, {Type = Tile.MINE, UIBase = self.props.UIBase})
             else
                 elements.AttackWork = Roact.createElement(AssignWorkButton, {Type = Tile.OTHERPLAYER, UIBase = self.props.UIBase})
-                elements.GuardWork = Roact.createElement(AssignWorkButton, {Type = Tile.GRASS, UIBase = self.props.UIBase})
+                elements.GuardWork = Roact.createElement(AssignWorkButton, {Type = Tile.GRASS, Unit = state.object, UIBase = self.props.UIBase})
             end
 
             elements.TrainingWork = Roact.createElement(AssignWorkButton, {Type = Tile.BARRACKS, UIBase = self.props.UIBase})

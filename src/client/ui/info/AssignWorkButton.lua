@@ -15,6 +15,14 @@ infoTable[Tile.BARRACKS] = {Image = "rbxassetid://3480808137", Position = UDim2.
 infoTable[Tile.OTHERPLAYER] = {Image = "rbxassetid://3480804202", Position = UDim2.new(0, 60, 1, -100), Size = UDim2.new(0, 80, 0, 80)}
 infoTable[Tile.GRASS] = {Image = "rbxassetid://3480804296", Position = UDim2.new(0, 170, 1, -100), Size = UDim2.new(0, 82, 0, 82)}
 
+function AssignWorkButton:onClick()
+    if self.props.Unit then
+        self.props.UIBase.promptSelectWork(self.props.Type, self.props.Unit.Position)
+    else
+        self.props.UIBase.promptSelectWork(self.props.Type)
+    end
+end
+
 function AssignWorkButton:init()
     
 end
@@ -27,7 +35,7 @@ function AssignWorkButton:render()
         Size                   = infoTable[self.props.Type].Size,
         AnchorPoint            = Vector2.new(0.5, 0.5),
         Image                  = infoTable[self.props.Type].Image,
-        [Roact.Event.MouseButton1Click] = function() self.props.UIBase.promptSelectWork(self.props.Type) end,
+        [Roact.Event.MouseButton1Click] = function() self:onClick() end,
     })
 end
 

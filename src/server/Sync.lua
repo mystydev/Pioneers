@@ -60,14 +60,17 @@ local function syncprocess(world)
             local stile = world.Tiles[i]
 
             world.Tiles[i] = Tile.deserialise(i, tile)
-            Replication.pushTileChange(world.Tiles[i])
+
+            if not stile or Tile.isDifferent(stile, world.Tiles[i]) then
+                Replication.pushTileChange(i)
+            end
         end
 
         for i, tile in pairs(world.Tiles) do
             if not tiles[i] and tile.Type ~= Tile.GRASS then
                 print("Removing deleted tile")
                 world.Tiles[i] = nil
-                Replication.pushTileChange(Tile.defaultGrass(i))
+                Replication.pushTileChange(i)
             end
         end
 
@@ -89,8 +92,9 @@ local function tempSyncAll(world)
         for i, unit in pairs(res.data) do
             local index = tostring(i)
 
-            world.Units[index] = Unit.deserialise(index, unit, world.Tiles)
-            Replication.tempSyncUnit(world.Units[index])
+            local newUnit = Unit.deserialise(index, unit, world.Tiles)
+            world.Units[index] = newUnit
+            Replication.pushUnitUpdate(unit, newUnit)
         end
 
         wait(SYNC_RATE + math.random()) --Slightly spread out load on http api

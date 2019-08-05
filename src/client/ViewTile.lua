@@ -14,6 +14,7 @@ local Players      = game:GetService("Players")
 
 local clamp = math.clamp
 local playerId = Players.LocalPlayer.UserId
+local UIBase
 
 local TileToInstMap = {}
 local InstToTileMap = {}
@@ -37,20 +38,20 @@ meshes[Tile.GATE]     = {mesh = Assets.Gate,     offset = Vector3.new(0, 11.009 
 local ruinTexture = "rbxassetid://3522322649"
 
 local grassPathTextures = {}
-grassPathTextures[0]  = "rbxassetid://3080817017"
-grassPathTextures[1]  = "rbxassetid://3237288852"
-grassPathTextures[5]  = "rbxassetid://3237282190"
-grassPathTextures[9]  = "rbxassetid://3237282264"
-grassPathTextures[21] = "rbxassetid://3237282124"
-grassPathTextures[3]  = "rbxassetid://3522375154"
-grassPathTextures[11] = "rbxassetid://3237281850"
-grassPathTextures[19] = "rbxassetid://3237281781"
-grassPathTextures[27] = "rbxassetid://3237279828"
-grassPathTextures[7]  = "rbxassetid://3237284972"
-grassPathTextures[23] = "rbxassetid://3237279749"
-grassPathTextures[15] = "rbxassetid://3237284892"
-grassPathTextures[31] = "rbxassetid://3237284550"
-grassPathTextures[63] = "rbxassetid://3237284465"
+grassPathTextures[0]  = "rbxassetid://3551746552"
+grassPathTextures[1]  = "rbxassetid://3558467304"
+grassPathTextures[3]  = "rbxassetid://3558467429"
+grassPathTextures[5]  = "rbxassetid://3558469994"
+grassPathTextures[7]  = "rbxassetid://3558470314"
+grassPathTextures[9]  = "rbxassetid://3558470924"
+grassPathTextures[11] = "rbxassetid://3558471115"
+grassPathTextures[15] = "rbxassetid://3558471492"
+grassPathTextures[19] = "rbxassetid://3558473989"
+grassPathTextures[21] = "rbxassetid://3558474261"
+grassPathTextures[23] = "rbxassetid://3558475023"
+grassPathTextures[27] = "rbxassetid://3558475255"
+grassPathTextures[31] = "rbxassetid://3558475467"
+grassPathTextures[63] = "rbxassetid://3558477924"
 
 local gptLookup = {
     { 1, 0}, { 1, 1}, { 3, 0}, { 1, 2},
@@ -180,7 +181,7 @@ function ViewTile.updateDisplay(tile, displaySize)
         end
     end
 
-    if tile.Type == Tile.GRASS then
+    if tile.Type == Tile.PATH then
         local pos = tile.Position
 
         local n1 = World.getTile(currentTiles, pos.x    , pos.y + 1)
@@ -191,23 +192,40 @@ function ViewTile.updateDisplay(tile, displaySize)
         local n6 = World.getTile(currentTiles, pos.x - 1, pos.y    )
 
         local encodedString = 
-           (n6 and n6.Type == Tile.PATH and "1" or "0")
-        .. (n5 and n5.Type == Tile.PATH and "1" or "0")
-        .. (n4 and n4.Type == Tile.PATH and "1" or "0")
-        .. (n3 and n3.Type == Tile.PATH and "1" or "0")
-        .. (n2 and n2.Type == Tile.PATH and "1" or "0")
-        .. (n1 and n1.Type == Tile.PATH and "1" or "0")
+           (((n6 and n6.Type == Tile.PATH and "1") or "0")
+        .. ((n5 and n5.Type == Tile.PATH and "1") or "0")
+        .. ((n4 and n4.Type == Tile.PATH and "1") or "0")
+        .. ((n3 and n3.Type == Tile.PATH and "1") or "0")
+        .. ((n2 and n2.Type == Tile.PATH and "1") or "0")
+        .. ((n1 and n1.Type == Tile.PATH and "1") or "0"))
 
         local info = gptLookup[tonumber(encodedString, 2)]
         local texture = grassPathTextures[info[1]]
-        local rotation = (info[2] + 1)%6
+        local rotation = (info[2] + 3)%6
 
-        model.CFrame = CFrame.new(model.Position) * CFrame.Angles(0, -(math.pi/3) * rotation, 0)
-        model.TextureID = texture
+        if texture ~= model.TextureID then
+            model.CFrame = CFrame.new(model.Position) * CFrame.Angles(0, -(math.pi/3) * rotation, 0)
+            model.TextureID = texture
+            
+            if n6 then ViewTile.updateDisplay(n6) end
+            if n5 then ViewTile.updateDisplay(n5) end
+            if n4 then ViewTile.updateDisplay(n4) end
+            if n3 then ViewTile.updateDisplay(n3) end
+            if n2 then ViewTile.updateDisplay(n2) end
+            if n1 then ViewTile.updateDisplay(n1) end
+        end
     end
 
-    if tile.Health and tile.Health <= 0 then
-        model.TextureID = ruinTexture
+    if tile.Health then
+        if tile.Health <= 0 then
+            model.TextureID = ruinTexture
+        elseif tile.Health < tile.MHealth then
+            UIBase.displayObjectHealth(tile)
+        end
+
+        if tile.Health > 0 and model.TextureID == ruinTexture then
+            model.TextureID = meshes[tile.Type].mesh.TextureID
+        end
     end
 end
 
@@ -256,6 +274,16 @@ function ViewTile.simulateDeletion(tile)
     for _, neighbour in pairs(Util.getNeighbours(currentTiles, tile.Position)) do
         ViewTile.updateDisplay(neighbour)
     end
+end
+
+function ViewTile.simulateRepair(tile)
+    tile.Health = tile.MHealth
+    ViewTile.updateDisplay(tile)
+    tile.lastChange = tick()
+end
+
+function ViewTile.provideUIBase(base)
+    UIBase = base
 end
 
 return ViewTile

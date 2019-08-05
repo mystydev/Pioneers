@@ -36,7 +36,7 @@ function SmallResourceLabel:render()
         Size                   = UDim2.new(0, 82, 0, 32),
         BackgroundColor3       = Color3.fromRGB(255, 255, 255),
         Image                  = imageIds[self.props.Type],
-        ImageTransparency      = self.props.Transparency,
+        ImageTransparency      = self.props.Transparency or 0,
         AnchorPoint            = Vector2.new(0, 1),
     }, children)
 end

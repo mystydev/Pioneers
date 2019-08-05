@@ -12,8 +12,7 @@ let APIKey      = fs.readFileSync("certs/apikey.key", "utf8")
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = https.createServer(credentials, app);
 
-let VERSION = "1.0.2"
-
+let VERSION = "1.0.6"
 let cluster
 
 function connectoToRedis() {
@@ -24,25 +23,23 @@ function connectoToRedis() {
             console.error("Connection to redis lost!")
             return 1000
             },
-        reconnectOnError: function(err) {
-            console.error("Encountered an error: " + err)
-            console.log("Reconnecting")
-            return true
-            }
+        //reconnectOnError: function(err) {
+        //    console.error("Encountered an error: " + err)
+        //    console.log("Reconnecting")
+        //   return true
+        //   }
       }]);
 
     cluster.on("error", (err) => {
-        console.log("Error occurred: " + err)
-        cluster.disconnect()
-        cluster.quit()
-        console.log("Attempting to reconnect to db")
-        setTimeout(connectoToRedis, 1000)
+        console.error("Error occurred: " + err)
+        //cluster.quit()
+        //delete cluster
+        //console.log("Attempting to reconnect to db")
+        //setTimeout(connectoToRedis, 1000)
     })
 }
 
-connectoToRedis()
-
-const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3,DELETE_TILE:4};
+const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3,DELETE_TILE:4,REPAIR_TILE:5};
 //PLACE_TILE = user id, action enum, tile type enum, tile as position string
 //SET_WORK   = user id, action enum, unitid, tile as position string
 
@@ -53,7 +50,7 @@ app.use(bodyParser.json())
 
 app.use(function(req, res, next) {
     if (!req.body.apikey || req.body.apikey != APIKey) {
-        res.send("Invalid API key used!")
+        res.send("Invalid API key")
     } else {
         next()
     }
@@ -80,6 +77,9 @@ app.post("/pion/isTester", (req, res) => {
         } else {
             res.json("0");
         }
+    }).catch((err) => {
+        console.error("Failed to get tester status")
+        console.error(err)
     })
 })
 
@@ -90,7 +90,6 @@ app.post("/pion/actionRequest", (req, res) => {
 
     switch(action){
         case Actions.PLACE_TILE:
-
             tileType = req.body.type;
             tileLoc = req.body.position;
             cluster.rpush('actionQueue', JSON.stringify({id:id, action:action, type:tileType, position:tileLoc}));
@@ -98,7 +97,6 @@ app.post("/pion/actionRequest", (req, res) => {
             break;
 
         case Actions.SET_WORK:
-
             unit = req.body.unitId;
             tileLoc = req.body.position;
             cluster.rpush('actionQueue', JSON.stringify({id:id, action:action, unit:unit, position:tileLoc}))
@@ -106,7 +104,6 @@ app.post("/pion/actionRequest", (req, res) => {
             break;
 
         case Actions.ATTACK:
-
             unit = req.body.unitId;
             tileLoc = req.body.position;
             cluster.rpush('actionQueue', JSON.stringify({id:id, action:action, unit:unit, position:tileLoc}))
@@ -114,6 +111,12 @@ app.post("/pion/actionRequest", (req, res) => {
             break;
 
         case Actions.DELETE_TILE:
+            tileLoc = req.body.position;
+            cluster.rpush('actionQueue', JSON.stringify({id:id, action:action, position:tileLoc}));
+            res.json({status:"Ok"})
+            break;
+
+        case Actions.REPAIR_TILE:
             tileLoc = req.body.position;
             cluster.rpush('actionQueue', JSON.stringify({id:id, action:action, position:tileLoc}));
             res.json({status:"Ok"})
@@ -156,7 +159,7 @@ let lastProcess = 0;
 async function processTimeUpdate(){
     cluster.get('lastprocess').then((t) => {
         lastProcess = Math.round(t);
-    });
+    })
 }
 
 setInterval(processTimeUpdate, 20);
@@ -171,17 +174,37 @@ app.post("/pion/longpollunit", (req, res) => {
     waitForProcess(req.body.time).then(() => {
         cluster.hgetall('units').then(units => {
             res.json({time:lastProcess, data:units});
-        });
-    });
+        }).catch((err) => {
+            console.error("Failed to get units")
+            console.error(err)
+        })
+    }).catch((err) => {
+        console.error("Failed to wait for longpoll")
+        console.error(err)
+    })
 });
 
 app.post("/pion/longpolluserstats", (req, res) => {
     waitForProcess(req.body.time).then(() => {
         cluster.hget('stats', req.body.userId).then(stats => {
             res.json({time:lastProcess, data:stats});
-        });
-    });
+        }).catch((err) => {
+            console.error("Failed to get stats")
+            console.error(err)
+        })
+    }).catch((err) => {
+        console.error("Failed to wait for longpoll")
+        console.error(err)
+    })
 });
+
+app.post("/pion/updateinitiated", (req, res) => {
+    cluster.set("lastupdate", Date.now())
+})
+
+app.post("/pion/getupdates", (req, res) => {
+
+})
 
 // {pos:radius, pos:radius, pos:radius...} -> {tile, tile, tile, tile...}
 app.post("/pion/tileregion", (req, res) => {
@@ -195,7 +218,10 @@ app.post("/pion/tileregion", (req, res) => {
 
     cluster.hmget('tiles', tiles).then(collection => {
         res.json(collection);
-    });
+    }).catch((err) => {
+        console.error("Failed to hmget tiles")
+        console.error(err)
+    })
 })
 
 app.post("/pion/getusersettings", (req, res) => {
@@ -212,6 +238,9 @@ app.post("/pion/getusersettings", (req, res) => {
             res.json(settings)
         }
 
+    }).catch((err) => {
+        console.error("Failed to get settings")
+        console.error(err)
     })
 })
 
@@ -228,13 +257,19 @@ app.post("/pion/updateusersettings", (req, res) => {
 app.post("/pion/alltiles", (req, res) => {
     cluster.hgetall('tiles').then(tiles => {
         res.json(tiles);
-    });
+    }).catch((err) => {
+        console.error("Failed to get all tiles")
+        console.error(err)
+    })
 });
 
 app.post("/pion/allunits", (req, res) => {
     cluster.hgetall('units').then(units => {
         res.json(units);
-    });
+    }).catch((err) => {
+        console.error("Failed to get all units")
+        console.error(err)
+    })
 })
 
 app.post("/pion/tileupdate", (req, res) => {
@@ -271,4 +306,16 @@ process.on("uncaughtException", (error) => {
         cluster.quit()
 
     setTimeout(connectoToRedis, 1000)
-})  
+})
+
+process.on('unhandledRejection', (error) => {
+    console.log("!!Encountered a rejection: " + error)
+    console.log("Pedantic database reconnect...")
+
+    if (cluster)
+        cluster.quit()
+
+    setTimeout(connectoToRedis, 1000)
+})
+
+connectoToRedis()

@@ -2,13 +2,13 @@ local ui       = script.Parent.Parent
 local Roact    = require(game.ReplicatedStorage.Roact)
 
 local Label    = require(ui.Label)
-local propEdit = Roact.Component:extend("propEdit")
+local PropEdit = Roact.Component:extend("PropEdit")
 
-function propEdit:init()
+function PropEdit:init()
 
 end
 
-function propEdit:render()
+function PropEdit:render()
 
     local index = Roact.createElement(Label, {
         Size = UDim2.new(1, 0, 0, 20),
@@ -32,4 +32,4 @@ function propEdit:render()
     }, {index, value})
 end
 
-return propEdit
+return PropEdit

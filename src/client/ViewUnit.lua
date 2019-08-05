@@ -12,6 +12,7 @@ local Tile         = require(Common.Tile)
 local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local UIBase
 local clamp      = math.clamp
 local VillagerModel  = Assets.Villager
 local SoldierModel = Assets.Soldier
@@ -56,8 +57,8 @@ function ViewUnit.init(w)
 end
 
 local function unload(model) --TODO: fully unload from memory
+    unitToInstMap[instToUnitMap[model]] = nil
     instToUnitMap[model] = nil
-    unitToInstMap[model] = nil
     model:Destroy()
 end
 
@@ -219,6 +220,10 @@ function ViewUnit.updateDisplay(unit)
 
     if not model then
         return end
+
+    if unit.Health < unit.MHealth then
+        UIBase.displayObjectHealth(unit)
+    end
 
     local onTile = currentWorld.Tiles[unit.Position.x ..":"..unit.Position.y]
     if onTile and onTile.Type == Tile.GATE then
@@ -461,6 +466,16 @@ function ViewUnit.updateDisplay(unit)
 
 end
 
+function ViewUnit.removeUnit(unit)
+    local model = unitToInstMap[unit]
+    
+    if model then
+        model:Destroy()
+        unitToInstMap[unit] = nil
+        instToUnitMap[model] = nil
+    end
+end
+
 function ViewUnit.convertIdListToUnits(list)
     local units = {}
 
@@ -486,6 +501,10 @@ function ViewUnit.convertIdListToInsts(list)
     end
 
     return units
+end
+
+function ViewUnit.provideUIBase(base)
+    UIBase = base
 end
 
 spawn(autoUnload)

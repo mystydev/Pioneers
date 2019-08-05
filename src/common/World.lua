@@ -5,7 +5,7 @@ local Tile = require(Common.Tile)
 
 local format = string.format
 
-World.Actions = {NEW_PLAYER = 0, PLACE_TILE = 1, SET_WORK = 2, ATTACK = 3, DELETE_TILE = 4}
+World.Actions = {NEW_PLAYER = 0, PLACE_TILE = 1, SET_WORK = 2, ATTACK = 3, DELETE_TILE = 4, REPAIR_TILE = 5}
 World.UnitActions = {World.Actions.SET_WORK, World.Actions.ATTACK}
 
 World.ActionLocalisation = {}
@@ -31,6 +31,17 @@ function World.getTile(tiles, x, y)
     if not tile then
         tile = {Type = Tile.GRASS, Position = Vector2.new(x, y)}
         World.setTile(tiles, tile, x, y)
+    end
+
+    return tile
+end
+
+function World.getTileFromString(tiles, pos)
+    local tile = tiles[pos]
+    local x, y = unpack(string.split(pos, ':'))
+
+    if not tile then
+        tile = {Type = Tile.GRASS, Position = Vector2.new(x, y)}
     end
 
     return tile

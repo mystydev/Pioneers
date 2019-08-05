@@ -55,11 +55,14 @@ function Unit(unitId, ownerId, x, y) {
     this.Storage = undefined
     this.Target = undefined
     this.Attack = undefined
+    this.UnderAttack = undefined
     this.HeldResource = undefined
     this.ProduceType = undefined
     this.ProduceAmount = undefined
     this.Trip = undefined
     this.TripIndex = 0
+    this.TempPath = undefined
+    this.TempPathIndex = undefined
     this.MilitaryWorkType = undefined
 
     Units[unitId] = this
@@ -76,6 +79,9 @@ units.unitFromJSON = (rawdata) => {
 
     for (let prop in data)
         unit[prop] = data[prop]
+
+    if (unit.Health <= 0)
+        return units.kill(unit)
 
     return unit
 }
@@ -104,9 +110,30 @@ units.getPosition = (unit) => {
     return unit.Posx + ":" + unit.Posy
 }
 
-units.computeTrip = (unit) => {
-    if (!unit.Work)
+units.computeTempSafetyPath = (unit) => {
+    let unitPos = units.getPosition(unit)
+
+    unit.TempPath = tiles.findPath(unitPos, unit.Home)
+    unit.TripIndex = -1
+    unit.TempPathIndex = -1
+
+    if (!unit.TempPath) {
+        console.log("Failed to create temp path")
+        unit.State = UnitState.LOST
         return
+    }
+}
+
+units.computeTrip = (unit) => {
+    if (!unit.Work || tiles.fromPosString(unit.Work).Health <= 0){
+        console.log("Early trip exit")
+        units.computeTempSafetyPath(unit)
+        unit.Target = unit.Home
+        delete unit.Trip
+        database.updateUnit(unit.Id, unit)
+
+        return
+    }
 
     let storage = tiles.findClosestStorage(unit.Work)
     let homeWorkPath = tiles.findPath(unit.Home, unit.Work)
@@ -122,6 +149,7 @@ units.computeTrip = (unit) => {
     let pos = units.getPosition(unit)
     let [res, amount] = tiles.getOutput(unit.Work)
 
+    //-1 to start just before path
     if (unit.Target == unit.Work) {
         unit.TripIndex = homeWorkPath.indexOf(pos) || -1
     } else if (unit.Target == storage) {
@@ -130,6 +158,14 @@ units.computeTrip = (unit) => {
         unit.TripIndex = homeWorkPath.length + workStoragePath.length + (storageHomePath.indexOf(pos) || -1)
     } else {
         unit.State = UnitState.LOST
+    }
+
+    let unitPos = units.getPosition(unit)
+    if (unitPos != wholePath[unit.TripIndex] && unitPos != unit.Home) {
+        units.computeTempSafetyPath(unit)
+    } else {
+        delete unit.TempPath
+        delete unit.TempPathIndex
     }
 
     unit.Storage = storage
@@ -148,7 +184,7 @@ units.computeMilitaryTrip = (unit) => {
     unit.Storage = undefined
     unit.ProduceType = undefined
     unit.ProduceAmount = undefined
-    unit.TripIndex = 0
+    unit.TripIndex = -1
 
     if (!unit.Trip) {
         unit.State = UnitState.LOST
@@ -157,7 +193,7 @@ units.computeMilitaryTrip = (unit) => {
     }
 
     if (unit.Attack == unit.Target) {
-        unit.MilitaryWorkType = MilitaryWorkType.ATTACKPOST
+        unit.MilitaryWorkType = MilitaryWorkType.ATTACKPOST //Messy?
         unit.Target = unit.Trip[unit.Trip.length - 2]
         unit.Work = unit.Target
         unit.Trip.pop()
@@ -225,26 +261,39 @@ units.establishMiliatryState = (unit) => {
     return UnitState.LOST
 }
 
-units.processUnit = (unit) => {
+units.processUnit = async (unit) => {
 
     if (units.isMilitary(unit))
-        return units.processMilitaryUnit(unit)
+        return await units.processMilitaryUnit(unit)
 
     let changes = {}
     let state = units.establishState(unit)
     unit.State = state
 
-    if (!unit.Trip && unit.Work) {
-        unit.State = UnitState.IDLE
+    if (unit.State != UnitState.MOVING && !unit.Trip && unit.Work) {
+        unit.State = UnitState.LOST
         database.updateUnit(unit.Id, unit)
-        return
+        return {}
     }
 
     switch (state) {
         case UnitState.MOVING:
-            let trip = unit.Trip
-            unit.TripIndex = (unit.TripIndex + 1)%trip.length;
-            [unit.Posx, unit.Posy] = common.strToPosition(trip[unit.TripIndex])
+            if (unit.TempPathIndex != undefined) {
+                if (unit.TempPathIndex++ >= unit.TempPath.length-1) {
+                    delete unit.TempPathIndex
+                    delete unit.TempPath
+                    unit.Target = unit.Work
+                } else {
+                    let pos = unit.TempPath[unit.TempPathIndex];
+                    [unit.Posx, unit.Posy] = common.strToPosition(pos)
+                }
+            } else {
+                let trip = unit.Trip
+                if (trip) {
+                    unit.TripIndex = (unit.TripIndex + 1)%trip.length;
+                    [unit.Posx, unit.Posy] = common.strToPosition(trip[unit.TripIndex])
+                }
+            }
             break
 
         case UnitState.WORKING:
@@ -293,7 +342,7 @@ units.processUnit = (unit) => {
     return changes
 }
 
-units.processMilitaryUnit = (unit) => {
+units.processMilitaryUnit = async (unit) => {
     let changes = {}
     let state = units.establishMiliatryState(unit)
     unit.State = state
@@ -301,8 +350,20 @@ units.processMilitaryUnit = (unit) => {
     switch (state) {
         case UnitState.MOVING:
             let trip = unit.Trip
-            unit.TripIndex = Math.min(unit.TripIndex + 1, trip.length - 1) || 0;
-            [unit.Posx, unit.Posy] = common.strToPosition(trip[unit.TripIndex])
+            let nextIndex = Math.min(unit.TripIndex + 1, trip.length - 1) || 0;
+            let nextPos = trip[nextIndex];
+            let [nextX, nextY] = common.strToPosition(nextPos);
+            let tile = await tiles.dbFromCoords(nextX, nextY);
+            
+            if (tile && nextPos != unit.Work && tile.UnitList.length > 0) {
+                unit.Target = units.getPosition(unit)
+                unit.Attack = nextPos
+                console.log("hit other unit")
+            } else {
+                console.log( unit.TripIndex, nextIndex)
+                unit.TripIndex = nextIndex;
+                [unit.Posx, unit.Posy] = [nextX, nextY];
+            }
             break
 
         case UnitState.TRAINING:
@@ -323,8 +384,9 @@ units.processMilitaryUnit = (unit) => {
             changes.Damage = {
                 Pos: unit.Attack,
                 UnitId: unit.Id,
-                Health: 1,
+                Health: 10,
             }
+            changes.InCombat = unit.OwnerId
             break
     }
 
@@ -337,11 +399,10 @@ units.updateState = (data) => {
         Units[id] = data[id]
 }
 
-
-units.processUnits = () => {
+units.processUnits = async () => {
     for (id in Units) {
         let unit = Units[id]
-        units.processUnit(unit)
+        await units.processUnit(unit)
     }
 }
 
@@ -392,6 +453,7 @@ units.getUnitCount = () => {
 
 //recompute cached unit info on civ changes (ie path might change due to tile placement)
 units.recomputeCiv = (id) => {
+    console.log("recomputing", id)
     let foodProduced = 0
     let woodProduced = 0
     let stoneProduced = 0
@@ -400,12 +462,14 @@ units.recomputeCiv = (id) => {
         let unit = Units[unitId]
         units.computeTrip(unit)
 
-        if (unit.ProduceType == resource.Type.FOOD)
-            foodProduced += unit.ProduceAmount / unit.Trip.length
-        else if (unit.ProduceType == resource.Type.WOOD)
-            woodProduced += unit.ProduceAmount / unit.Trip.length
-        else if (unit.ProduceType == resource.Type.STONE)
-            stoneProduced += unit.ProduceAmount / unit.Trip.length
+        if (unit.Trip) {
+            if (unit.ProduceType == resource.Type.FOOD)
+                foodProduced += unit.ProduceAmount / unit.Trip.length
+            else if (unit.ProduceType == resource.Type.WOOD)
+                woodProduced += unit.ProduceAmount / unit.Trip.length
+            else if (unit.ProduceType == resource.Type.STONE)
+                stoneProduced += unit.ProduceAmount / unit.Trip.length
+        }
     }
 
     userstats.setPerRoundProduce(id, foodProduced, woodProduced, stoneProduced)
@@ -438,13 +502,21 @@ units.getRange = (start, amount) => {
     return data
 }
 
-units.assignWork = (unit, pos) => {
-
+units.unassignWork = (unit) => {
     if (unit.Work) {
         tiles.unassignWorker(unit.Work, unit)
-        userstats.removePerRoundProduce(unit.OwnerId, unit.ProduceType, unit.ProduceAmount / unit.Trip.length)
+        
+        if (unit.Trip)
+            userstats.removePerRoundProduce(unit.OwnerId, unit.ProduceType, unit.ProduceAmount / unit.Trip.length)
     }
 
+    if (unit.Attack)
+        units.revokeAttack(unit)
+
+}
+
+units.assignWork = (unit, pos) => {
+    
     let type = tiles.getSafeType(pos)
 
 	switch (type) {
@@ -468,8 +540,9 @@ units.assignWork = (unit, pos) => {
             console.log(unit)
             console.log(pos)
             return
-	}
-
+    }
+    
+    units.unassignWork(unit)
     unit.Work = pos
     unit.Target = pos
     
@@ -484,6 +557,7 @@ units.assignWork = (unit, pos) => {
 }
 
 units.assignAttack = (unit, pos) => {
+    units.unassignWork(unit)
     unit.Target = pos
     unit.Attack = pos
     units.computeMilitaryTrip(unit)
@@ -495,4 +569,23 @@ units.revokeAttack = (unit) => {
     delete unit.Work
 
     database.updateUnit(unit.Id, unit)
+}
+
+units.kill = (unit) => {
+    //Remove them from their work
+    units.unassignWork(unit)
+
+    //Remove them from their home
+    tiles.unassignWorker(unit.Home, unit)
+
+    //Allow a new unit to be spawned in their place
+    units.setSpawn(unit.Home)
+
+    //Final update for clients
+    unit.Health = 0
+    database.updateUnit(unit.Id, unit)
+
+    //Remove them entirely!
+    delete Units[unit.Id]
+    setTimeout(database.deleteUnit, 5000, unit.Id) //Allow clients to pick up 0 health and perform a local kill
 }

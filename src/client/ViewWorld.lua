@@ -2,18 +2,17 @@ local ViewWorld = {}
 local Client    = script.Parent
 local Common    = game.ReplicatedStorage.Pioneers.Common
 
-local ViewTile   = require(Client.ViewTile)
-local ViewUnit   = require(Client.ViewUnit)
-local ClientUtil = require(Client.ClientUtil)
-local World      = require(Common.World)
-local Util       = require(Common.Util)
+local ViewTile    = require(Client.ViewTile)
+local ViewUnit    = require(Client.ViewUnit)
+local ClientUtil  = require(Client.ClientUtil)
+local Replication = require(Client.Replication)
+local World       = require(Common.World)
+local Util        = require(Common.Util)
 
 local RunService = game:GetService("RunService")
 
 local CurrentWorld
-local UPDATE_THROTTLE = 300
 
-local updateCount = 0
 function ViewWorld.displayWorld(world)
     CurrentWorld = world
     
@@ -23,7 +22,9 @@ function ViewWorld.displayWorld(world)
     ViewTile.init(tiles)
     ViewUnit.init(world)
 
-    spawn(function()
+    RunService.Stepped:Connect(Replication.keepViewAreaLoaded)
+
+    --[[spawn(function()
         while false do
             local pos  = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
             local area = Util.circularCollection(tiles, pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
@@ -57,7 +58,7 @@ function ViewWorld.displayWorld(world)
                 end
             end
         end
-    end)
+    end)]]--
 
     for id, unit in pairs(units) do 
         ViewUnit.displayUnit(unit)

@@ -14,7 +14,9 @@ local Network       = game.ReplicatedStorage.Network
 
 local currentWorld
 local currentStats = {}
+local RequestedTiles = {}
 local syncing = true
+local UIBase = nil
 
 local function tileSync()
 
@@ -27,15 +29,16 @@ local function tileSync()
     end
 end
 
-function Replication.init(world)
+function Replication.init(world, uiBinding)
     currentWorld = world
+    UIBase = uiBinding
 
     unitupdate = Network.UnitUpdate.OnClientEvent:Connect(handleUnitUpdate)
     statsupdate = Network.StatsUpdate.OnClientEvent:Connect(handleStatsUpdate)
     tileupdate = Network.TileUpdate.OnClientEvent:Connect(handleTileUpdate)
 
     _G.updateLoadStatus("Fetching map data...")
-    spawn(tileSync)
+    --spawn(tileSync)
 end
 
 function Replication.worldDied()
@@ -95,13 +98,12 @@ function Replication.requestTilePlacement(tile, type)
 end
 
 function Replication.requestTileDelete(tile)
+    coroutine.wrap(ViewTile.simulateDeletion)(tile)
     success = Network.RequestTileDelete:InvokeServer(tile)
 
     if not success then
         print("Tile delete request failed!")
     end
-
-    ViewTile.simulateDeletion(tile)
 
     return success
 end
@@ -111,6 +113,13 @@ function Replication.requestUnitWork(unit, tile)
 
     if not success then
         print("Work request failed!")
+    else
+        if unit.Work then
+            local workTile = World.getTileFromString(currentWorld.Tiles, unit.Work)
+            if workTile.UnitList then
+                workTile.UnitList = nil
+            end
+        end
     end
 
     return success
@@ -126,25 +135,48 @@ function Replication.requestUnitAttack(unit, tile)
     return success
 end
 
-function handleUnitUpdate(unit)
+function Replication.requestTileRepair(tile)
+    coroutine.wrap(ViewTile.simulateRepair)(tile)
+    success = Network.RequestTileRepair:InvokeServer(tile)
+
+    if not success then
+        print("Tile repair request failed!")
+    end
+
+    return success
+end
+
+function handleUnitUpdate(id, changes)
     repeat wait() until currentWorld
-    local localUnit = currentWorld.Units[unit.Id]
+    local localUnit = currentWorld.Units[id]
 
-    if not localUnit then
-        currentWorld.Units[unit.Id] = unit
-        ViewUnit.displayUnit(unit)
+    if changes.Health <= 0 then
+        if localUnit then ViewUnit.removeUnit(localUnit) end
     else
+        if not localUnit then
+            unit = Network.RequestUnits:InvokeServer({id})[id]
+            currentWorld.Units[unit.Id] = unit
+            ViewUnit.displayUnit(unit)
+        else
 
-        for i, v in pairs(unit) do
-            localUnit[i] = v
+            for i, v in pairs(changes) do
+                localUnit[i] = v
+            end
+
+            ViewUnit.updateDisplay(localUnit)
         end
-
-        ViewUnit.updateDisplay(localUnit)
     end
 end
 
 local strayed = {}
 function handleStatsUpdate(stats)
+
+    if os.time() - stats.InCombat < 10 then
+        UIBase.combatAlert()
+    else
+        UIBase.endCombatAlert()
+    end
+
     for i, v in pairs(stats) do
 
         if i == "Wood" or i == "Stone" then
@@ -170,7 +202,7 @@ function handleStatsUpdate(stats)
 end
 
 function handleTileUpdate(tile, t)
-
+    
     local pos = tile.Position
     local localTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
     local t = t or tick()
@@ -191,6 +223,30 @@ function Replication.updateTiles(pos, radius)
     for _, tile in pairs(tiles) do
         handleTileUpdate(tile, t)
     end
+end
+
+function Replication.keepViewAreaLoaded()
+    local pos  = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
+    local area = Util.circularPosCollection(pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
+    local unloaded = {}
+
+    for _, tilePos in pairs(area) do
+        if not RequestedTiles[tilePos] then
+            table.insert(unloaded, tilePos)
+            RequestedTiles[tilePos] = true
+        end
+    end
+
+    local tiles = Replication.requestTiles(unloaded)
+    local t = tick()
+
+    for _, tile in pairs(tiles) do
+        handleTileUpdate(tile, t)
+    end
+end
+
+function Replication.requestTiles(tilePosList)
+    return Network.RequestTiles:InvokeServer(tilePosList)
 end
 
 function Replication.ready()
