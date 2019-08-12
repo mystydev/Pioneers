@@ -134,7 +134,7 @@ function Tile.defaultGrass(pos)
 end
 
 function Tile.getIndex(tile)
-    if tile.Position then
+    if tile and tile.Position then
         return string.format("%d:%d", tile.Position.x, tile.Position.y)
     end
 end

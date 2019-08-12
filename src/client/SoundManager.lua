@@ -88,6 +88,8 @@ function SoundManager.urgentAlert()
 end
 
 function SoundManager.animSounds(inst, anim)
+    if not inst then return end
+    
     spawn(function()
         local hitSignal = anim:GetMarkerReachedSignal("Hit")
         local sound

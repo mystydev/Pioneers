@@ -39,7 +39,6 @@ local function start()
     ActionHandler.init(world)
     UIBase.init(world, stats)
 
-
     UIBase.showInDevelopmentWarning(status)
 
     if not UserSettings.hasDoneTutorial() then
@@ -48,6 +47,10 @@ local function start()
 
     UIBase.waitForPromptDismissal()
     UIBase.showStats()
+    UIBase.showLocation()
+    UIBase.showChatBox()
+    UIBase.showFeedbackButton()
+    --UIBase.showFindKingdomButton()
     UIBase.showBuildButton()
 end
 

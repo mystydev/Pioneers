@@ -14,9 +14,9 @@ function CombatWarning:render()
         Name                   = "CombatWarning",
         BackgroundTransparency = 1,
         Position               = UDim2.new(0.5, 0, 0, -50),
-        Size                   = UDim2.new(0, 274, 0, 90),
+        Size                   = UDim2.new(0, 273, 0, 89),
         AnchorPoint            = Vector2.new(0.5, 0),
-        Image                  = "rbxassetid://3569229445",
+        Image                  = "rbxassetid://3606598274",
         [Roact.Ref]            = self.warningRef,
     })
 end

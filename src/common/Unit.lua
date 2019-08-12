@@ -62,12 +62,12 @@ function Unit.serialise(unit)
     return HttpService:JSONEncode({index = index, data = data})
 end
 
-function Unit.deserialise(index, sdata, tiles)
+function Unit.deserialise(sdata, tiles)
     local data = HttpService:JSONDecode(sdata)
     local unit = {}
 
     unit.Type     = data.Type
-    unit.Id       = index
+    unit.Id       = data.Id
     unit.OwnerId  = data.OwnerId
     unit.Position = Vector2.new(data.Posx, data.Posy)
     unit.Health   = data.Health

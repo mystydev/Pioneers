@@ -141,7 +141,8 @@ units.computeTrip = (unit) => {
     let storageHomePath = tiles.findPath(storage, unit.Home)
 
     if (!homeWorkPath || !workStoragePath || !storageHomePath) {
-        unit.State = UnitState.LOST
+        units.unassignWork(unit)
+        units.computeTempSafetyPath(unit)
         return 
     }
 
@@ -157,7 +158,7 @@ units.computeTrip = (unit) => {
     } else if (unit.Target == unit.Home) {
         unit.TripIndex = homeWorkPath.length + workStoragePath.length + (storageHomePath.indexOf(pos) || -1)
     } else {
-        unit.State = UnitState.LOST
+        unit.TripIndex = -1
     }
 
     let unitPos = units.getPosition(unit)
@@ -212,7 +213,7 @@ units.isMilitary = (unit) => {
 
 units.establishState = (unit) => {
     let pos = units.getPosition(unit)
-    
+
     if (unit.Health <= 0)
         return UnitState.DEAD
 
@@ -278,7 +279,7 @@ units.processUnit = async (unit) => {
 
     switch (state) {
         case UnitState.MOVING:
-            if (unit.TempPathIndex != undefined) {
+            if (unit.TempPathIndex != undefined && unit.TempPath) {
                 if (unit.TempPathIndex++ >= unit.TempPath.length-1) {
                     delete unit.TempPathIndex
                     delete unit.TempPath
@@ -350,6 +351,11 @@ units.processMilitaryUnit = async (unit) => {
     switch (state) {
         case UnitState.MOVING:
             let trip = unit.Trip
+            if (!trip) {
+                unit.State = UnitState.LOST
+                break
+            }
+
             let nextIndex = Math.min(unit.TripIndex + 1, trip.length - 1) || 0;
             let nextPos = trip[nextIndex];
             let [nextX, nextY] = common.strToPosition(nextPos);
@@ -358,9 +364,7 @@ units.processMilitaryUnit = async (unit) => {
             if (tile && nextPos != unit.Work && tile.UnitList.length > 0) {
                 unit.Target = units.getPosition(unit)
                 unit.Attack = nextPos
-                console.log("hit other unit")
             } else {
-                console.log( unit.TripIndex, nextIndex)
                 unit.TripIndex = nextIndex;
                 [unit.Posx, unit.Posy] = [nextX, nextY];
             }
@@ -513,11 +517,20 @@ units.unassignWork = (unit) => {
     if (unit.Attack)
         units.revokeAttack(unit)
 
+    unit.Work = undefined
+    unit.Target = unit.Storage || unit.Home
+
+    if (!units.isMilitary(unit))
+        unit.Type = units.UnitType.VILLAGER
+
+    database.updateUnit(unit.Id, unit)
 }
 
 units.assignWork = (unit, pos) => {
     
     let type = tiles.getSafeType(pos)
+
+    units.unassignWork(unit)
 
 	switch (type) {
 		case tiles.TileType.FARM:
@@ -542,7 +555,6 @@ units.assignWork = (unit, pos) => {
             return
     }
     
-    units.unassignWork(unit)
     unit.Work = pos
     unit.Target = pos
     
@@ -564,10 +576,10 @@ units.assignAttack = (unit, pos) => {
 }
 
 units.revokeAttack = (unit) => {
-    delete unit.Target
+    unit.Target = undefined
+    unit.Work = undefined
     delete unit.Attack
-    delete unit.Work
-
+    
     database.updateUnit(unit.Id, unit)
 }
 

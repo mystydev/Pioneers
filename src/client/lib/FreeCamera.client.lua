@@ -105,6 +105,7 @@ end
 ------------------------------------------------
 
 local function ProcessInput(input, processed)
+	if _G.FreecamDisabled then return end 
     local userInputType = input.UserInputType
     
 	if userInputType == Enum.UserInputType.Gamepad1 then
@@ -124,9 +125,9 @@ local function ProcessInput(input, processed)
 	end
 end
 
-UIS.InputChanged:Connect(ProcessInput)
-UIS.InputEnded:Connect(ProcessInput)
-UIS.InputBegan:Connect(ProcessInput)
+local change = UIS.InputChanged:Connect(ProcessInput)
+local ended = UIS.InputEnded:Connect(ProcessInput)
+local began = UIS.InputBegan:Connect(ProcessInput)
 
 ------------------------------------------------
 
@@ -146,6 +147,7 @@ local UpdateFreecam do
 	end)
 
 	function UpdateFreecam()
+		if _G.FreecamDisabled then return end 
 		local camCFrame = camera.CFrame
 
 		local kx = (IsDirectionDown(DIRECTION_RIGHT) and 1 or 0) - (IsDirectionDown(DIRECTION_LEFT) and 1 or 0)
@@ -187,6 +189,7 @@ end
 ------------------------------------------------
 
 local function Panned(input, processed)
+	if _G.FreecamDisabled then return end 
 	if not processed and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Delta
 		panDeltaMouse = Vector2.new(-delta.y, -delta.x)
@@ -198,6 +201,8 @@ end
 local function EnterFreecam()
 
 	Maid:Mark(UIS.InputBegan:Connect(function(input, processed)
+		if _G.FreecamDisabled then return end 
+
 		if input.UserInputType == Enum.UserInputType.MouseButton2 then
 			UIS.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
 			local conn = UIS.InputChanged:Connect(Panned)

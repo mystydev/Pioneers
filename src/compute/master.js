@@ -47,11 +47,9 @@ function handleNewPlayer(id) {
 
 function canBuild(id, pos, type) {
 
-	console.log(!tiles.isEmpty(pos), !tiles.isVacant(pos))
 	//Tile is currently empty with no units assigned
 	if (!tiles.isEmpty(pos) || !tiles.isVacant(pos))
 		return false
-	console.log("passed")
 
 	//Tile is not within the land claim range of another civ
 	let area = tiles.getCircularCollection(pos, common.LAND_CLAIM_RADIUS)
@@ -88,7 +86,7 @@ function verifyTilePlacement(id, pos, type) {
 	//Is the user currently in combat
 	if (userstats.isInCombat(id))
 		return
-	
+
 	//Update users stats
 	let cost = tiles.TileConstructionCosts[type]
 	userstats.useCost(id, cost)
@@ -105,6 +103,10 @@ function verifyWorkAssignment(id, unitid, pos) {
 	//Does the unit exist and is the unit owned by the player making the request
 	if (!unit || id != unit.OwnerId)
 		return
+
+	//If there is no position then deassign the unit's work
+	if (!pos)
+		 return units.unassignWork(unit)
 
 	//Is it a military unit and if not can it be assigned work
 	if (!units.isMilitary(unit) && !tiles.canAssignWorker(pos, unit))
@@ -238,7 +240,7 @@ async function processRound() {
 	let outInfo = `Total: ${timeTaken}ms`;
 	console.log(outInfo)
 
-	database.updateStatus(Math.round(performance.now()), "ok: " + outInfo)
+	database.updateStatus(Date.now(), "ok: " + outInfo)
 }
 
 async function sendComputeRequest(data) {

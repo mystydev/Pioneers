@@ -46,7 +46,7 @@ function ObjectInfoPanel:render()
         state.Title = Tile.Localisation[state.object.Type]
         elements.UnitList = Roact.createElement(UnitList, {object = state.object, SetObject = self.props.SetObject})
 
-        if state.object.Type > 0 and state.object.Health < state.object.MHealth then
+        if state.object.Type > 0 and state.object.Health and state.object.Health < state.object.MHealth then
             elements.Repair = Roact.createElement(RepairButton, {tile = self.props.InfoObject})
 
             if state.object.Health <= 0 then
@@ -60,9 +60,9 @@ function ObjectInfoPanel:render()
         
         if state.Owner == Player.userId then
             if not Unit.isMilitary(state.object) then
-                elements.FarmWork = Roact.createElement(AssignWorkButton, {Type = Tile.FARM, UIBase = self.props.UIBase})
-                elements.ForestryWork = Roact.createElement(AssignWorkButton, {Type = Tile.FORESTRY, UIBase = self.props.UIBase})
-                elements.MineWork = Roact.createElement(AssignWorkButton, {Type = Tile.MINE, UIBase = self.props.UIBase})
+                elements.FarmWork     = Roact.createElement(AssignWorkButton, {Type = Tile.FARM,     Unit = state.object, UIBase = self.props.UIBase})
+                elements.ForestryWork = Roact.createElement(AssignWorkButton, {Type = Tile.FORESTRY, Unit = state.object, UIBase = self.props.UIBase})
+                elements.MineWork     = Roact.createElement(AssignWorkButton, {Type = Tile.MINE,     Unit = state.object, UIBase = self.props.UIBase})
             else
                 elements.AttackWork = Roact.createElement(AssignWorkButton, {Type = Tile.OTHERPLAYER, UIBase = self.props.UIBase})
                 elements.GuardWork = Roact.createElement(AssignWorkButton, {Type = Tile.GRASS, Unit = state.object, UIBase = self.props.UIBase})

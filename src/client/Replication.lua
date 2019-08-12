@@ -15,18 +15,128 @@ local Network       = game.ReplicatedStorage.Network
 local currentWorld
 local currentStats = {}
 local RequestedTiles = {}
+local strayed = {}
+local buildCostBuffer = {}
+local unitReferences = {}
+local unrequestedUnits = {}
+local chats = {}
 local syncing = true
 local UIBase = nil
 
-local function tileSync()
-
-    while syncing do
-        local pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
-        local dist = ClientUtil.getCurrentViewDistance()
-
-        Replication.updateTiles(pos, 15)
-        wait(1)
+local function handleUnitUpdate(id, changes)
+    if not unitReferences[id] then
+        table.insert(unrequestedUnits, id)
+        unitReferences[id] = true
+        return
     end
+
+    local localUnit = currentWorld.Units[id]
+
+    if changes.Health and changes.Health <= 0 then
+        if localUnit then ViewUnit.removeUnit(localUnit) end
+    else
+        if localUnit then
+
+            for i, v in pairs(changes) do
+                localUnit[i] = v
+            end
+
+            ViewUnit.updateDisplay(localUnit)
+        end
+    end
+end
+
+local requesting = false
+local function handleUnrequestedUnits()
+    if requesting then
+        return
+    end
+
+    requesting = true
+
+    local units = Replication.requestUnits(unrequestedUnits)
+
+    for _, unit in pairs(units) do
+        for i, id in pairs(unrequestedUnits) do
+            if unit.Id == id then
+                table.remove(unrequestedUnits, i)
+                break
+            end
+        end
+
+        currentWorld.Units[unit.Id] = unit
+        ViewUnit.displayUnit(unit)
+    end
+
+    wait(1)
+    requesting = false
+end
+
+local function handleStatsUpdate(stats)
+
+    if os.time() - stats.InCombat < 10 then
+        UIBase.combatAlert()
+    else
+        UIBase.endCombatAlert()
+    end
+
+    for i, v in pairs(stats) do
+
+        if i == "Wood" or i == "Stone" then
+
+            local stat = currentStats[i] or 0
+            local maintenance = currentStats['M'..i] or 0
+
+            if math.abs(v - stat - maintenance) < 5 then
+                currentStats[i] = v
+                strayed[i] = 0
+            else
+                currentStats[i] = stat - maintenance
+                strayed[i] = (strayed[i] or 0) + 1
+
+                if strayed[i] > 2 then
+                    currentStats[i] = v
+                end
+            end
+        else
+            currentStats[i] = v
+        end
+    end
+end
+
+local function handleTileUpdate(tile, t)
+    local pos = tile.Position
+    local localTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
+    local t = t or tick()
+
+    for i, v in pairs(tile) do
+        if not (localTile.lastChange and t - localTile.lastChange < 4) then
+            localTile[i] = v
+        end
+    end
+
+    if localTile.UnitList then
+        for _, id in pairs(localTile.UnitList) do
+            if not unitReferences[id] then
+                table.insert(unrequestedUnits, id)
+                unitReferences[id] = true
+            end
+        end
+    end
+    
+    ViewTile.updateDisplay(localTile)
+end
+
+local function handleUpdateAlert(updating)
+    if updating then
+        UIBase.updateAlert()
+    else
+        UIBase.endUpdateAlert()
+    end
+end
+
+local function handleChatsUpdate(inChats)
+    chats = inChats
 end
 
 function Replication.init(world, uiBinding)
@@ -36,9 +146,10 @@ function Replication.init(world, uiBinding)
     unitupdate = Network.UnitUpdate.OnClientEvent:Connect(handleUnitUpdate)
     statsupdate = Network.StatsUpdate.OnClientEvent:Connect(handleStatsUpdate)
     tileupdate = Network.TileUpdate.OnClientEvent:Connect(handleTileUpdate)
+    updatealert = Network.UpdateAlert.OnClientEvent:Connect(handleUpdateAlert)
+    chatsupdate = Network.ChatsUpdate.OnClientEvent:Connect(handleChatsUpdate)
 
     _G.updateLoadStatus("Fetching map data...")
-    --spawn(tileSync)
 end
 
 function Replication.worldDied()
@@ -46,6 +157,8 @@ function Replication.worldDied()
         unitupdate:Disconnect()
         statsupdate:Disconnect()
         tileupdate:Disconnect()
+        updatealert:Disconnect()
+        chatsupdate:Disconnect()
     end
 end
 
@@ -76,7 +189,6 @@ function Replication.getUserSettings()
     return settings
 end
 
-local buildCostBuffer = {}
 function Replication.requestTilePlacement(tile, type)
 
     local success
@@ -146,76 +258,6 @@ function Replication.requestTileRepair(tile)
     return success
 end
 
-function handleUnitUpdate(id, changes)
-    repeat wait() until currentWorld
-    local localUnit = currentWorld.Units[id]
-
-    if changes.Health <= 0 then
-        if localUnit then ViewUnit.removeUnit(localUnit) end
-    else
-        if not localUnit then
-            unit = Network.RequestUnits:InvokeServer({id})[id]
-            currentWorld.Units[unit.Id] = unit
-            ViewUnit.displayUnit(unit)
-        else
-
-            for i, v in pairs(changes) do
-                localUnit[i] = v
-            end
-
-            ViewUnit.updateDisplay(localUnit)
-        end
-    end
-end
-
-local strayed = {}
-function handleStatsUpdate(stats)
-
-    if os.time() - stats.InCombat < 10 then
-        UIBase.combatAlert()
-    else
-        UIBase.endCombatAlert()
-    end
-
-    for i, v in pairs(stats) do
-
-        if i == "Wood" or i == "Stone" then
-
-            local stat = currentStats[i] or 0
-            local maintenance = currentStats['M'..i] or 0
-
-            if math.abs(v - stat - maintenance) < 5 then
-                currentStats[i] = v
-                strayed[i] = 0
-            else
-                currentStats[i] = stat - maintenance
-                strayed[i] = (strayed[i] or 0) + 1
-
-                if strayed[i] > 2 then
-                    currentStats[i] = v
-                end
-            end
-        else
-            currentStats[i] = v
-        end
-    end
-end
-
-function handleTileUpdate(tile, t)
-    
-    local pos = tile.Position
-    local localTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
-    local t = t or tick()
-
-    for i, v in pairs(tile) do
-        if not (localTile.lastChange and t - localTile.lastChange < 4) then
-            localTile[i] = v
-        end
-    end
-
-    ViewTile.updateDisplay(localTile)
-end
-
 function Replication.updateTiles(pos, radius)
     local tiles = Network.GetCircularTiles:InvokeServer(pos, radius)
     local t = tick()
@@ -226,10 +268,12 @@ function Replication.updateTiles(pos, radius)
 end
 
 function Replication.keepViewAreaLoaded()
+    debug.profilebegin("keepViewAreaLoaded")
     local pos  = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
     local area = Util.circularPosCollection(pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
     local unloaded = {}
 
+    debug.profilebegin("detectUnrequestedTiles")
     for _, tilePos in pairs(area) do
         if not RequestedTiles[tilePos] then
             table.insert(unloaded, tilePos)
@@ -243,10 +287,28 @@ function Replication.keepViewAreaLoaded()
     for _, tile in pairs(tiles) do
         handleTileUpdate(tile, t)
     end
+
+    handleUnrequestedUnits()
 end
 
 function Replication.requestTiles(tilePosList)
     return Network.RequestTiles:InvokeServer(tilePosList)
+end
+
+function Replication.requestUnits(unitIdList)
+    return Network.RequestUnits:InvokeServer(unitIdList)
+end
+
+function Replication.sendChat(message)
+    Network.Chatted:FireServer(message)
+end
+
+function Replication.getChats()
+    return chats
+end
+
+function Replication.sendFeedback(react, text)
+    Network.FeedbackRequest:FireServer(react, text)
 end
 
 function Replication.ready()

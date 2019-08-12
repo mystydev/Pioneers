@@ -19,6 +19,7 @@ function connectoToRedis() {
     cluster = new Redis.Cluster([{
         port: 6379,
         host: 'redis.dev',
+        scaleReads: "slave",
         retryStrategy: function(times) {
             console.error("Connection to redis lost!")
             return 1000
@@ -168,21 +169,11 @@ async function waitForProcess(n) {
     while (n == lastProcess){
         await sleep(100);
     }
+
+    return true
 }
 
-app.post("/pion/longpollunit", (req, res) => {
-    waitForProcess(req.body.time).then(() => {
-        cluster.hgetall('units').then(units => {
-            res.json({time:lastProcess, data:units});
-        }).catch((err) => {
-            console.error("Failed to get units")
-            console.error(err)
-        })
-    }).catch((err) => {
-        console.error("Failed to wait for longpoll")
-        console.error(err)
-    })
-});
+
 
 app.post("/pion/longpolluserstats", (req, res) => {
     waitForProcess(req.body.time).then(() => {
@@ -200,27 +191,52 @@ app.post("/pion/longpolluserstats", (req, res) => {
 
 app.post("/pion/updateinitiated", (req, res) => {
     cluster.set("lastupdate", Date.now())
+    res.json("ok")
 })
 
-app.post("/pion/getupdates", (req, res) => {
-
+app.post("/pion/updatedeploying", (req, res) => {
+    cluster.set("lastupdatedeploy", Date.now())
+    res.json("ok")
 })
 
-// {pos:radius, pos:radius, pos:radius...} -> {tile, tile, tile, tile...}
-app.post("/pion/tileregion", (req, res) => {
-    let list = req.body.list;
-    let tiles = []
+app.post("/pion/syncupdates", (req, res) => {
+   
+    //Push chat messages to redis
+    cluster.lpush("chats", ...req.body.chats).catch(e => {})
+    cluster.ltrim("chats", 0, 100)
 
-    for (pos in list) {
-        console.log(pos, list[pos]);
-        tiles = tiles.concat(getCircularRegion(pos, list[pos]));
-    }
+    //Push any feedback to redis
+    for (let feedback of req.body.feedback)
+        cluster.lpush("feedback", feedback).catch(e => {})
 
-    cluster.hmget('tiles', tiles).then(collection => {
-        res.json(collection);
-    }).catch((err) => {
-        console.error("Failed to hmget tiles")
-        console.error(err)
+    let updates = {}
+    let processed   = waitForProcess(req.body.time)
+    let lastUpdate  = cluster.get("lastupdate")
+    let lastDeploy  = cluster.get("lastupdatedeploy")
+    let tiles       = cluster.hmget("tiles", ...req.body.tiles).catch(e => {})
+    let units       = cluster.hmget("units", ...req.body.units).catch(e => {})
+    let chats       = cluster.lrange("chats", 0, 100)
+
+    //Wait for redis to return all the data
+    Promise.all([processed, lastUpdate, lastDeploy, tiles, units, chats])
+    .then(values => {
+        
+        //convert indexes to correct versions
+        let i = 0
+        updates.tiles = {}
+        for (let pos of req.body.tiles)
+            updates.tiles[pos] = values[3][i++]
+
+        i = 0
+        updates.units = {}
+        for (let id of req.body.units)
+            updates.units[id] = values[4][i++]
+
+        updates.lastProcess = lastProcess //last round processed
+        updates.lastUpdate  = values[1]; //last time an update was issued
+        updates.lastDeploy  = values[2]; //last time the update redeployed instances in kubernetes
+        updates.chats       = values[5];
+        res.json(updates)
     })
 })
 
@@ -251,25 +267,6 @@ app.post("/pion/updateusersettings", (req, res) => {
 
     cluster.hset("settings", req.body.Id, JSON.stringify(settings))
     res.json(settings)
-})
-
-///OLD-------------------------------------------------------------------------
-app.post("/pion/alltiles", (req, res) => {
-    cluster.hgetall('tiles').then(tiles => {
-        res.json(tiles);
-    }).catch((err) => {
-        console.error("Failed to get all tiles")
-        console.error(err)
-    })
-});
-
-app.post("/pion/allunits", (req, res) => {
-    cluster.hgetall('units').then(units => {
-        res.json(units);
-    }).catch((err) => {
-        console.error("Failed to get all units")
-        console.error(err)
-    })
 })
 
 app.post("/pion/tileupdate", (req, res) => {
@@ -303,7 +300,7 @@ process.on("uncaughtException", (error) => {
     console.log("Pedantic database reconnect...")
 
     if (cluster)
-        cluster.quit()
+        cluster.quit().catch(e => {})
 
     setTimeout(connectoToRedis, 1000)
 })
@@ -313,7 +310,7 @@ process.on('unhandledRejection', (error) => {
     console.log("Pedantic database reconnect...")
 
     if (cluster)
-        cluster.quit()
+        cluster.quit().catch(e => {})
 
     setTimeout(connectoToRedis, 1000)
 })

@@ -311,8 +311,6 @@ tiles.isEmpty = (pos) => {
 tiles.isVacant = (pos) => {
     let tile = tiles.fromPosString(pos)
 
-    console.log(tile, tile.UnitList, (tile && tile.UnitList.length > 0))
-
     if (tile && tile.UnitList.length > 0)
         return false
     else
@@ -439,7 +437,6 @@ tiles.isFragmentationDependant = (pos, keepPos) => {
 
 tiles.getRepairCost = (pos) => {
     let tile = tiles.fromPosString(pos)
-    console.log(tile)
     let cost = TileConstructionCosts[tile.Type]
     let repairAmount = 1 - (tile.Health / tile.MaxHealth)
     let repairCost = {

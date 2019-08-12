@@ -3,6 +3,7 @@ local Common = game.ReplicatedStorage.Pioneers.Common
 
 local World = require(Common.World)
 local Tile  = require(Common.Tile)
+local Unit  = require(Common.Unit)
 
 local TILESPACING = 10 --Distance from center of hexagon to edge vertex
 local EDGESPACING = TILESPACING * (0.5 * 3^.5)
@@ -53,7 +54,7 @@ function Util.circularCollection(tiles, posx, posy, startRadius, endRadius)
 end
 
 function Util.circularPosCollection(posx, posy, startRadius, endRadius)
-
+    debug.profilebegin("circularPosCollection")
     local collection = {}
     
     if startRadius == 0 then
@@ -62,14 +63,15 @@ function Util.circularPosCollection(posx, posy, startRadius, endRadius)
 
     for radius = startRadius, endRadius do
         for i = 0, radius-1 do
-            table.insert(collection, (posx +          i) .. ":" .. (posy +     radius))
-            table.insert(collection, (posx +     radius) .. ":" .. (posy + radius - i))
-            table.insert(collection, (posx + radius - i) .. ":" .. (posy -          i))
-            table.insert(collection, (posx -          i) .. ":" .. (posy -     radius))
-            table.insert(collection, (posx -     radius) .. ":" .. (posy - radius + i))
-            table.insert(collection, (posx - radius + i) .. ":" .. (posy +          i))
+            table.insert(collection, string.format("%d:%d", (posx +          i), (posy +     radius)))
+            table.insert(collection, string.format("%d:%d", (posx +     radius), (posy + radius - i)))
+            table.insert(collection, string.format("%d:%d", (posx + radius - i), (posy -          i)))
+            table.insert(collection, string.format("%d:%d", (posx -          i), (posy -     radius)))
+            table.insert(collection, string.format("%d:%d", (posx -     radius), (posy - radius + i)))
+            table.insert(collection, string.format("%d:%d", (posx - radius + i), (posy +          i)))
         end
     end
+    debug.profileend()
 
     return collection
 end
@@ -88,6 +90,16 @@ end
 
 function Util.isWalkable(tile)
     return tile.Type == Tile.PATH or tile.Type == Tile.GATE
+end
+
+function Util.worksOnTileType(unitType, tileType)
+    if tileType == Tile.FARM and unitType == Unit.FARMER then
+        return true
+    elseif tileType == Tile.FORESTRY and unitType == Unit.LUMBERJACK then
+        return true
+    elseif tileType == Tile.MINE and unitType == Unit.MINER then
+        return true
+    end
 end
 
 return Util

@@ -150,7 +150,7 @@ userstats.setInCombat = (id) => {
 }
 
 userstats.isInCombat = (id) => {
-    return ((Date.now() / 1000) - Stats[id].InCombat) > 10
+    return ((Date.now() / 1000) - Stats[id].InCombat) < 10
 }
 
 module.exports = userstats

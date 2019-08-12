@@ -116,16 +116,18 @@ local function giveToolInsomnia(model)
         local victim = model.Handle.AlignPosition
 
         while model.Parent do
+            --debug.profilebegin("Insomnia")
             victim.LimitsEnabled = true
             victim.LimitsEnabled = false
+            --debug.profileend()
 
-            RunService.Stepped:Wait()
+            --RunService.Stepped:Wait()
+            wait(0.2)
         end
     end)
 end
 
 function ViewUnit.displayUnit(unit, oldModel)
-
     local model
 
     if unit.Type >= Unit.VILLAGER and unit.Type <= Unit.APPRENTICE then
@@ -208,7 +210,6 @@ function ViewUnit.displayUnit(unit, oldModel)
     animSpearGuard[model] = model.Humanoid:LoadAnimation(spearGuardAnim)
 
     ViewUnit.updateDisplay(unit)
-
     return model
 end
 
@@ -463,7 +464,6 @@ function ViewUnit.updateDisplay(unit)
         animSpear[model]:Stop()
         lastanims[model] = nil
     end
-
 end
 
 function ViewUnit.removeUnit(unit)

@@ -15,8 +15,8 @@ local BRIGHTNESS_RANGE  = BRIGHTNESS_MAX - BRIGHTNESS_MIN
 
 local function updateLighting()
 
-    --local t = ((tick() / DAY_LENGTH) % 24) / 24 
-    local t = 0.6
+    local t = ((tick() / DAY_LENGTH) % 24) / 24 
+    --local t = 0.6
     local brightness = 1 - (2 * math.abs(t - 0.5))^DAYTIME_PREFERENCE
     local ambient = brightness * AMBIENT_RANGE + AMBIENT_MIN
 

@@ -18,18 +18,27 @@ local StatsPanel          = require(ui.StatsPanel)
 local InitiateBuildButton = require(ui.build.InitiateBuildButton)
 local BuildList           = require(ui.build.BuildList)
 local ObjectInfoPanel     = require(ui.info.ObjectInfoPanel)
+local WorldLocation       = require(ui.info.WorldLocation)
 local AdminEditor         = require(ui.admin.AdminEditor)
 local HealthBar           = require(ui.world.HealthBar)
 local TesterAlert         = require(ui.TesterAlert)
 local NewPlayerPrompt     = require(ui.tutorial.NewPlayerPrompt)
 local TutorialPrompt      = require(ui.tutorial.TutorialPrompt)
 local CombatWarning       = require(ui.common.CombatWarning)
+local UpdateAlert         = require(ui.common.UpdateAlert)
+local ChatBox             = require(ui.chat.ChatBox)
+local FeedbackButton      = require(ui.feedback.FeedbackButton)
+local FeedbackForm        = require(ui.feedback.FeedbackForm)
+local FeedbackSubmitted   = require(ui.feedback.FeedbackSubmitted)
+local FindKingdomButton   = require(ui.teleport.FindKingdomButton)
+local FindKingdom         = require(ui.teleport.FindKingdom)
 
 local Players             = game:GetService("Players")
 local TweenService        = game:GetService("TweenService")
 local UIS                 = game:GetService("UserInputService")
 local Lighting            = game:GetService("Lighting")
 local RunService          = game:GetService("RunService")
+local StarterGui          = game:GetService("StarterGui")
 
 UIBase.State = {}
 UIBase.State.MAIN = 1
@@ -37,12 +46,17 @@ UIBase.State.BUILD = 2
 UIBase.State.TILEBUILD = 3
 UIBase.State.INFO = 4
 UIBase.State.SELECTWORK = 5
+UIBase.State.FEEDBACK = 6
+UIBase.State.FINDKINGDOM = 7
 
 local buildListHandle
 local infoHandle
 local adminHandle
 local promptHandle
 local combatHandle
+local updateHandle
+local feedbackHandle
+local findKingdomHandle
 local stats
 local currentWorld = {}
 local highlighted  = {}
@@ -56,32 +70,43 @@ local worldgui     = Instance.new("ScreenGui", player.PlayerGui)
 local screengui    = Instance.new("ScreenGui", player.PlayerGui)
 local viewport     = Instance.new("ViewportFrame", worldgui)
 local blur         = Instance.new("BlurEffect")
-local vignette     = game:GetService("StarterGui").Vignette:Clone()
+local vignette     = StarterGui.Vignette:Clone()
 local desaturate   = Lighting.BaseCorrection
 local tweenSlow    = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local tweenFast    = TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local infoObjectBinding, setInfoObject = Roact.createBinding()
+local updatingBinding, setUpdating = Roact.createBinding(false)
+StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
+player.PlayerGui:SetTopbarTransparency(1)
 
-local adminEditorEnabled = true
+local adminEditorEnabled = false
 
 function UIBase.init(world, displaystats)
     stats = displaystats 
     currentWorld = world
     worldgui.Name = "World UI"
+    worldgui.IgnoreGuiInset = true
     screengui.Name = "Screen UI"
+    screengui.IgnoreGuiInset = true
     screengui.DisplayOrder = 2
     blur.Size = 0
     blur.Parent = Lighting
     desaturate.Saturation = 0
     desaturate.Parent = Lighting
     vignette.Parent = screengui
-    viewport.Size = UDim2.new(1, 0, 1, 36)
-    viewport.Position = UDim2.new(0, 0, 0, -36)
+    viewport.Size = UDim2.new(1, 0, 1, 0)
+    viewport.Position = UDim2.new(0, 0, 0, 0)
     viewport.BackgroundTransparency = 1
     viewport.CurrentCamera = workspace.CurrentCamera
     viewport.Ambient = Color3.new(1, 1, 1)
     viewport.LightColor = Color3.new(1, 1, 1)
     viewport.LightDirection = Vector3.new(0, -1, 0)
+
+    if stats.Keep then
+        local keepPosition = Util.positionStringToVector(stats.Keep)
+        local worldPosition = Util.axialCoordToWorldCoord(keepPosition)
+        workspace.CurrentCamera.CFrame = CFrame.new(worldPosition + Vector3.new(20, 50, 20))
+    end
 end
 
 function UIBase.unfocusBackground()
@@ -177,6 +202,22 @@ function UIBase.showStats()
     Roact.mount(Roact.createElement(StatsPanel, {stats = stats}), screengui)
 end
 
+function UIBase.showLocation()
+    Roact.mount(Roact.createElement(WorldLocation), screengui)
+end
+
+function UIBase.showChatBox()
+    Roact.mount(Roact.createElement(ChatBox, {UIBase = UIBase}), screengui)
+end
+
+function UIBase.showFeedbackButton()
+    Roact.mount(Roact.createElement(FeedbackButton, {UIBase = UIBase}), screengui)
+end
+
+function UIBase.showFindKingdomButton()
+    Roact.mount(Roact.createElement(FindKingdomButton, {UIBase = UIBase}), screengui)
+end
+
 function UIBase.showBuildButton()
     Roact.mount(Roact.createElement(InitiateBuildButton, {
         UIBase = UIBase,
@@ -223,6 +264,7 @@ function UIBase.showObjectInfo(object)
 
     setInfoObject(object)
     SoundManager.softSelect()
+    ActionHandler.provideUnitChangeHook(function() UIBase.showObjectInfo(object) end)
 end
 
 function UIBase.transitionToInfoView()
@@ -330,7 +372,8 @@ function UIBase.highlightBuildableTile(tile, type)
     local clone = UIBase.highlightInst(inst, 0.5)
     if clone then
         UIBase.listenToInst(inst,
-            function() 
+            function()
+                print(tile, type)
                 ActionHandler.attemptBuild(tile, type)
                 UIBase.highlightType(type, true)
             end, 
@@ -393,7 +436,7 @@ function UIBase.highlightGuardableArea(pos)
 end
 
 function UIBase.showInDevelopmentWarning(status)
-    if UserSettings.shouldShowDevelopmentWarning() or true then
+    if UserSettings.shouldShowDevelopmentWarning() then
         UIBase.disableManagedInput()
         TweenService:Create(blur, tweenSlow, {Size = 15}):Play()
         promptHandle = Roact.mount(TesterAlert({
@@ -465,8 +508,7 @@ function UIBase.combatAlert()
         SoundManager.urgentAlert()
         TweenService:Create(vignette, tweenSlow, {ImageColor3 = Color3.new(0.8, 0.15, 0.15)}):Play()
         combatHandle = Roact.mount(Roact.createElement(CombatWarning), screengui)
-    end
-    
+    end 
 end
 
 function UIBase.endCombatAlert()
@@ -476,6 +518,85 @@ function UIBase.endCombatAlert()
         combatHandle = nil
     end
 end 
+
+function UIBase.updateAlert()
+    if not updateHandle then
+        SoundManager.urgentAlert()
+        setUpdating(true)
+        updateHandle = Roact.mount(Roact.createElement(UpdateAlert, {updating = updatingBinding}), screengui)
+    end
+end
+
+function UIBase.endUpdateAlert()
+    if updateHandle and updatingBinding:getValue() then
+        setUpdating(false)
+        delay(5, function()
+            Roact.unmount(updateHandle)
+            updateHandle = nil
+        end)
+    end
+end
+
+function UIBase.chatFocused()
+    _G.FreecamDisabled = true
+    UIBase.disableManagedInput()
+end
+
+function UIBase.chatUnfocused()
+    _G.FreecamDisabled = false
+    delay(0.1, UIBase.enableManagedInput) --Prevent clicking to get away from chat from interacting
+end
+
+function UIBase.transitionToFeedbackView()
+    if UIState == UIBase.State.MAIN then
+        _G.FreecamDisabled = true
+        UIState = UIBase.State.FEEDBACK
+        feedbackHandle = Roact.mount(Roact.createElement(FeedbackForm, {UIBase = UIBase}), screengui)
+        UIBase.unfocusBackground()
+    end
+end
+
+function UIBase.exitFeedbackView()
+    if UIState == UIBase.State.FEEDBACK then
+        _G.FreecamDisabled = false
+        UIState = UIBase.State.MAIN
+        Roact.unmount(feedbackHandle)
+        UIBase.refocusBackground()
+    end
+end
+
+function UIBase.showFeedbackForm()
+    UIBase.transitionToFeedbackView()
+end
+
+function UIBase.submittedFeedback()
+    Roact.unmount(feedbackHandle)
+    feedbackHandle = Roact.mount(Roact.createElement(FeedbackSubmitted, {UIBase = UIBase}), screengui)
+    wait(4)
+    UIBase.exitFeedbackView()
+end
+
+function UIBase.transitionToFindKingdomView()
+    if UIState == UIBase.State.MAIN then
+        _G.FreecamDisabled = true
+        UIState = UIBase.State.FINDKINGDOM
+        findKingdomHandle = Roact.mount(Roact.createElement(FindKingdom, {UIBase = UIBase}), screengui)
+        UIBase.unfocusBackground()
+    end
+end
+
+function UIBase.exitFindKingdomView()
+    if UIState == UIBase.State.FINDKINGDOM then
+        _G.FreecamDisabled = false
+        UIState = UIBase.State.MAIN
+        Roact.unmount(findKingdomHandle)
+        UIBase.refocusBackground()
+    end
+end
+
+function UIBase.showFindKingdom()
+    UIBase.transitionToFindKingdomView()
+end
 
 local lastHover
 local mouse = player:GetMouse()

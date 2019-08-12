@@ -14,6 +14,7 @@ local function Label(props)
         TextColor3             = props.Color or Color3.fromRGB(61,61,61),
         TextTransparency       = props.TextTransparency,
         ZIndex                 = props.ZIndex or 1,
+        AnchorPoint            = props.AnchorPoint or Vector2.new(0, 0),
     })
 end
 

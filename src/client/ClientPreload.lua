@@ -12,22 +12,22 @@ local TweenService    = game:GetService("TweenService")
 
 local preloadList = {
     "rbxassetid://3137132874","rbxassetid://3064453624","rbxassetid://3470337276","rbxassetid://3137922987","rbxassetid://3134625520",
-    "rbxassetid://3101321954","rbxassetid://3237279749","rbxassetid://3464265681","rbxassetid://3063768294","rbxassetid://03090678702",
+    "rbxassetid://3101321954","rbxassetid://3237279749","rbxassetid://3464265681","rbxassetid://3063768294",
     "rbxassetid://3144305559","rbxassetid://3464265962","rbxassetid://3237284892","rbxassetid://3134628363","rbxassetid://3137132820",
     "rbxassetid://3464266043","rbxassetid://3464218676","rbxassetid://3064039482","rbxassetid://3101321804","rbxassetid://3237284550",
-    "rbxassetid://3470339354","rbxassetid://03090565308","rbxassetid://3144305750","rbxassetid://3470332747","rbxassetid://3237282264",
+    "rbxassetid://3470339354","rbxassetid://3144305750","rbxassetid://3470332747","rbxassetid://3237282264",
     "rbxassetid://3077212059","rbxassetid://3464282669","rbxassetid://3237281850","rbxassetid://3464265858","rbxassetid://3134625456",
     "rbxassetid://3237282190","rbxassetid://3134625293","rbxassetid://3063804359","rbxassetid://3470339472","rbxassetid://3237279828",
-    "rbxassetid://3470337406","rbxassetid://3090615222","rbxassetid://3101321886","rbxassetid://3064453818","rbxassetid://3464269762",
+    "rbxassetid://3470337406","rbxassetid://3101321886","rbxassetid://3064453818","rbxassetid://3464269762",
     "rbxassetid://3064056895","rbxassetid://3237282124","rbxassetid://3063744675","rbxassetid://3134633203","rbxassetid://3470354088",
     "rbxassetid://3470332877","rbxassetid://3470327868","rbxassetid://3237288852","rbxassetid://3470333132","rbxassetid://3470328252",
     "rbxassetid://3470328143","rbxassetid://3470333280","rbxassetid://3470333025","rbxassetid://3470339219","rbxassetid://3470770300",
     "rbxassetid://3465608887","rbxassetid://3101322014","rbxassetid://3064053551","rbxassetid://3134625173","rbxassetid://3064453876",
     "rbxassetid://3464270025","rbxassetid://3464274359","rbxassetid://3237284465","rbxassetid://3464269865","rbxassetid://3464265775",
-    "rbxassetid://3144182791","rbxassetid://3112144281","rbxassetid://3064009593","rbxassetid://03115431882","rbxassetid://3137569139",
+    "rbxassetid://3144182791","rbxassetid://3064009593","rbxassetid://3137569139",
     "rbxassetid://3134628736","rbxassetid://3237284972","rbxassetid://3144182667","rbxassetid://3064039535","rbxassetid://3137891616",
     "rbxassetid://3237281781","rbxassetid://3470328016","rbxassetid://3464269947","rbxassetid://3137923052","rbxassetid://3144305681",
-    "rbxassetid://3080817017","rbxassetid://3242019037","rbxassetid://03090713020","rbxassetid://3144305819","rbxassetid://3077218297",
+    "rbxassetid://3080817017","rbxassetid://3242019037","rbxassetid://3144305819","rbxassetid://3077218297",
     "rbxassetid://3064039406","rbxassetid://3064022555","rbxassetid://3077211985","rbxassetid://3470328336", "rbxassetid://3569229445",
     }
 
@@ -145,13 +145,11 @@ local function load()
     end
 end
 
-
-
 function preload.tellReady()
     if not preload.Aborting and not preload.Loaded then
         preload.Loaded = true
 
-        spawn(function()
+        delay(5, function()
             repeat wait() until assetsLoaded and queuelength == 0
 
             if preload.Aborting then

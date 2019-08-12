@@ -12,6 +12,7 @@ local Network       = game.ReplicatedStorage.Network
 local Players       = game:GetService("Players")
 local Http          = game:GetService("HttpService")
 local ServerStorage = game:GetService("ServerStorage")
+local Chat          = game:GetService("Chat")
 
 local API_URL = "https://api.mysty.dev/pion/"
 local API_KEY = ServerStorage.APIKey.Value
@@ -19,6 +20,10 @@ local Actions = World.Actions
 
 local currentWorld
 local tilesRequested = {}
+local unitReferences = {}
+local chatBuffer = {}
+local feedbackBuffer = {}
+local filterCache = {}
 
 local function worldStateRequest(player)
     return currentWorld
@@ -159,13 +164,40 @@ local function getTesterStatus(player)
     end
 end
 
+local function chatRequest(player, messageText)
+
+    if #messageText <= 1 then
+        return
+    end
+
+    --print(messageText, "->", TextService:FilterStringAsync(messageText, player.UserId):GetNonChatStringForBroadcastAsync())
+
+    local message = {
+        playerId = player.UserId,
+        text = messageText,
+        timestamp = os.time(),
+    }
+
+    table.insert(chatBuffer, Http:JSONEncode(message))
+end
+
+local function feedbackRequest(player, react, text)
+    local feedback = {
+        player = player.UserId,
+        playerName = player.Name,
+        react = react,
+        text = text,
+        timestamp = os.time(),
+    }
+    table.insert(feedbackBuffer, Http:JSONEncode(feedback))
+end
+
 function Replication.assignWorld(w)
     currentWorld = w
 
     Network.RequestWorldState.OnServerInvoke    = worldStateRequest
     Network.RequestStats.OnServerInvoke         = statsRequest
     Network.RequestSettings.OnServerInvoke      = settingsRequest
-    Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
     Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
     Network.RequestTileDelete.OnServerInvoke    = tileDeleteRequest
     Network.RequestTileRepair.OnServerInvoke    = tileRepairRequest
@@ -174,7 +206,10 @@ function Replication.assignWorld(w)
     Network.RequestTiles.OnServerInvoke         = tileRequest
     Network.RequestUnits.OnServerInvoke         = unitRequest
     Network.GetCircularTiles.OnServerInvoke     = getCircularTiles
-    Network.Ready.OnServerInvoke = getTesterStatus
+    Network.Ready.OnServerInvoke                = getTesterStatus
+    Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
+    Network.Chatted.OnServerEvent:Connect(chatRequest)
+    Network.FeedbackRequest.OnServerEvent:Connect(feedbackRequest)
 end
 
 function Replication.pushStatsChange(stats)
@@ -193,13 +228,19 @@ function Replication.pushTileChange(tilePos)
             Network.TileUpdate:FireClient(player, tile)
         end
     end
+
+    if tile.UnitList then
+        for _, unitId in pairs(tile.UnitList) do
+            unitReferences[unitId] = true
+        end
+    end
 end
 
 function Replication.pushUnitUpdate(oldUnit, newUnit)
     local changes = {}
 
     for i, v in pairs(newUnit) do
-        if oldUnit[i] ~= newUnit[i] then
+        if oldUnit and oldUnit[i] ~= newUnit[i] then
             changes[i] = v
         end
     end
@@ -209,6 +250,103 @@ end
 
 function Replication.pushUnitChanges(unitId, changes)
     Network.UnitUpdate:FireAllClients(unitId, changes)
+end
+
+function Replication.getRequestedTiles()
+    return tilesRequested
+end
+
+function Replication.getUnitReferences()
+    return unitReferences
+end
+
+function Replication.handleTileInfo(tileList)
+    local t = tick()
+
+    for pos, tile in pairs(tileList) do
+        local stile = currentWorld.Tiles[pos]
+
+        currentWorld.Tiles[pos] = Tile.deserialise(pos, tile)
+
+        if not stile or Tile.isDifferent(stile, currentWorld.Tiles[pos]) then
+            Replication.pushTileChange(pos)
+        end
+    end
+
+    for pos, tile in pairs(currentWorld.Tiles) do
+        if not tileList[pos] and tile.Type ~= Tile.GRASS then
+            print("Removing deleted tile")
+            currentWorld.Tiles[pos] = nil
+            Replication.pushTileChange(pos)
+        end
+    end
+end
+
+function Replication.handleUnitInfo(unitList)
+    for _, unit in pairs(unitList) do
+        local newUnit = Unit.deserialise(unit, currentWorld.Tiles)
+        Replication.pushUnitUpdate(currentWorld.Units[newUnit.Id], newUnit)
+        currentWorld.Units[newUnit.Id] = newUnit
+    end
+end
+
+local function filterText(message, text, player)
+    coroutine.wrap(function()
+        filterCache[player][text] = Chat:FilterStringAsync(text, player, player)
+    end)()
+end
+
+function Replication.handleChats(chatData)
+    local chats = {}
+    local playerChats = {}
+    local currentTime = os.time()
+    
+    --Decode Chats from json form
+    for i, rawChat in pairs(chatData) do
+        local decoded, chat = pcall(function() return Http:JSONDecode(rawChat) end) --Conservative decode just incase the json is invalid
+        if decoded and currentTime - (chat.timestamp or 0)  < 600 then
+            chats[i] = chat
+        end
+    end
+
+    --Filter and send them per client
+    for _, player in pairs(Players:GetChildren()) do
+        local filteredChats = {}
+        if not filterCache[player] then filterCache[player] = {} end
+
+        for i, chat in pairs(chats) do
+            local text = filterCache[player][chats[i].text] 
+            
+            if not text then
+                text = string.rep("_", #chats[i].text)
+                filterText(filteredChats[i], chats[i].text, player)
+            end
+
+            filteredChats[i] = {
+                playerId = chats[i].playerId,
+                timestamp = chats[i].timestamp,
+                text = text,
+            }
+        end
+
+        Network.ChatsUpdate:FireClient(player, filteredChats)
+    end
+end
+
+function Replication.pushUpdateAlert(updating)
+    Network.UpdateAlert:FireAllClients(updating)
+end
+
+function Replication.getChats()
+    local chats = chatBuffer
+    chatBuffer = {}
+    return chats
+end
+
+function Replication.getFeedback()
+    local feedback = feedbackBuffer
+    feedbackBuffer = {}
+    return feedback
 end
 
 Network.Ready.OnServerInvoke = function() return nil end

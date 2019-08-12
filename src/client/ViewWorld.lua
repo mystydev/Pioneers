@@ -24,42 +24,6 @@ function ViewWorld.displayWorld(world)
 
     RunService.Stepped:Connect(Replication.keepViewAreaLoaded)
 
-    --[[spawn(function()
-        while false do
-            local pos  = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
-            local area = Util.circularCollection(tiles, pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
-
-            for _, tile in pairs(area) do
-                ViewTile.displayTile(tile, "SKIP")
-                RunService.Stepped:Wait() 
-            end
-        end
-    end)
-
-    
-    spawn(function()
-
-        local edgeSize = 6
-
-        while true do
-            local pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
-            local viewDistance = ClientUtil.getCurrentViewDistance()+edgeSize
-
-            for edge = edgeSize, 1, -1 do
-                local area = Util.circularCollection(tiles, pos.x, pos.y, viewDistance-edge-1, viewDistance-edge)
-
-                for _, tile in pairs(area) do
-                    ViewTile.displayTile(tile, edge/edgeSize)
-
-                    updateCount = (updateCount + 1)%UPDATE_THROTTLE
-                    if (updateCount == 0) then 
-                        RunService.Stepped:Wait() 
-                    end
-                end
-            end
-        end
-    end)]]--
-
     for id, unit in pairs(units) do 
         ViewUnit.displayUnit(unit)
     end

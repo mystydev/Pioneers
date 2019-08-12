@@ -12,94 +12,12 @@ local Players       = game:GetService("Players")
 local Http          = game:GetService("HttpService")
 local ServerStorage = game:GetService("ServerStorage")
 
-local SYNC_RATE = 1
+local SYNC_RATE = 0.5
 local API_URL = "https://api.mysty.dev/pion/"
 local API_KEY = ServerStorage.APIKey.Value
 local syncing, currentWorld
-
-local function globalSync(world)
-    print("Requesting world data")
-
-    local payload = Http:JSONEncode({apikey = API_KEY})
-    local tiles = Http:PostAsync(API_URL.."alltiles", payload)
-    local units = Http:PostAsync(API_URL.."allunits", payload)
-
-    tiles = Http:JSONDecode(tiles)
-    units = Http:JSONDecode(units)
-
-    local n = 0
-
-    for i, tile in pairs(tiles) do
-        world.Tiles[i] = Tile.deserialise(i, tile)
-        n = n + 1
-    end
-
-    print("Loaded", n, "tiles")
-    n = 0
-
-    for i, unit in pairs(units) do
-        local index = tostring(i)
-        world.Units[index] = Unit.deserialise(index, unit, world.Tiles)
-        n = n + 1
-    end
-
-    print("Loaded", n, "units")
-end
-
-local function syncprocess(world)
-
-    while syncing do
-        
-        local payload = Http:JSONEncode({apikey = API_KEY})
-        local tiles = Http:PostAsync(API_URL.."alltiles", payload)
-        tiles = Http:JSONDecode(tiles)
-        
-        local t = tick()
-
-        for i, tile in pairs(tiles) do
-            local stile = world.Tiles[i]
-
-            world.Tiles[i] = Tile.deserialise(i, tile)
-
-            if not stile or Tile.isDifferent(stile, world.Tiles[i]) then
-                Replication.pushTileChange(i)
-            end
-        end
-
-        for i, tile in pairs(world.Tiles) do
-            if not tiles[i] and tile.Type ~= Tile.GRASS then
-                print("Removing deleted tile")
-                world.Tiles[i] = nil
-                Replication.pushTileChange(i)
-            end
-        end
-
-        wait(SYNC_RATE)
-    end
-end
-
-local function tempSyncAll(world)
-
-    local syncTime = 0
-
-    while syncing do
-        
-        local payload = Http:JSONEncode({apikey = API_KEY, time = syncTime})
-        local res = Http:JSONDecode(Http:PostAsync(API_URL.."longpollunit", payload))
-
-        syncTime = res.time
-
-        for i, unit in pairs(res.data) do
-            local index = tostring(i)
-
-            local newUnit = Unit.deserialise(index, unit, world.Tiles)
-            world.Units[index] = newUnit
-            Replication.pushUnitUpdate(unit, newUnit)
-        end
-
-        wait(SYNC_RATE + math.random()) --Slightly spread out load on http api
-    end
-end
+local requestedTiles = Replication.getRequestedTiles()
+local unitReferences = Replication.getUnitReferences()
 
 local function syncStats(player, world)
     local syncTime = 0
@@ -117,6 +35,56 @@ local function syncStats(player, world)
     end
 end
 
+
+local function syncUpdates()
+
+    local syncTime = 0
+
+    while syncing do 
+
+        --Convert tile list to friendly format
+        local tileList = {}
+        for _, tiles in pairs(requestedTiles) do
+            for tile, _ in pairs(tiles) do
+                table.insert(tileList, tile)
+            end
+        end
+
+        --Convert unit list to friendly format
+        local unitList = {}
+        for id, _ in pairs(unitReferences) do
+            table.insert(unitList, id)
+        end
+
+        --Construct payload and send it to backend
+        local payload = Http:JSONEncode({
+            apikey = API_KEY,
+            time = syncTime, 
+            tiles = tileList, 
+            units = unitList, 
+            chats = Replication.getChats(),
+            feedback = Replication.getFeedback(),
+        })
+        local res = Http:JSONDecode(Http:PostAsync(API_URL.."syncupdates", payload))
+        syncTime = tonumber(res.lastUpdate)
+
+        --Sync tiles/units
+        Replication.handleTileInfo(res.tiles or {})
+        Replication.handleUnitInfo(res.units or {})
+        Replication.handleChats(res.chats or {})
+
+        --If the lastupdate was issued earlier than the last deploy then the backend is updating
+        if tonumber(res.lastUpdate) > tonumber(res.lastDeploy) then --TODO: remove these tonumbers
+            Replication.pushUpdateAlert(true)
+        elseif tonumber(res.lastDeploy) < res.lastProcess then
+            Replication.pushUpdateAlert(false)
+        end
+
+        --Ease load on backend slightly, just in case
+        wait(SYNC_RATE)
+    end
+end
+
 local function protectedCall(f, ...)
     pcall(f, ...)
     wait(1)
@@ -127,9 +95,10 @@ function Sync.begin(world)
     syncing = true
     currentWorld = world
 
-    globalSync(world)
-    delay(2, function() protectedCall(syncprocess, world) end)
-    delay(0, function() protectedCall(tempSyncAll, world) end)
+    --globalSync(world)
+    --delay(2, function() protectedCall(syncprocess, world) end)
+    --delay(0, function() protectedCall(tempSyncAll, world) end)
+    delay(0, function() protectedCall(syncUpdates, world) end)
 end
 
 local function playerJoined(player)
