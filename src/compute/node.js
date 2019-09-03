@@ -23,9 +23,11 @@ async function computeRequest(data) {
     let statChanges = []
     let damages = []
     let combats = []
+    let [s, e] = data
+    let unitList = await units.getRange(s, e)
 
-    for (let id in data) {
-        let change = await units.processUnit(data[id])
+    for (let id in unitList) {
+        let change = await units.processUnit(unitList[id])
 
         if (change.Stats) {
             statChanges.push(change.Stats)

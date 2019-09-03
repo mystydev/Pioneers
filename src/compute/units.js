@@ -5,11 +5,6 @@ let userstats = require("./userstats")
 let resource = require("./resource")
 let common = require("./common")
 
-let Units = {}
-let UnitCount
-let UnitSpawns
-let UnitCollections = []
-
 let UnitType = units.UnitType = {
     NONE:0,
     VILLAGER:1,
@@ -65,12 +60,10 @@ function Unit(unitId, ownerId, x, y) {
     this.TempPathIndex = undefined
     this.MilitaryWorkType = undefined
 
-    Units[unitId] = this
-        
-    if (!UnitCollections[ownerId])
+    /*if (!UnitCollections[ownerId])
         UnitCollections[ownerId] = [unitId]
     else
-        UnitCollections[ownerId].push(unitId)
+        UnitCollections[ownerId].push(unitId)*/
 }
 
 units.unitFromJSON = (rawdata) => {
@@ -87,16 +80,14 @@ units.unitFromJSON = (rawdata) => {
 }
 
 units.load = async () => {
-    await database.getAllUnits()
+    /*await database.getAllUnits()
     UnitCount = await database.getUnitCount()
     UnitSpawns = await database.getUnitSpawns()
 
 	if (!UnitCount)
-        UnitCount = 1
-}
+        UnitCount = 1*/
 
-units.newPlayer = (id) => {
-    UnitCollections[id] = []
+    console.log("Units would have loaded!")    
 }
 
 units.addResource = (unit, res, amount) => {
@@ -124,8 +115,8 @@ units.computeTempSafetyPath = (unit) => {
     }
 }
 
-units.computeTrip = (unit) => {
-    if (!unit.Work || tiles.fromPosString(unit.Work).Health <= 0){
+units.computeTrip = async (unit) => {
+    if (!unit.Work || await tiles.fromPosString(unit.Work).Health <= 0){
         console.log("Early trip exit")
         units.computeTempSafetyPath(unit)
         unit.Target = unit.Home
@@ -135,10 +126,10 @@ units.computeTrip = (unit) => {
         return
     }
 
-    let storage = tiles.findClosestStorage(unit.Work)
-    let homeWorkPath = tiles.findPath(unit.Home, unit.Work)
-    let workStoragePath = tiles.findPath(unit.Work, storage)
-    let storageHomePath = tiles.findPath(storage, unit.Home)
+    let storage = await tiles.findClosestStorage(unit.Work)
+    let homeWorkPath = await tiles.findPath(unit.Home, unit.Work)
+    let workStoragePath = await tiles.findPath(unit.Work, storage.Position)
+    let storageHomePath = await tiles.findPath(storage.Position, unit.Home)
 
     if (!homeWorkPath || !workStoragePath || !storageHomePath) {
         units.unassignWork(unit)
@@ -148,12 +139,12 @@ units.computeTrip = (unit) => {
 
     let wholePath = homeWorkPath.concat(workStoragePath, storageHomePath)
     let pos = units.getPosition(unit)
-    let [res, amount] = tiles.getOutput(unit.Work)
+    let [res, amount] = await tiles.getOutput(unit.Work)
 
     //-1 to start just before path
     if (unit.Target == unit.Work) {
         unit.TripIndex = homeWorkPath.indexOf(pos) || -1
-    } else if (unit.Target == storage) {
+    } else if (unit.Target == storage.Position) {
         unit.TripIndex = homeWorkPath.length + (workStoragePath.indexOf(pos) || -1)
     } else if (unit.Target == unit.Home) {
         unit.TripIndex = homeWorkPath.length + workStoragePath.length + (storageHomePath.indexOf(pos) || -1)
@@ -163,13 +154,14 @@ units.computeTrip = (unit) => {
 
     let unitPos = units.getPosition(unit)
     if (unitPos != wholePath[unit.TripIndex] && unitPos != unit.Home) {
+        console.log("Computing safety path")
         units.computeTempSafetyPath(unit)
     } else {
         delete unit.TempPath
         delete unit.TempPathIndex
     }
 
-    unit.Storage = storage
+    unit.Storage = storage.Position
     unit.Trip = wholePath
     unit.ProduceType = res
     unit.ProduceAmount = amount
@@ -177,9 +169,10 @@ units.computeTrip = (unit) => {
     database.updateUnit(unit.Id, unit)
 }
 
-units.computeMilitaryTrip = (unit) => {
+units.computeMilitaryTrip = async (unit) => {
     let pos = units.getPosition(unit)
-    let workType = tiles.getSafeType(unit.Work)
+    let workTile = await tiles.fromPosString(unit.Work)
+    let workType = tiles.getSafeType(workTile)
 
     unit.Trip = tiles.findPath(pos, unit.Target, true)
     unit.Storage = undefined
@@ -263,7 +256,6 @@ units.establishMiliatryState = (unit) => {
 }
 
 units.processUnit = async (unit) => {
-
     if (units.isMilitary(unit))
         return await units.processMilitaryUnit(unit)
 
@@ -279,7 +271,7 @@ units.processUnit = async (unit) => {
 
     switch (state) {
         case UnitState.MOVING:
-            if (unit.TempPathIndex != undefined && unit.TempPath) {
+            /*if (unit.TempPathIndex != undefined && unit.TempPath) {
                 if (unit.TempPathIndex++ >= unit.TempPath.length-1) {
                     delete unit.TempPathIndex
                     delete unit.TempPath
@@ -295,6 +287,10 @@ units.processUnit = async (unit) => {
                     [unit.Posx, unit.Posy] = common.strToPosition(trip[unit.TripIndex])
                 }
             }
+            */
+
+            let path = await tiles.findPath(units.getPosition(unit), unit.Target);
+            [unit.Posx, unit.Posy] = common.strToPosition(path[0])
             break
 
         case UnitState.WORKING:
@@ -398,71 +394,70 @@ units.processMilitaryUnit = async (unit) => {
     return changes
 }
 
-units.updateState = (data) => {
-    for (let id in data)
-        Units[id] = data[id]
-}
-
 units.processUnits = async () => {
-    for (id in Units) {
+    for (let id in Units) {
         let unit = Units[id]
         await units.processUnit(unit)
     }
 }
 
-units.processSpawns = () => {
-    for (pos in UnitSpawns) {
-		let tile = tiles.fromPosString(pos)
+units.processSpawns = async () => {
+    let UnitSpawns = await database.getUnitSpawns()
 
-		if (userstats.canAfford(tile.OwnerId, resource.Type.FOOD, common.SPAWN_REQUIRED_FOOD))		
-			if (UnitSpawns[pos]++ > common.SPAWN_ATTEMPTS_REQUIRED)
-				units.spawn(pos)
-	}
+    for (let pos in UnitSpawns) {
+		let tile = await tiles.fromPosString(pos)
+
+        if (await userstats.canAfford(tile.OwnerId, resource.Type.FOOD, common.SPAWN_REQUIRED_FOOD)) {  
+			if (UnitSpawns[pos] > common.SPAWN_ATTEMPTS_REQUIRED)
+                units.spawn(pos)
+            else
+                database.updateUnitSpawn(pos, UnitSpawns[pos] + 1)
+        }
+    }
 }
 
-units.spawn = (pos) => {
-    let tile = tiles.fromPosString(pos)
-    let id = (UnitCount++).toString()
+units.spawn = async (pos) => {
+    let tile = await tiles.fromPosString(pos)
+    let id = (await database.incrementUnitCount()).toString()
     let [x, y] = common.strToPosition(pos)
 
     let unit = new Unit(id, tile.OwnerId, x, y)
     unit.Home = pos
 
-    if (!UnitCollections[unit.OwnerId])
-        units.newPlayer(unit.OwnerId)
-
-    Units[id] = unit;
-    UnitCollections[unit.OwnerId].push(id)
+    database.pushUnitToCollection(unit.OwnerId, id)
     userstats.use(unit.OwnerId, resource.Type.FOOD, 100)
     database.updateUnit(id, unit)
-    database.updateUnitCount(UnitCount)
 
     tile.UnitList.push(unit.Id)
     database.updateTile(pos, tile)
 
     if (tile.UnitList.length >= common.HOUSE_UNIT_NUMBER) {
-        delete UnitSpawns[pos]
         database.deleteUnitSpawn(pos)
     } else {
-        UnitSpawns[pos] = 0
-        database.updateUnitSpawn(pos, UnitSpawns[pos])
+        database.updateUnitSpawn(pos, 0)
     }
 
     return unit
 }
 
-units.getUnitCount = () => {
-    return UnitCount
+units.getUnitCount = async () => {
+    return database.getUnitCount()
 }
 
 //recompute cached unit info on civ changes (ie path might change due to tile placement)
-units.recomputeCiv = (id) => {
+units.recomputeCiv = async (id) => {
     console.log("recomputing", id)
+
+    let UnitCollection = await database.getUnitCollection(id)
+    console.log("Unit collection is:", UnitCollection)
+    if (!UnitCollection)
+        return
+
     let foodProduced = 0
     let woodProduced = 0
     let stoneProduced = 0
 
-    for (unitId of UnitCollections[id]) {
+    for (let unitId of UnitCollection) {
         let unit = Units[unitId]
         units.computeTrip(unit)
 
@@ -479,36 +474,41 @@ units.recomputeCiv = (id) => {
     userstats.setPerRoundProduce(id, foodProduced, woodProduced, stoneProduced)
 }
 
-units.fromid = (id) => {
-    return Units[id]
+units.fromid = async (id) => {
+    return database.getUnit(id)
 }
 
-units.getSpawns = () => {
-    return UnitSpawns
+units.getSpawns = async () => {
+    return database.getUnitSpawns()
 }
 
 units.setSpawn = (pos) => {
-    UnitSpawns[pos] = 0
     database.updateUnitSpawn(pos, 0)
 }
 
 units.removeSpawn = (pos) => {
-    delete UnitSpawns[pos]
     database.deleteUnitSpawn(pos)
 }
 
-units.getRange = (start, amount) => {
-    let data = {}
+units.getRange = async (start, amount) => {
+    let idList = []
 
-    for (id = start; id < start + amount; id++)
-        data[id] = Units[id]
+    for (let id = start; id < start + amount; id++)
+        idList.push(id)
 
-    return data
+    let data = await database.getUnits(idList)
+    let unitList = {}
+
+    for (let i in data)
+        if (data[i])
+            unitList[i + start] = units.unitFromJSON(data[i])
+
+    return unitList
 }
 
-units.unassignWork = (unit) => {
+units.unassignWork = async (unit) => {
     if (unit.Work) {
-        tiles.unassignWorker(unit.Work, unit)
+        await tiles.unassignWorker(unit.Work, unit)
         
         if (unit.Trip)
             userstats.removePerRoundProduce(unit.OwnerId, unit.ProduceType, unit.ProduceAmount / unit.Trip.length)
@@ -526,11 +526,11 @@ units.unassignWork = (unit) => {
     database.updateUnit(unit.Id, unit)
 }
 
-units.assignWork = (unit, pos) => {
-    
-    let type = tiles.getSafeType(pos)
+units.assignWork = async (unit, pos) => {
+    let tile = await tiles.fromPosString(pos)
+    let type = tiles.getSafeType(tile)
 
-    units.unassignWork(unit)
+    await units.unassignWork(unit)
 
 	switch (type) {
 		case tiles.TileType.FARM:
@@ -559,9 +559,9 @@ units.assignWork = (unit, pos) => {
     unit.Target = pos
     
     if (units.isMilitary(unit)) {
-        units.computeMilitaryTrip(unit)
+        await units.computeMilitaryTrip(unit)
     } else {
-        units.computeTrip(unit)
+        await units.computeTrip(unit)
         userstats.addPerRoundProduce(unit.OwnerId, unit.ProduceType, unit.ProduceAmount / unit.Trip.length)
     }
 

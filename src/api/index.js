@@ -177,7 +177,7 @@ async function waitForProcess(n) {
 
 app.post("/pion/longpolluserstats", (req, res) => {
     waitForProcess(req.body.time).then(() => {
-        cluster.hget('stats', req.body.userId).then(stats => {
+        cluster.hgetall('stats:'+req.body.userId).then(stats => {
             res.json({time:lastProcess, data:stats});
         }).catch((err) => {
             console.error("Failed to get stats")
@@ -280,9 +280,9 @@ app.post("/pion/unitupdate", (req, res) => {
 });
 
 app.post("/pion/userjoin", (req, res) => {
-    cluster.hget('stats', req.body.Id).then((stats) => {
+    cluster.hgetall('stats:'+req.body.Id).then((stats) => {
         if (stats)
-            res.json(JSON.parse(stats));
+            res.json(stats);
         else {
             console.log("New user Id:", req.body.Id);
             cluster.rpush('actionQueue', JSON.stringify({id:req.body.Id, action:Actions.NEW_PLAYER}));

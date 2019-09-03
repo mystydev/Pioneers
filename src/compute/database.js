@@ -17,32 +17,19 @@ database.disconnect = () => {
     redis.disconnect()
 }
 
-database.getAllTiles = async () => {
-    let data = await redis.hgetall("tiles")
-    let num = 0
-
-    for (key in data) {
-        tiles.tileFromJSON(data[key], key)
-        num++
-    }
-
-    console.log("Loaded", num, "tiles!")
+database.getTile = (pos) => {
+    return redis.hget("tiles", pos).then(data => tiles.tileFromJSON(data, pos))
 }
 
-database.getTile = async (pos) => {
-    let data = await redis.hget("tiles", pos)
-    
-    if (data)
-        return tiles.tileFromJSON(data, pos)
-    else
-        return undefined
+database.getTiles = (tiles) => {
+    return redis.hmget("tiles", ...tiles)
 }
 
 database.getAllUnits = async () => {
     let data = await redis.hgetall('units')
     let num = 0
 
-    for (key in data) {
+    for (let key in data) {
         units.unitFromJSON(data[key])
         num++
     }
@@ -55,12 +42,24 @@ database.getUnit = async (id) => {
     return units.unitFromJSON(data)
 }
 
+database.getUnitProp = async (id, prop) => {
+    return redis.hget("unit:"+id, prop)
+}
+
+database.setUnitProp = (id, prop, value) => {
+    redis.hset("unit"+id, prop, value)
+}
+
+database.getUnits = (units) => {
+    return redis.hmget("units", ...units)
+}
+
 database.getAllStats = async () => {
     let Stats = {}
     let stats = await redis.hgetall('stats')
     let num = 0
 
-    for (key in stats) {
+    for (let key in stats) {
         Stats[key] = JSON.parse(stats[key])
         num++
     }
@@ -70,12 +69,28 @@ database.getAllStats = async () => {
     return Stats
 }
 
+database.getStat = (id, type) => {
+    return redis.hget("stats:"+id, type)
+}
+
+database.addStat = (id, type, amount) => {
+    redis.hincrby("stats:"+id, type, amount)
+}
+
+database.setStat = (id, type, value) => {
+    redis.hset("stats:"+id, type, value)
+}
+
+database.setStats = (id, stats) => {
+    redis.hmset("stats:"+id, stats)
+}
+
 database.getAllSettings = async () => {
     let Settings = {}
     let settings = await redis.hgetall('settings')
     let num = 0
 
-    for (key in settings) {
+    for (let key in settings) {
         Settings[key] = JSON.parse(settings[key])
         num++
     }
@@ -90,17 +105,17 @@ database.getUnitCount = async () => {
 }
 
 database.getUnitSpawns = async () => {
-    let Spawns = {}
-    let spawns = await redis.hgetall('unitspawns')
+    let spawns = {}
+    let data = await redis.hgetall('unitspawns')
 
-    num = 0
-    for (pos in spawns) {
-        Spawns[pos] = JSON.parse(spawns[pos])
-        num++
-    }
-    console.log("Loaded", num, "spawns!")
+    for (let pos in data)
+        spawns[pos] = JSON.parse(data[pos])
 
-    return Spawns
+    return spawns
+}
+
+database.getUnitCollection = async (id) => {
+    return redis.lrange("unitcollection:"+id, 0, -1)
 }
 
 database.getActionQueue = async () => {
@@ -110,8 +125,12 @@ database.getActionQueue = async () => {
     return actions
 }
 
-database.updateStats = (id, stats) => {
-    redis.hset("stats", id, JSON.stringify(stats))
+database.addPlayer = (id) => {
+    redis.rpush("playerlist", id)
+}
+
+database.getPlayerList = async () => {
+    return redis.lrange("playerlist", 0, -1)
 }
 
 database.updateSettings = (id, settings) => {
@@ -132,6 +151,14 @@ database.deleteUnitSpawn = (pos) => {
 
 database.updateUnitCount = (count) => {
     redis.set("unitcount", count)
+}
+
+database.incrementUnitCount = () => {
+    return redis.incr("unitcount")
+}
+
+database.pushUnitToCollection = (id, data) => {
+    redis.rpush("unitcollection:"+id, data)
 }
 
 database.updateTile = (pos, tile) => {

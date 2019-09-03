@@ -18,9 +18,9 @@ function UserStats.new(Food, Wood, Stone, PlayerId, Population, MaxPopulation)
 end
 
 function UserStats.hasEnoughResources(stats, requirement)
-    return stats.Food >= (requirement.Food or 0)
-        and stats.Wood >= (requirement.Wood or 0)
-        and stats.Stone >= (requirement.Stone or 0)
+    return tonumber(stats.Food) >= (requirement.Food or 0)
+        and tonumber(stats.Wood) >= (requirement.Wood or 0)
+        and tonumber(stats.Stone) >= (requirement.Stone or 0)
 end
 
 return UserStats

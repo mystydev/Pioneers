@@ -5,14 +5,12 @@ let resource = require("./resource")
 let performance = require('perf_hooks').performance
 let userstats = {}
 
-let Stats
-
 userstats.load = async () => {
-    Stats = await database.getAllStats()
+    console.log("Stats would have loaded!")
 }
 
 userstats.newPlayer = (id) => {
-    Stats[id] = {
+    stats = {
         Food: 2500,
         Wood: 2500,
         Stone: 2500,
@@ -26,131 +24,106 @@ userstats.newPlayer = (id) => {
         StoneProduced: 0,
     }
 
-    database.updateStats(id, Stats[id])
+    database.setStats(id, stats)
+    database.addPlayer(id)
 }
 
-userstats.getStats = (id, type) => {
-    return Stats[id][type]
+userstats.canAfford = async (id, type, amount) => {
+    let stat = await database.getStat(id, type)
+    return stat > amount
 }
 
-userstats.canAfford = (id, type, amount) => {
-    return Stats[id][type] > amount
+userstats.canAffordCost = async (id, cost) => {
+    let wood = userstats.canAfford(id, resource.Type.WOOD, cost[resource.Type.WOOD])
+    let stone = userstats.canAfford(id, resource.Type.STONE, cost[resource.Type.STONE])
+
+    return (await wood) && (await stone)
 }
 
-userstats.canAffordCost = (id, cost) => {
-    return userstats.canAfford(id, resource.Type.WOOD, cost[resource.Type.WOOD])
-        && userstats.canAfford(id, resource.Type.STONE, cost[resource.Type.STONE])
+userstats.use = async (id, type, amount) => {
+    await database.addStat(id, type, -amount)
 }
 
-userstats.use = (id, type, amount) => {
-    Stats[id][type] -= amount
-    database.updateStats(id, Stats[id])
-}
-
-userstats.useCost = (id, cost) => {
+userstats.useCost = async (id, cost) => {
     userstats.use(id, resource.Type.WOOD, cost[resource.Type.WOOD])
 	userstats.use(id, resource.Type.STONE, cost[resource.Type.STONE])
 }
 
-userstats.add = (id, type, amount) => {
-    Stats[id][type] += amount
-    database.updateStats(id, Stats[id])
+userstats.add = async (id, type, amount) => {
+    await database.addStat(id, type, amount)
 }
 
-userstats.canBuild = (id, type) => {
+userstats.canBuild = async (id, type) => {
     let requirements = tiles.TileConstructionCosts[type]
 
     for (res in requirements)
-        if (!userstats.canAfford(id, res, requirements[res]))
+        if (!await userstats.canAfford(id, res, requirements[res]))
             return false
     
     return true
 }
 
 userstats.assignKeep = (id, pos) => {
-    Stats[id].Keep = pos
-    database.updateStats(id, Stats[id])
+    database.setStat(id, "Keep", pos)
 }
 
-userstats.hasKeep = (id) => {
-    return Stats[id].Keep != undefined
+userstats.hasKeep = async (id) => {
+    return await database.getStat(id, "Keep") != ""
 }
 
-userstats.getKeep = (id) => {
-    return Stats[id].Keep
+userstats.getKeep = async (id) => {
+    return await database.getStat(id, "Keep")
 }
 
 userstats.setPerRoundProduce = (id, food, wood, stone) => {
-    let stats = Stats[id]
-    stats.FoodProduced = food
-    stats.WoodProduced = wood
-    stats.StoneProduced = stone
-    database.updateStats(id, stats)
+    database.setStat(id, "FoodProduced", food)
+    database.setStat(id, "WoodProduced", wood)
+    database.setStat(id, "StoneProduced", stone)
 }
 
 userstats.addPerRoundProduce = (id, type, amount) => {
-    let stats = Stats[id]
-
     if (type == resource.Type.FOOD)
-        stats.FoodProduced += amount
+        database.addStat(id, "FoodProduced", amount)
     else if (type == resource.Type.WOOD)
-        stats.WoodProduced += amount
+        database.addStat(id, "WoodProduced", amount)
     else if (type == resource.Type.STONE)
-        stats.StoneProduced += amount
-
-    database.updateStats(id, stats)
+        database.addStat(id, "StoneProduced", amount)
 }
 
 userstats.removePerRoundProduce = (id, type, amount) => {
-    let stats = Stats[id]
-
-    if (type == resource.Type.FOOD)
-        stats.FoodProduced -= amount
-    else if (type == resource.Type.WOOD)
-        woodProduced -= amount
-    else if (type == resource.Type.STONE)
-        stoneProduced -= amount
-
-    database.updateStats(id, stats)
+    userstats.addPerRoundProduce(id, type, -amount)
 }
 
 userstats.addTileMaintenance = (id, cost) => {
-    let stats = Stats[id]
-
-    stats.WoodCost += cost.Wood
-    stats.StoneCost += cost.Stone
-
-    database.updateStats(id, stats)
+    database.addStat(id, "WoodCost", cost.Wood)
+    database.addStat(id, "StoneCost", cost.Stone)
 }
 
 userstats.removeTileMaintenance = (id, cost) => {
-    let stats = Stats[id]
-
-    stats.WoodCost -= cost.Wood
-    stats.StoneCost -= cost.Stone
-
-    database.updateStats(id, stats)
+    userstats.addTileMaintenance(id, -cost)
 }
 
-userstats.processMaintenance = () => {
-    for (let id in Stats) {
-        let stats = Stats[id]
+userstats.processMaintenance = async () => {
+    let playerList = await database.getPlayerList()
 
-        stats.Wood -= stats.WoodCost
-        stats.Stone -= stats.StoneCost
+    for (let id of playerList) {
+        database.getStat(id, "WoodCost").then(cost => {
+            database.addStat(id, "Wood", cost)
+        })
 
-        database.updateStats(id, stats)
+        database.getStat(id, "StoneCost").then(cost => {
+            database.addStat(id, "Stone", cost)
+        })
     }
 }
 
 userstats.setInCombat = (id) => {
-    let stats = Stats[id]
-    stats.InCombat = Math.floor(Date.now() / 1000)
-    database.updateStats(id, stats)
+    database.setStat(id, "InCombat", Math.floor(Date.now() / 1000))
 }
 
-userstats.isInCombat = (id) => {
-    return ((Date.now() / 1000) - Stats[id].InCombat) < 10
+userstats.isInCombat = async (id) => {
+    let combatTime = await database.getStat(id, "InCombat")
+    return ((Date.now() / 1000) - combatTime) < 10
 }
 
 module.exports = userstats

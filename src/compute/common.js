@@ -22,6 +22,7 @@ common.TRAINING_FOR_SOLDIER = 100
 common.strToPosition = (pos) => {
     if (!pos) {
         console.error("Undefined position string passed to strToPosition!")
+        console.trace()
         return [0, 0]
     }
 

@@ -1,11 +1,10 @@
 let tiles = module.exports = {}
+let performance = require('perf_hooks').performance
 let database = require("./database")
 let common = require("./common")
 let resource = require("./resource")
 let userstats = require("./userstats")
 let units = require("./units")
-
-let Tiles = {}
 
 let TileType = tiles.TileType = {
     DESTROYED:-1,
@@ -65,14 +64,28 @@ TileOutputs[TileType.FARM]     = resource.Type.FOOD
 TileOutputs[TileType.FORESTRY] = resource.Type.WOOD
 TileOutputs[TileType.MINE]     = resource.Type.STONE
 
+//Tiles to temporarily ignore during pathfinding
+let pathfindingBlacklist = {}
+
 function Tile(type, id, pos, unitlist) {
     this.Type = type
     this.OwnerId = id
     this.Health = defaults[type].Health
     this.MaxHealth = defaults[type].Health
     this.UnitList = unitlist || []
+    this.Position = pos
+}
 
-    Tiles[pos] = this
+//A tile which will update database values on creation
+//Should only be used when a new tile is made, not a representation of an exisiting tile
+function AuthoritativeTile(type, id, pos, unitlist) {
+    this.Type = type
+    this.OwnerId = id
+    this.Health = defaults[type].Health
+    this.MaxHealth = defaults[type].Health
+    this.UnitList = unitlist || []
+    this.Position = pos
+
     database.updateTile(pos, this)
 
     if (type == TileType.HOUSE && this.UnitList.length < common.HOUSE_UNIT_NUMBER) {
@@ -80,24 +93,27 @@ function Tile(type, id, pos, unitlist) {
     }
 
     if (type == TileType.KEEP) {
-        let neighbours = tiles.getNeighbours(pos)
+        let neighbours = tiles.getNeighbourPositions(pos)
 
-        for (p of neighbours)
-            new Tile(TileType.PATH, id, p)
+        for (let p of neighbours)
+            new AuthoritativeTile(TileType.PATH, id, p)
 
         userstats.assignKeep(id, pos)
     }
 }
 
 tiles.Tile = Tile
+tiles.AuthoritativeTile = AuthoritativeTile
 
 tiles.deleteTile = (pos) => {
-    delete Tiles[pos]
     units.removeSpawn(pos)
     database.deleteTile(pos)
 }
 
 tiles.tileFromJSON = (rawdata, pos) => {
+    if (!rawdata)
+        return undefined 
+
     let data = JSON.parse(rawdata)
     let tile = new Tile(data.Type, data.OwnerId, pos, data.UnitList)
 
@@ -110,27 +126,57 @@ tiles.tileFromJSON = (rawdata, pos) => {
 }
 
 tiles.load = async () => {
-    await database.getAllTiles()
+    console.log("Tiles would have loaded!")
 }
 
 tiles.fromPosString = (pos) => {
-    return Tiles[pos]
+    return database.getTile(pos)
+}
+
+tiles.fromPosList = async (list) => {
+    let tileList = []
+    
+    return database.getTiles(list).then(tileData => {
+        for (let tile of tileData)
+            tileList.push(tiles.tileFromJSON(tile))
+
+        return tileList
+    })
 }
 
 tiles.fromCoords = (posx, posy) => {
-    return Tiles[posx + ":" + posy]
+    return database.getTile(posx + ":" + posy)
 }
 
 tiles.dbFromCoords = async (posx, posy) => {
     return await database.getTile(posx + ":" + posy) 
 }
 
-tiles.getSafeType = (pos) => {
-    let tile = Tiles[pos]
+tiles.getSafeType = (tile) => {
     return tile ? tile.Type : TileType.GRASS
 }
 
-tiles.getNeighbours = (pos) => {
+tiles.isStorageTile = (tile) => {
+    let type = tiles.getSafeType(tile)
+    return (type == TileType.STORAGE || type == TileType.KEEP)
+}
+
+tiles.getNeighbours = async (pos) => {
+    /*var [x, y] = common.strToPosition(pos)
+
+    return Promise.all([
+        tiles.fromCoords(x,     y    ),
+        tiles.fromCoords(x,     y - 1),
+        tiles.fromCoords(x + 1, y + 1),
+        tiles.fromCoords(x - 1, y - 1),
+        tiles.fromCoords(x + 1, y    ),
+        tiles.fromCoords(x - 1, y    )
+    ])*/
+
+    return tiles.fromPosList(tiles.getNeighbourPositions(pos))
+}
+
+tiles.getNeighbourPositions = (pos) => {
     var [x, y] = common.strToPosition(pos)
 
     return [
@@ -143,8 +189,8 @@ tiles.getNeighbours = (pos) => {
     ]
 }
 
-tiles.isWallGap = (pos) => {
-    let neighbours = tiles.getNeighbours(pos)
+tiles.isWallGap = async (pos) => {
+    let neighbours = await tiles.getNeighbours(pos)
 
     if (tiles.getSafeType(neighbours[0]) == TileType.WALL && tiles.getSafeType(neighbours[1]) == TileType.WALL)
         return true
@@ -156,8 +202,8 @@ tiles.isWallGap = (pos) => {
         return false
 }
 
-tiles.isWalkable = (pos, isMilitary) => {
-    let type = tiles.getSafeType(pos)
+tiles.isWalkable = (tile, isMilitary) => {
+    let type = tiles.getSafeType(tile)
 
     if (!isMilitary)
         return type == TileType.PATH || type == TileType.GATE
@@ -169,7 +215,7 @@ function getMin(set){
     let min = 999999
     let minV, index
 
-    for (i in set) {
+    for (let i in set) {
         let c = set[i]
 
         if (c.f < min){
@@ -207,7 +253,7 @@ function reconstructPath(start, target, cameFrom) {
     return path
 }
 
-tiles.findPath = (start, target, isMilitary) => {
+tiles.findPath = async (start, target, isMilitary) => {
     if (!start) {
         console.error("Undefined start tile passed to findPath!")
         return undefined
@@ -238,21 +284,24 @@ tiles.findPath = (start, target, isMilitary) => {
         if (current.p == target)
             return reconstructPath(start, target, cameFrom)
 
-        closedSet.add(current)
+        closedSet.add(current.p)
 
-        let neighbours = tiles.getNeighbours(current.p)
+        let neighbours = await tiles.getNeighbours(current.p)
 
         for (let neighbour of neighbours) {
-            if (closedSet.has(neighbour)) continue
-            if (!tiles.isWalkable(neighbour, isMilitary) && neighbour != target) continue
-            if (!gScore[neighbour]) gScore[neighbour] = Infinity
+            if (!neighbour) continue
+            let neighbourPos = neighbour.Position
+            if (pathfindingBlacklist[neighbourPos]) continue
+            if (closedSet.has(neighbourPos)) continue
+            if (!tiles.isWalkable(neighbour, isMilitary) && neighbourPos != target) continue
+            if (!gScore[neighbourPos]) gScore[neighbourPos] = Infinity
 
             let g = gScore[current.p] + 1
 
-            if (g < gScore[neighbour]) {
-                gScore[neighbour] = g
-                cameFrom[neighbour] = current.p
-                openSet.push({p:neighbour, f:(g + costHeuristic(neighbour, target))})
+            if (g < gScore[neighbourPos]) {
+                gScore[neighbourPos] = g
+                cameFrom[neighbourPos] = current.p
+                openSet.push({p:neighbourPos, f:(g + costHeuristic(neighbourPos, target))})
             }
         }
     }
@@ -262,15 +311,17 @@ tiles.findMilitaryPath = (start, target) => {
     return tiles.findPath(start, target, true)
 }
 
-tiles.findClosestStorage = (pos) => {
-    let searchQueue = [pos]
-    let current
+tiles.findClosestStorage = async (pos) => {
+    let tile = await tiles.fromPosString(pos)
+    let searchQueue = [tile]
     let index = 0
+    let current = true
     let distance = {}
     distance[pos] = 0
 
-    while (current = searchQueue[index++]) {
-        let neighbours = tiles.getNeighbours(current)
+    while (current) {
+        current = searchQueue[index++]
+        let neighbours = await tiles.getNeighbours(current.Position)
         let dist = distance[current] + 1
 
         for (let neighbour of neighbours) {
@@ -278,9 +329,8 @@ tiles.findClosestStorage = (pos) => {
                 continue
 
             distance[neighbour] = dist
-            let type = tiles.getSafeType(neighbour)
 
-            if ((type == TileType.STORAGE || type == TileType.KEEP) && tiles.fromPosString(neighbour).Health > 0)
+            if (tiles.isStorageTile(neighbour) && neighbour.Health > 0)
                 return neighbour
             else if (tiles.isWalkable(neighbour)) {
                 searchQueue.push(neighbour)
@@ -289,42 +339,40 @@ tiles.findClosestStorage = (pos) => {
     }
 }
 
-tiles.getOutput = (pos) => {
-    let tile = tiles.fromPosString(pos)
-    let neighbours = tiles.getNeighbours(pos)
-
+tiles.getOutput = async (pos) => {
+    let tile = await tiles.fromPosString(pos)
+    let neighbours = await tiles.getNeighbours(pos)
     let produce = 6
 
-    for (n of neighbours)
+    for (let n of neighbours) {
         if (tiles.getSafeType(n) == tile.Type)
             produce++
+    }
 
     return [TileOutputs[tile.Type], produce]
 }
 
 //Nothing is built here
-tiles.isEmpty = (pos) => {
-    return tiles.getSafeType(pos) == TileType.GRASS
+tiles.isEmpty = (tile) => {
+    return tiles.getSafeType(tile) == TileType.GRASS
 }
 
 //No units are assigned here
-tiles.isVacant = (pos) => {
-    let tile = tiles.fromPosString(pos)
-
-    if (tile && tile.UnitList.length > 0)
+tiles.isVacant = (tile) => {
+    if (tile && tile.UnitList && tile.UnitList.length > 0)
         return false
     else
         return true
 }
 
-tiles.assignWorker = (pos, unit) => {
-    let tile = tiles.fromPosString(pos) || new Tile(TileType.GRASS, unit.OwnerId, pos)
+tiles.assignWorker = async (pos, unit) => {
+    let tile = await tiles.fromPosString(pos) || new Tile(TileType.GRASS, unit.OwnerId, pos)
     tile.UnitList.push(unit.Id)
     database.updateTile(pos, tile)
 }
 
-tiles.unassignWorker = (pos, unit) => {
-    let tile = tiles.fromPosString(pos)
+tiles.unassignWorker = async (pos, unit) => {
+    let tile = await tiles.fromPosString(pos)
 
     if (!tile) 
         return
@@ -345,30 +393,29 @@ tiles.getCircularCollection = (pos, radius) => {
 
     for (let r = 0; r < radius; r++) {
         for (let i = 0; i < radius; i++) {
-            collection.push(tiles.fromCoords(posx     + i, posy + r    ))
-            collection.push(tiles.fromCoords(posx + r    , posy + r - i))
-            collection.push(tiles.fromCoords(posx + r - i, posy     - i))
-            collection.push(tiles.fromCoords(posx     - i, posy - r    ))
-            collection.push(tiles.fromCoords(posx - r    , posy - r + i))
-            collection.push(tiles.fromCoords(posx - r + i, posy     + i))
+            collection.push((posx     + i) + ":" + (posy + r    ))
+            collection.push((posx + r    ) + ":" + (posy + r - i))
+            collection.push((posx + r - i) + ":" + (posy     - i))
+            collection.push((posx     - i) + ":" + (posy - r    ))
+            collection.push((posx - r    ) + ":" + (posy - r + i))
+            collection.push((posx - r + i) + ":" + (posy     + i))
         }
     }
 
-    return collection.filter(t => t != undefined)
+    return tiles.fromPosList(collection).then(c => c.filter(t => t != undefined))
 }
 
-tiles.isProductivityTile = (pos) => {
-    let t = tiles.getSafeType(pos)
+tiles.isProductivityTile = (tile) => {
+    let t = tiles.getSafeType(tile)
     return t == TileType.FARM || t == TileType.FORESTRY || t == TileType.MINE
 }
 
-tiles.isMilitaryTile = (pos) => {
-    let t = tiles.getSafeType(pos)
-    return t == TileType.BARRACKS
+tiles.isMilitaryTile = (tile) => {
+    return tiles.getSafeType(tile) == TileType.BARRACKS
 }
 
-tiles.canAssignWorker = (pos, unit) => {
-    let tile = tiles.fromPosString(pos)
+tiles.canAssignWorker = async (pos, unit) => {
+    let tile = await tiles.fromPosString(pos)
 
     //Is there a tile
     if (!tile)
@@ -379,7 +426,7 @@ tiles.canAssignWorker = (pos, unit) => {
         return false
         
     //Should we take the military route instead
-    if (tiles.isMilitaryTile(pos))
+    if (tiles.isMilitaryTile(tile))
         return tiles.canAssignMilitaryWorker(pos, unit)
 
     //Is the tile owned by the worker owner
@@ -387,15 +434,15 @@ tiles.canAssignWorker = (pos, unit) => {
         return false
 
     //Is it a tile we can assign a worker to
-    if (!tiles.isProductivityTile(pos))
+    if (!tiles.isProductivityTile(tile))
         return false
 
     return true
 }
 
-tiles.canAssignMilitaryWorker = (pos, unit) => {
-    let tile = tiles.fromPosString(pos)
-    let type = tiles.getSafeType(pos)
+tiles.canAssignMilitaryWorker = async (pos, unit) => {
+    let tile = await tiles.fromPosString(pos)
+    let type = tiles.getSafeType(tile)
 
     //Is there already a worker assigned
     if ((tile ? tile.UnitList : []).length > 0)
@@ -410,33 +457,34 @@ tiles.canAssignMilitaryWorker = (pos, unit) => {
         return true
 }
 
-tiles.isFragmentationDependant = (pos, keepPos) => {
-    let tile = tiles.fromPosString(pos)
+tiles.isFragmentationDependant = async (pos, keepPos) => {
+    let tile = await tiles.fromPosString(pos)
     
     //If this isn't walkable then it cannot be dependant
-    if (!tiles.isWalkable(pos))
+    if (!tiles.isWalkable(tile))
         return false
 
     //Can surrounding tiles still get to the keep if this tile is removed
     let willFragment = false
-    let originalType = tile.Type
-    tile.Type = TileType.GRASS //Simulate removing tile
+    pathfindingBlacklist[tile.Position] = true //Simulate removing tile
 
-    for (let neighbourPos of tiles.getNeighbours(pos)) {
-        if (tiles.getSafeType(neighbourPos) != TileType.GRASS) {
-            if (!tiles.findPath(neighbourPos, keepPos)) {
+    for (let neighbour of await tiles.getNeighbours(pos)) {
+        if (tiles.getSafeType(neighbour) != TileType.GRASS) {
+            let path = await tiles.findPath(neighbour.Position, keepPos)
+            if (!path) {
                 willFragment = true
                 break 
             }
         }
     }
 
-    tile.Type = originalType
+    delete pathfindingBlacklist[tile.Position]
+
     return willFragment
 }
 
-tiles.getRepairCost = (pos) => {
-    let tile = tiles.fromPosString(pos)
+tiles.getRepairCost = async (pos) => {
+    let tile = await tiles.fromPosString(pos)
     let cost = TileConstructionCosts[tile.Type]
     let repairAmount = 1 - (tile.Health / tile.MaxHealth)
     let repairCost = {

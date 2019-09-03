@@ -87,6 +87,12 @@ local resetBindable = Instance.new("BindableEvent")
 resetBindable.Event:connect(function()
     error("Pion unrecoverable - User initiated reset")
 end)
-game.StarterGui:SetCore("ResetButtonCallback", resetBindable)
+
+spawn(function()
+    while not pcall(function() game.StarterGui:SetCore("ResetButtonCallback", resetBindable) end) do
+        wait()
+    end
+end)
 
 start()
+

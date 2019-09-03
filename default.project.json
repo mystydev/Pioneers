@@ -1,0 +1,37 @@
+{
+	"name": "Pioneers",
+	"servePort": 8000,
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"Pioneers": {
+				"$className": "Folder",
+				"Common": {
+					"$ignoreUnknownInstances": true,
+					"$path": "src/common"
+				}
+			},
+			"TestEZ": {
+				"$path": "TestEZ"
+			},
+			"Roact": {
+				"$path": "Roact"
+			}
+		},
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"Server": {
+				"$ignoreUnknownInstances": true,
+				"$path": "src/server"
+			}
+		},
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"StarterPlayerScripts": {
+				"$ignoreUnknownInstances": true,
+				"$path": "src/client"
+			}
+		}
+	}
+}

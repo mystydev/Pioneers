@@ -12,5 +12,21 @@
   "dependencies": {
     "express": "^4.17.1",
     "ioredis": "^4.10.0"
+  },
+  "jshintConfig": {
+    "undef": true,
+    "unused": true,
+    "esversion": 8,
+    "asi": true,
+    "globals": {
+      "module": true,
+      "console": true,
+      "require": true,
+      "clearInterval": true,
+      "process": true,
+      "setInterval": true,
+      "setTimeout": true
+    }
   }
 }
+

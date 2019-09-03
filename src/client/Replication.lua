@@ -74,7 +74,7 @@ end
 
 local function handleStatsUpdate(stats)
 
-    if os.time() - stats.InCombat < 10 then
+    if stats.InCombat and os.time() - stats.InCombat < 10 then
         UIBase.combatAlert()
     else
         UIBase.endCombatAlert()

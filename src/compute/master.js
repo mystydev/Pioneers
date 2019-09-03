@@ -6,7 +6,6 @@ let database = require("./database")
 let tiles = require("./tiles")
 let units = require("./units")
 let userstats = require("./userstats")
-let resource = require("./resource")
 
 const options = {
 	hostname: "computenode.dev",
@@ -41,30 +40,34 @@ async function init() {
 }
 
 function handleNewPlayer(id) {
+	console.log("New player joined with id:", id)
 	userstats.newPlayer(id)
-	units.newPlayer(id)
 }
 
-function canBuild(id, pos, type) {
+async function canBuild(id, pos, type) {
+	//Start fetching data from db early to minimise waiting
+	let tile = tiles.fromPosString(pos)
+	let area = tiles.getCircularCollection(pos, common.LAND_CLAIM_RADIUS)
+	let neighbours = tiles.getNeighbours(pos)
 
 	//Tile is currently empty with no units assigned
-	if (!tiles.isEmpty(pos) || !tiles.isVacant(pos))
+	tile = await tile
+	if (!tiles.isEmpty(tile) || !tiles.isVacant(tile))
 		return false
 
 	//Tile is not within the land claim range of another civ
-	let area = tiles.getCircularCollection(pos, common.LAND_CLAIM_RADIUS)
+	area = await area
 	for (let tile of area) 
 		if (tile.OwnerId && tile.OwnerId != id)
 			return false
 
 	//User can afford to build
 	let cost = tiles.TileConstructionCosts[type]
-
-	if (!userstats.canAffordCost(id, cost))
+	if (!await userstats.canAffordCost(id, cost))
 		return false
 
 	//Special case for keep
-	if (type == tiles.TileType.KEEP && !userstats.hasKeep(id))
+	if (type == tiles.TileType.KEEP && !await userstats.hasKeep(id))
 		return true
 
 	//Special case for gates
@@ -72,19 +75,20 @@ function canBuild(id, pos, type) {
 		return true
 
 	//Tile is attached to a path
-	for (let neighbour of tiles.getNeighbours(pos))
+	neighbours = await neighbours
+	for (let neighbour of neighbours)
 		if (tiles.isWalkable(neighbour))
 			return true
 }
 
-function verifyTilePlacement(id, pos, type) {
+async function verifyTilePlacement(id, pos, type) {
 
 	//Can the player build a tile of this type here
-	if (!canBuild(id, pos, type))
+	if (!(await canBuild(id, pos, type)))
 		return
 
 	//Is the user currently in combat
-	if (userstats.isInCombat(id))
+	if (await userstats.isInCombat(id))
 		return
 
 	//Update users stats
@@ -93,12 +97,12 @@ function verifyTilePlacement(id, pos, type) {
 	userstats.addTileMaintenance(id, tiles.TileMaintenanceCosts[type])
 	
 	//Create tile and recompute cached values (like unit trips)
-	new tiles.Tile(type, id, pos)
-	units.recomputeCiv(id)
+	new tiles.AuthoritativeTile(type, id, pos)
+	//units.recomputeCiv(id)
 }
 
-function verifyWorkAssignment(id, unitid, pos) {
-	let unit = units.fromid(unitid)
+async function verifyWorkAssignment(id, unitid, pos) {
+	let unit = await units.fromid(unitid)
 
 	//Does the unit exist and is the unit owned by the player making the request
 	if (!unit || id != unit.OwnerId)
@@ -109,26 +113,26 @@ function verifyWorkAssignment(id, unitid, pos) {
 		 return units.unassignWork(unit)
 
 	//Is it a military unit and if not can it be assigned work
-	if (!units.isMilitary(unit) && !tiles.canAssignWorker(pos, unit))
+	if (!units.isMilitary(unit) && !await tiles.canAssignWorker(pos, unit))
 		return 
 	
 	//If it is a military unit can it be assigned military work
-	if (units.isMilitary(unit) && !tiles.canAssignMilitaryWorker(pos, unit))
+	if (units.isMilitary(unit) && !await tiles.canAssignMilitaryWorker(pos, unit))
 		return 
 
 	//Assign the worker
-	tiles.assignWorker(pos, unit)
-	units.assignWork(unit, pos)
+	await tiles.assignWorker(pos, unit)
+	await units.assignWork(unit, pos)
 }
 
-function verifyAttackAssignment(id, unitid, pos) {
-	let unit = units.fromid(unitid)
+async function verifyAttackAssignment(id, unitid, pos) {
+	let unit = await units.fromid(unitid)
 
 	//Check if the unit exists, is owned by the same owner and is a military unit
 	if (!unit || id != unit.OwnerId || !units.isMilitary(unit))
 		return
 
-	let tile = tiles.fromPosString(pos)
+	let tile = await tiles.fromPosString(pos)
 
 	//Check if the tile to attack exists and is not owned by the unit owner
 	if (!tile || tiles.isWalkable(tile) || tile.OwnerId == unit.OwnerId)
@@ -144,8 +148,8 @@ function verifyAttackAssignment(id, unitid, pos) {
 	units.assignAttack(unit, pos, path)
 }
 
-function verifyTileDeletion(id, pos) {
-	let tile = tiles.fromPosString(pos)
+async function verifyTileDeletion(id, pos) {
+	let tile = await tiles.fromPosString(pos)
 
 	//Does the tile exist
 	if (!tile)
@@ -160,7 +164,7 @@ function verifyTileDeletion(id, pos) {
 		return false
 
 	//Will deleting this tile cause a kingdom fragmentation
-	if (tiles.isFragmentationDependant(pos, userstats.getKeep(id)))
+	if (await tiles.isFragmentationDependant(pos, userstats.getKeep(id)))
 		return false
 
 	//Remove maintenance cost from users stats, delete the tile and update cached unit values
@@ -169,8 +173,8 @@ function verifyTileDeletion(id, pos) {
 	units.recomputeCiv(id)
 }
 
-function verifyTileRepair(id, pos) {
-	let tile = tiles.fromPosString(pos)
+async function verifyTileRepair(id, pos) {
+	let tile = await tiles.fromPosString(pos)
 
 	//Does the tile exist
 	if (!tile)
@@ -195,9 +199,11 @@ function verifyTileRepair(id, pos) {
 
 async function processActionQueue() {
 	let actions = await database.getActionQueue()
+	let processing = []
 
-	for (index in actions) {
-        let action = JSON.parse(actions[index])
+	for (let index in actions) {
+		let action = JSON.parse(actions[index])
+		console.log("Processing:", action)
 
         switch(action.action){
 
@@ -205,35 +211,37 @@ async function processActionQueue() {
                 handleNewPlayer(action.id)
                 break
             case common.Actions.PLACE_TILE:
-                verifyTilePlacement(action.id, action.position, action.type)
+                processing.push(verifyTilePlacement(action.id, action.position, action.type))
                 break
             case common.Actions.SET_WORK:
-                verifyWorkAssignment(action.id, action.unit, action.position)
+				processing.push(verifyWorkAssignment(action.id, action.unit, action.position))
                 break
             case common.Actions.ATTACK:
-                verifyAttackAssignment(action.id, action.unit, action.position)
+				processing.push(verifyAttackAssignment(action.id, action.unit, action.position))
                 break
             case common.Actions.DELETE_TILE:
-                verifyTileDeletion(action.id, action.position)
+				processing.push(verifyTileDeletion(action.id, action.position))
 				break
 			case common.Actions.REPAIR_TILE:
-				verifyTileRepair(action.id, action.position)
+				processing.push(verifyTileRepair(action.id, action.position))
 				break
             default:
                 console.log("Unknown action!", action)
         }
-    }
+	}
+
+	await Promise.all(processing)
 }
 
 async function processRound() {
 	let start = performance.now()
 	await processActionQueue()
-	units.processSpawns()
-	userstats.processMaintenance()
+	await units.processSpawns()
+	await userstats.processMaintenance()
 
-	let unitCount = units.getUnitCount()
+	//let unitCount = units.getUnitCount()
 	//for (let i = 0; i < unitCount; i += 1000){
-		await sendComputeRequest(units.getRange(0, 1000))
+		await sendComputeRequest(0, 1000)
 	//}	
 
 	let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
@@ -243,17 +251,17 @@ async function processRound() {
 	database.updateStatus(Date.now(), "ok: " + outInfo)
 }
 
-async function sendComputeRequest(data) {
+async function sendComputeRequest(unitStart, unitEnd) {
 	let req = http.request(options)
 
 	req.on("error", (e) => {
 		console.log("Failed to send compute request: " + e)
 	})
 
-	req.write(JSON.stringify(data))
+	req.write(JSON.stringify([unitStart, unitEnd]))
 	req.end()
 
-	return new Promise ((resolve, reject) => {
+	return new Promise ((resolve) => {
 		req.on("response", (res) => {
 			res.setEncoding("utf8")
 			let rawdata = []
@@ -262,17 +270,15 @@ async function sendComputeRequest(data) {
 				rawdata.push(rawdataSlice)
 			})
 
-			res.on("end", () => {
+			res.on("end", async () => {
 				try {
 					let data = JSON.parse(rawdata.join(''))
-
-					units.updateState(data.units)
 					
 					for (let statChange of data.stats)
 						userstats.add(statChange.Id, statChange.Type, statChange.Amount)
 
 					for (let damage of data.damage){
-						let tile = tiles.fromPosString(damage.Pos)
+						let tile = await tiles.fromPosString(damage.Pos)
 
 						if (tile) {
 

@@ -28,7 +28,7 @@ local function syncStats(player, world)
         local res = Http:JSONDecode(Http:PostAsync(API_URL.."longpolluserstats", payload))
 
         syncTime = res.time
-        UserStats.Store[player.UserId] = Http:JSONDecode(res.data)
+        UserStats.Store[player.UserId] = res.data
         Replication.pushStatsChange(UserStats.Store[player.UserId])
 
         wait(SYNC_RATE + math.random())
