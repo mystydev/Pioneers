@@ -254,18 +254,14 @@ function ViewUnit.updateDisplay(unit)
 
     local currentItem = equipped[unit]
 
-    if not unit.HeldResource then
-        unit.HeldResource = {Amount = 0}
-    end
-
     if not gatherStatus[unit] then
-        gatherStatus[unit] = unit.HeldResource.Amount
+        gatherStatus[unit] = unit.HeldAmount
     end
 
-    if gatherStatus[unit] ~= unit.HeldResource.Amount then
-        model.HumanoidRootPart.StatusEmitter.Rate = math.max(0, (unit.HeldResource.Amount - gatherStatus[unit])/4)
+    if gatherStatus[unit] ~= unit.HeldAmount then
+        model.HumanoidRootPart.StatusEmitter.Rate = math.max(0, (unit.HeldAmount - gatherStatus[unit])/4)
         model.HumanoidRootPart.StatusEmitter.Size = NumberSequence.new((model.HumanoidRootPart.StatusEmitter.Rate/2)^1.5)
-        gatherStatus[unit] = unit.HeldResource.Amount
+        gatherStatus[unit] = unit.HeldAmount
     end
 
     local needsUpdate = false

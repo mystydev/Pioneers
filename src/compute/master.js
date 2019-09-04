@@ -29,13 +29,7 @@ function shutdown(code) {
 
 async function init() {
 	console.log("Compute master node starting")
-
 	database.connect()
-	await userstats.load()
-	await units.load()
-	await tiles.load()
-
-	console.log("Initialisation finished")
 	interval = setInterval(processRound, 2000)
 }
 
@@ -103,23 +97,28 @@ async function verifyTilePlacement(id, pos, type) {
 
 async function verifyWorkAssignment(id, unitid, pos) {
 	let unit = await units.fromid(unitid)
-
+	console.log(unit)
+	console.log(id, id != unit.OwnerId)
 	//Does the unit exist and is the unit owned by the player making the request
 	if (!unit || id != unit.OwnerId)
 		return
 
+	console.log(pos)
 	//If there is no position then deassign the unit's work
 	if (!pos)
 		 return units.unassignWork(unit)
 
+	console.log("!")
 	//Is it a military unit and if not can it be assigned work
 	if (!units.isMilitary(unit) && !await tiles.canAssignWorker(pos, unit))
 		return 
 	
+	console.log("!!")
 	//If it is a military unit can it be assigned military work
 	if (units.isMilitary(unit) && !await tiles.canAssignMilitaryWorker(pos, unit))
 		return 
 
+	console.log("!!!")
 	//Assign the worker
 	await tiles.assignWorker(pos, unit)
 	await units.assignWork(unit, pos)
@@ -262,78 +261,8 @@ async function sendComputeRequest(unitStart, unitEnd) {
 	req.end()
 
 	return new Promise ((resolve) => {
-		req.on("response", (res) => {
-			res.setEncoding("utf8")
-			let rawdata = []
-
-			res.on("data", (rawdataSlice) => {
-				rawdata.push(rawdataSlice)
-			})
-
-			res.on("end", async () => {
-				try {
-					let data = JSON.parse(rawdata.join(''))
-					
-					for (let statChange of data.stats)
-						userstats.add(statChange.Id, statChange.Type, statChange.Amount)
-
-					for (let damage of data.damage){
-						let tile = await tiles.fromPosString(damage.Pos)
-
-						if (tile) {
-
-							if (tile.UnitList.length == 0) {
-
-								tile.Health -= damage.Health
-
-								if (tile.Health <= 0) {
-									console.log("Tile health 0!")
-									tile.Health = 0
-									units.revokeAttack(units.fromid(damage.UnitId))
-									units.recomputeCiv(tile.OwnerId)
-								}
-							} else {
-								let unit = units.fromid(tile.UnitList[0])
-								let attackingUnit = units.fromid(damage.UnitId)
-								
-								unit.Health -= damage.Health
-								attackingUnit.Health -= damage.Health //Replace with real damage
-								unit.UnderAttack = attackingUnit
-
-								if (unit.Health <= 0) {
-									unit.Health = 0
-									units.kill(unit)
-
-									if (attackingUnit.Work != attackingUnit.Attack) {
-										let work = attackingUnit.Work
-										units.revokeAttack(attackingUnit)
-										attackingUnit.Work = work
-										attackingUnit.Target = work
-										database.updateUnit(attackingUnit.Id, attackingUnit)
-									}
-								}
-							}
-
-							userstats.setInCombat(tile.OwnerId)
-						}
-
-						database.updateTile(damage.Pos, tile)
-					}
-
-					for (let userId of data.combat)
-						userstats.setInCombat(userId)
-
-					
-				} catch (error) {
-					console.error("Error parsing returned json from compute node")
-					console.error("Returned json:")
-					console.error(rawdata)
-					console.error("Error message:")
-					console.error(error)
-				}
-
-				resolve()
-			})
+		req.on("response", () => {
+			resolve()
 		})
 	})
 }

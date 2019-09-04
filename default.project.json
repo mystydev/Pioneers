@@ -1,6 +1,6 @@
 {
 	"name": "Pioneers",
-	"servePort": 8000,
+	"servePort": 34872,
 	"tree": {
 		"$className": "DataModel",
 		"ReplicatedStorage": {
@@ -29,8 +29,11 @@
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
 			"StarterPlayerScripts": {
-				"$ignoreUnknownInstances": true,
-				"$path": "src/client"
+				"$className": "StarterPlayerScripts",
+				"Client": {
+					"$ignoreUnknownInstances": true,
+					"$path": "src/client"
+				}
 			}
 		}
 	}

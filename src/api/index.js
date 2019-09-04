@@ -19,9 +19,10 @@ function connectoToRedis() {
     cluster = new Redis.Cluster([{
         port: 6379,
         host: 'redis.dev',
+      }], {
         scaleReads: "slave",
-        retryStrategy: function(times) {
-            console.error("Connection to redis lost!")
+        clusterRetryStrategy: function(times) {
+            console.log("Connection to redis lost!")
             return 1000
             },
         //reconnectOnError: function(err) {
@@ -29,10 +30,11 @@ function connectoToRedis() {
         //    console.log("Reconnecting")
         //   return true
         //   }
-      }]);
+      });
 
     cluster.on("error", (err) => {
-        console.error("Error occurred: " + err)
+        console.log("Error occurred: " + err)
+        process.exit(1)
         //cluster.quit()
         //delete cluster
         //console.log("Attempting to reconnect to db")
@@ -209,16 +211,19 @@ app.post("/pion/syncupdates", (req, res) => {
     for (let feedback of req.body.feedback)
         cluster.lpush("feedback", feedback).catch(e => {})
 
+    let loadingUnits = []
+    for (let id of req.body.units)
+        loadingUnits.push(cluster.hgetall("unit:"+id).catch(e => {}))
+
     let updates = {}
     let processed   = waitForProcess(req.body.time)
     let lastUpdate  = cluster.get("lastupdate")
     let lastDeploy  = cluster.get("lastupdatedeploy")
     let tiles       = cluster.hmget("tiles", ...req.body.tiles).catch(e => {})
-    let units       = cluster.hmget("units", ...req.body.units).catch(e => {})
     let chats       = cluster.lrange("chats", 0, 100)
 
     //Wait for redis to return all the data
-    Promise.all([processed, lastUpdate, lastDeploy, tiles, units, chats])
+    Promise.all([processed, lastUpdate, lastDeploy, tiles, Promise.all(loadingUnits), chats])
     .then(values => {
         
         //convert indexes to correct versions
@@ -269,19 +274,9 @@ app.post("/pion/updateusersettings", (req, res) => {
     res.json(settings)
 })
 
-app.post("/pion/tileupdate", (req, res) => {
-    cluster.hset('tiles', req.body.index, JSON.stringify(req.body.data));
-    res.json({status:"ok"})
-});
-
-app.post("/pion/unitupdate", (req, res) => {
-    cluster.hset('units', req.body.index, JSON.stringify(req.body.data));
-    res.json({status:"ok"})
-});
-
 app.post("/pion/userjoin", (req, res) => {
     cluster.hgetall('stats:'+req.body.Id).then((stats) => {
-        if (stats)
+        if (stats.Food != undefined)
             res.json(stats);
         else {
             console.log("New user Id:", req.body.Id);
@@ -303,14 +298,16 @@ process.on("uncaughtException", (error) => {
         cluster.quit().catch(e => {})
 
     setTimeout(connectoToRedis, 1000)
+    //console.log("Pedantic pod termination")
+    //process.exit(1)
 })
 
 process.on('unhandledRejection', (error) => {
     console.log("!!Encountered a rejection: " + error)
     console.log("Pedantic database reconnect...")
 
-    if (cluster)
-        cluster.quit().catch(e => {})
+    //if (cluster)
+    //    cluster.quit().catch(e => {})
 
     setTimeout(connectoToRedis, 1000)
 })

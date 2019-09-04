@@ -62,26 +62,20 @@ function Unit.serialise(unit)
     return HttpService:JSONEncode({index = index, data = data})
 end
 
-function Unit.deserialise(sdata, tiles)
-    local data = HttpService:JSONDecode(sdata)
-    local unit = {}
-
-    unit.Type     = data.Type
-    unit.Id       = data.Id
-    unit.OwnerId  = data.OwnerId
-    unit.Position = Vector2.new(data.Posx, data.Posy)
-    unit.Health   = data.Health
-    unit.MHealth  = data.MHealth or 200
-    unit.Fatigue  = data.Fatigue
-    unit.MFatigue = data.MFatigue or 10
-    unit.Training = data.Training
-    unit.MTraining= data.MaxTraining or 100
-    unit.Home     = data.Home
-    unit.Work     = data.Work
-    unit.Target   = data.Target
-    unit.Attack   = data.Attack
-    unit.State    = data.State
-    unit.HeldResource = data.HeldResource or false
+function Unit.sanitise(unit, tiles)
+    local x, y = unpack(string.split(unit.Position, ':'))
+    unit.Position = Vector2.new(tonumber(x), tonumber(y))
+    unit.Type     = tonumber(unit.Type)
+    unit.OwnerId  = tonumber(unit.OwnerId)
+    unit.Health   = tonumber(unit.Health)
+    unit.MHealth  = unit.MHealth and tonumber(unit.MHealth) or 200
+    unit.Fatigue  = tonumber(unit.Fatigue)
+    unit.MFatigue = unit.MFatigue and tonumber(unit.MFatigue) or 10
+    unit.Training = tonumber(unit.Training)
+    unit.MTraining= unit.MaxTraining and tonumber(unit.MaxTraining) or 100
+    unit.State    = tonumber(unit.State)
+    unit.HeldResource = unit.HeldResource or false
+    unit.HeldAmount = unit.HeldAmount and tonumber(unit.HeldAmount) or 0
 
     return unit
 end

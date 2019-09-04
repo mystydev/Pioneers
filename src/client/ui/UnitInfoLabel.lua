@@ -47,10 +47,11 @@ function UnitInfoLabel:render()
     elseif self.state.Interest == UnitInfoLabel.Interests.CARRYING then
 
         local res = self.state.Unit.HeldResource
+        local amount = self.state.Unit.HeldAmount
 
-        if res and res.Type and res.Amount > 0 then
-            displayImage = CarryDisplay[res.Type] or StateDisplay[Unit.UnitState.LOST]
-            text = "Carrying " .. (res.Amount or "?") .. " " .. res.Type
+        if res and amount and amount > 0 then
+            displayImage = CarryDisplay[res] or StateDisplay[Unit.UnitState.LOST]
+            text = "Carrying " .. (amount or "?") .. " " .. res
         else
             displayImage = ""
             text = ""

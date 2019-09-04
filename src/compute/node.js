@@ -19,38 +19,17 @@ function shutdown(code) {
 async function computeRequest(data) {
     console.log("Handling compute request")
     let start = performance.now()
-    let response = {}
-    let statChanges = []
-    let damages = []
-    let combats = []
+    let processing = []
     let [s, e] = data
-    let unitList = await units.getRange(s, e)
 
-    for (let id in unitList) {
-        let change = await units.processUnit(unitList[id])
-
-        if (change.Stats) {
-            statChanges.push(change.Stats)
-        }
-
-        if (change.Damage) {
-            damages.push(change.Damage)
-        }
-
-        if (change.InCombat) {
-            combats.push(change.InCombat)
-        }
-    }
+    for (let id = s; id < e; id++)
+        processing.push(units.processUnit(id))
 
     let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
     console.log("Compute request took: " + timeTaken + "ms")
 
-    response.units = data
-    response.stats = statChanges
-    response.damage = damages
-    response.combat = combats
-
-    return response
+    await Promise.all(processing)
+    return {}
 }
 
 function init() {

@@ -284,9 +284,9 @@ end
 
 function Replication.handleUnitInfo(unitList)
     for _, unit in pairs(unitList) do
-        local newUnit = Unit.deserialise(unit, currentWorld.Tiles)
-        Replication.pushUnitUpdate(currentWorld.Units[newUnit.Id], newUnit)
-        currentWorld.Units[newUnit.Id] = newUnit
+        unit = Unit.sanitise(unit, currentWorld.Tiles)
+        Replication.pushUnitUpdate(currentWorld.Units[unit.Id], unit)
+        currentWorld.Units[unit.Id] = unit
     end
 end
 

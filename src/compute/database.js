@@ -10,7 +10,9 @@ database.connect = () => {
     redis = new Redis.Cluster([{
         port: 6379,
         host: "redis.dev"
-    }])
+    }], {
+        scaleReads: "slave"
+    })
 }
 
 database.disconnect = () => {
@@ -25,21 +27,8 @@ database.getTiles = (tiles) => {
     return redis.hmget("tiles", ...tiles)
 }
 
-database.getAllUnits = async () => {
-    let data = await redis.hgetall('units')
-    let num = 0
-
-    for (let key in data) {
-        units.unitFromJSON(data[key])
-        num++
-    }
-
-    console.log("Loaded", num, "units!")
-}
-
 database.getUnit = async (id) => {
-    let data = await redis.hget("units", id)
-    return units.unitFromJSON(data)
+    return redis.hgetall("unit:"+id)
 }
 
 database.getUnitProp = async (id, prop) => {
@@ -47,12 +36,28 @@ database.getUnitProp = async (id, prop) => {
 }
 
 database.setUnitProp = (id, prop, value) => {
-    redis.hset("unit"+id, prop, value)
+    redis.hset("unit:"+id, prop, value)
 }
 
-database.getUnits = (units) => {
-    return redis.hmget("units", ...units)
+database.delUnitProp = (id, prop) => {
+    redis.hdel("unit:"+id, prop)
 }
+
+database.getUnitProps = async (id, props) => {
+    return redis.hmget("unit:"+id, ...props)
+}
+
+database.setUnitProps = (id, data) => {
+    redis.hmset("unit:"+id, data)
+}
+
+database.increaseUnitProp = (id, prop, amount) => {
+    redis.hincrby("unit"+id, prop, amount)
+}
+
+/*database.getUnits = (units) => {
+    return redis.hmget("units", ...units)
+}*/
 
 database.getAllStats = async () => {
     let Stats = {}
@@ -74,7 +79,7 @@ database.getStat = (id, type) => {
 }
 
 database.addStat = (id, type, amount) => {
-    redis.hincrby("stats:"+id, type, amount)
+    redis.hincrby("stats:"+id, type, parseInt(amount))
 }
 
 database.setStat = (id, type, value) => {
@@ -137,10 +142,6 @@ database.updateSettings = (id, settings) => {
     redis.hset("settings", id, JSON.stringify(settings))
 }
 
-database.updateUnit = (id, unit) => {
-    redis.hset("units", id, JSON.stringify(unit))
-}
-
 database.updateUnitSpawn = (pos, count) => {
     redis.hset("unitspawns", pos, count)
 }
@@ -170,7 +171,7 @@ database.deleteTile = (pos) => {
 }
 
 database.deleteUnit = (unitId) => {
-    redis.hdel("units", unitId)
+    redis.del("unit:"+unitId)
 }
 
 database.updateStatus = (time, status) => {

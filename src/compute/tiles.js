@@ -331,7 +331,7 @@ tiles.findClosestStorage = async (pos) => {
             distance[neighbour] = dist
 
             if (tiles.isStorageTile(neighbour) && neighbour.Health > 0)
-                return neighbour
+                return neighbour.Position
             else if (tiles.isWalkable(neighbour)) {
                 searchQueue.push(neighbour)
             }
