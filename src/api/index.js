@@ -1,3 +1,4 @@
+let database = require("./compute/database")
 var fs = require('fs');
 var https = require('https');
 var Redis = require('ioredis');
@@ -16,30 +17,7 @@ let VERSION = "1.0.6"
 let cluster
 
 function connectoToRedis() {
-    cluster = new Redis.Cluster([{
-        port: 6379,
-        host: 'redis.dev',
-      }], {
-        scaleReads: "slave",
-        clusterRetryStrategy: function(times) {
-            console.log("Connection to redis lost!")
-            return 1000
-            },
-        //reconnectOnError: function(err) {
-        //    console.error("Encountered an error: " + err)
-        //    console.log("Reconnecting")
-        //   return true
-        //   }
-      });
-
-    cluster.on("error", (err) => {
-        console.log("Error occurred: " + err)
-        process.exit(1)
-        //cluster.quit()
-        //delete cluster
-        //console.log("Attempting to reconnect to db")
-        //setTimeout(connectoToRedis, 1000)
-    })
+    cluster = database.connect()
 }
 
 const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3,DELETE_TILE:4,REPAIR_TILE:5};
@@ -95,33 +73,33 @@ app.post("/pion/actionRequest", (req, res) => {
         case Actions.PLACE_TILE:
             tileType = req.body.type;
             tileLoc = req.body.position;
-            cluster.rpush('actionQueue', JSON.stringify({id:id, action:action, type:tileType, position:tileLoc}));
+            cluster.rpush("actionQueue:"+id, JSON.stringify({id:id, action:action, type:tileType, position:tileLoc}));
             res.json({status:"Ok"})
             break;
 
         case Actions.SET_WORK:
             unit = req.body.unitId;
             tileLoc = req.body.position;
-            cluster.rpush('actionQueue', JSON.stringify({id:id, action:action, unit:unit, position:tileLoc}))
+            cluster.rpush("actionQueue:"+id, JSON.stringify({id:id, action:action, unit:unit, position:tileLoc}))
             res.json({status:"Ok"})
             break;
 
         case Actions.ATTACK:
             unit = req.body.unitId;
             tileLoc = req.body.position;
-            cluster.rpush('actionQueue', JSON.stringify({id:id, action:action, unit:unit, position:tileLoc}))
+            cluster.rpush("actionQueue:"+id, JSON.stringify({id:id, action:action, unit:unit, position:tileLoc}))
             res.json({status:"Ok"})
             break;
 
         case Actions.DELETE_TILE:
             tileLoc = req.body.position;
-            cluster.rpush('actionQueue', JSON.stringify({id:id, action:action, position:tileLoc}));
+            cluster.rpush("actionQueue:"+id, JSON.stringify({id:id, action:action, position:tileLoc}));
             res.json({status:"Ok"})
             break;
 
         case Actions.REPAIR_TILE:
             tileLoc = req.body.position;
-            cluster.rpush('actionQueue', JSON.stringify({id:id, action:action, position:tileLoc}));
+            cluster.rpush("actionQueue:"+id, JSON.stringify({id:id, action:action, position:tileLoc}));
             res.json({status:"Ok"})
             break;
 
@@ -211,26 +189,42 @@ app.post("/pion/syncupdates", (req, res) => {
     for (let feedback of req.body.feedback)
         cluster.lpush("feedback", feedback).catch(e => {})
 
-    let loadingUnits = []
-    for (let id of req.body.units)
-        loadingUnits.push(cluster.hgetall("unit:"+id).catch(e => {}))
+    fetchingUnits = database.getUnits(req.body.units)
+
+    fetchingTiles = [
+        cluster.hmget("tile:Type", ...req.body.tiles).catch(e => {}),
+        cluster.hmget("tile:OwnerId", ...req.body.tiles).catch(e => {}),
+        cluster.hmget("tile:Health", ...req.body.tiles).catch(e => {}),
+        cluster.hmget("tile:MaxHealth", ...req.body.tiles).catch(e => {}),
+        cluster.hmget("tile:UnitList", ...req.body.tiles).catch(e => {})]
 
     let updates = {}
     let processed   = waitForProcess(req.body.time)
     let lastUpdate  = cluster.get("lastupdate")
     let lastDeploy  = cluster.get("lastupdatedeploy")
-    let tiles       = cluster.hmget("tiles", ...req.body.tiles).catch(e => {})
     let chats       = cluster.lrange("chats", 0, 100)
 
     //Wait for redis to return all the data
-    Promise.all([processed, lastUpdate, lastDeploy, tiles, Promise.all(loadingUnits), chats])
+    Promise.all([processed, lastUpdate, lastDeploy, Promise.all(fetchingTiles), fetchingUnits, chats])
     .then(values => {
         
         //convert indexes to correct versions
+        [Types, OwnerIds, Healths, MaxHealths, UnitLists, Positions] = values[3]
         let i = 0
         updates.tiles = {}
-        for (let pos of req.body.tiles)
-            updates.tiles[pos] = values[3][i++]
+        for (let pos of req.body.tiles) {
+            if (Types[i]) {
+                updates.tiles[pos] = {
+                    Type      : Types[i],
+                    OwnerId   : OwnerIds[i],
+                    Health    : Healths[i],
+                    MaxHealth : MaxHealths[i],
+                    UnitList  : JSON.parse(UnitLists[i]),
+                    Position  : pos
+                }
+            }
+            i++
+        }
 
         i = 0
         updates.units = {}
@@ -280,7 +274,20 @@ app.post("/pion/userjoin", (req, res) => {
             res.json(stats);
         else {
             console.log("New user Id:", req.body.Id);
-            cluster.rpush('actionQueue', JSON.stringify({id:req.body.Id, action:Actions.NEW_PLAYER}));
+            cluster.hmset("stats:"+req.body.Id, {
+                Food: 2500,
+                Wood: 2500,
+                Stone: 2500,
+                PlayerId: req.body.Id,
+                Keep: undefined,
+                FoodCost: 0,
+                WoodCost: 0,
+                StoneCost: 0,
+                FoodProduced: 0,
+                WoodProduced: 0,
+                StoneProduced: 0,
+            })
+            cluster.rpush("playerlist", req.body.Id)
             res.json({status:"NewUser"});
         }
     }).catch((error) => {
@@ -302,8 +309,9 @@ process.on("uncaughtException", (error) => {
     //process.exit(1)
 })
 
-process.on('unhandledRejection', (error) => {
+process.on('unhandledRejection', (error, promise) => {
     console.log("!!Encountered a rejection: " + error)
+    console.log(promise)
     console.log("Pedantic database reconnect...")
 
     //if (cluster)

@@ -65,6 +65,7 @@ local function syncUpdates()
             chats = Replication.getChats(),
             feedback = Replication.getFeedback(),
         })
+
         local res = Http:JSONDecode(Http:PostAsync(API_URL.."syncupdates", payload))
         syncTime = tonumber(res.lastUpdate)
 
@@ -74,9 +75,9 @@ local function syncUpdates()
         Replication.handleChats(res.chats or {})
 
         --If the lastupdate was issued earlier than the last deploy then the backend is updating
-        if tonumber(res.lastUpdate) > tonumber(res.lastDeploy) then --TODO: remove these tonumbers
+        if tonumber(res.lastUpdate or 0) > tonumber(res.lastDeploy or 0) then --TODO: remove these tonumbers
             Replication.pushUpdateAlert(true)
-        elseif tonumber(res.lastDeploy) < res.lastProcess then
+        elseif tonumber(res.lastDeploy or 0) < res.lastProcess then
             Replication.pushUpdateAlert(false)
         end
 

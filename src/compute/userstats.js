@@ -103,18 +103,14 @@ userstats.removeTileMaintenance = (id, cost) => {
     userstats.addTileMaintenance(id, -cost)
 }
 
-userstats.processMaintenance = async () => {
-    let playerList = await database.getPlayerList()
+userstats.processMaintenance = async (id) => {
+    database.getStat(id, "WoodCost").then(cost => {
+        database.addStat(id, "Wood", cost)
+    })
 
-    for (let id of playerList) {
-        database.getStat(id, "WoodCost").then(cost => {
-            database.addStat(id, "Wood", cost)
-        })
-
-        database.getStat(id, "StoneCost").then(cost => {
-            database.addStat(id, "Stone", cost)
-        })
-    }
+    database.getStat(id, "StoneCost").then(cost => {
+        database.addStat(id, "Stone", cost)
+    })
 }
 
 userstats.setInCombat = (id) => {

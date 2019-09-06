@@ -2,10 +2,11 @@
 FROM node:8
 
 WORKDIR /app
-COPY package*.json ./
-COPY certs/* certs/
+COPY api/package*.json ./
+COPY api/certs/* certs/
 RUN npm install
-COPY . .
+COPY api/* ./
+COPY compute/* compute/
 
 # Make port 80 available to the world outside this container
 EXPOSE 443

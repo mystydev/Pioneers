@@ -94,8 +94,8 @@ function Tile.serialise(tile)
 end
 
 function Tile.deserialise(index, data)
-    local data    = HttpService:JSONDecode(data)
-    local tile    = {}
+    --local data    = HttpService:JSONDecode(data)
+    --[[local tile    = {}
     local x, y    = unpack(string.split(index, ':'))
 
     tile.Type     = data.Type
@@ -103,9 +103,21 @@ function Tile.deserialise(index, data)
     tile.Position = Vector2.new(tonumber(x), tonumber(y))
     tile.Health   = data.Health
     tile.MHealth  = data.MHealth or Tile.MaxHealth[data.Type]
-    tile.UnitList = data.UnitList
+    tile.UnitList = data.UnitList]]--
 
-    return tile
+    local x, y    = unpack(string.split(index, ':'))
+
+    data.Type = tonumber(data.Type)
+    data.OwnerId  = tonumber(data.OwnerId)
+    data.Health = tonumber(data.Health)
+    data.MHealth  = data.MHealth or Tile.MaxHealth[data.Type]
+    data.Position = Vector2.new(tonumber(x), tonumber(y))
+
+    if not data.UnitList or data.UnitList == "" then
+        data.UnitList = {}
+    end
+
+    return data
 end
 
 function Tile.isDifferent(original, other)

@@ -89,7 +89,7 @@ function AuthoritativeTile(type, id, pos, unitlist) {
     database.updateTile(pos, this)
 
     if (type == TileType.HOUSE && this.UnitList.length < common.HOUSE_UNIT_NUMBER) {
-        units.setSpawn(pos)
+        units.setSpawn(id, pos)
     }
 
     if (type == TileType.KEEP) {
@@ -105,9 +105,9 @@ function AuthoritativeTile(type, id, pos, unitlist) {
 tiles.Tile = Tile
 tiles.AuthoritativeTile = AuthoritativeTile
 
-tiles.deleteTile = (pos) => {
-    units.removeSpawn(pos)
-    database.deleteTile(pos)
+tiles.deleteTile = (tile) => {
+    units.removeSpawn(tile.OwnerId, tile.Position)
+    database.deleteTile(tile.Position)
 }
 
 tiles.tileFromJSON = (rawdata, pos) => {
@@ -134,14 +134,7 @@ tiles.fromPosString = (pos) => {
 }
 
 tiles.fromPosList = async (list) => {
-    let tileList = []
-    
-    return database.getTiles(list).then(tileData => {
-        for (let tile of tileData)
-            tileList.push(tiles.tileFromJSON(tile))
-
-        return tileList
-    })
+    return database.getTiles(list)
 }
 
 tiles.fromCoords = (posx, posy) => {
@@ -153,7 +146,7 @@ tiles.dbFromCoords = async (posx, posy) => {
 }
 
 tiles.getSafeType = (tile) => {
-    return tile ? tile.Type : TileType.GRASS
+    return tile.Type || TileType.GRASS
 }
 
 tiles.isStorageTile = (tile) => {

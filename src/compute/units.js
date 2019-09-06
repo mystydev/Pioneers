@@ -34,7 +34,32 @@ let MilitaryWorkType = units.MilitaryWorkType = {
     ATTACKPOST:2
 }
 
-units.initialiseNewUnit = (unitId, ownerId, pos) => {
+units.UnitFields = [
+    "Id", 
+    "OwnerId", 
+    "Position", 
+    "Type", 
+    "Health", 
+    "Fatigue", 
+    "Training", 
+    "MaxTraining", 
+    "State", 
+    "Home",
+    "Work",
+    "Target",
+    "Storage",
+    "HeldResource",
+    "HeldAmount",
+    "MilitaryWorkType",
+    "StepsSinceStore",
+    "PerRoundProduce",
+    "ResourceCollected",
+    "TripLength",
+    "AmountPerTrip",
+    "Attack",
+]
+
+units.initialiseNewUnit = async (unitId, ownerId, pos) => {
 
     let unit = {
         Id: unitId,
@@ -49,7 +74,7 @@ units.initialiseNewUnit = (unitId, ownerId, pos) => {
         Home: pos,
     }
 
-    database.setUnitProps(unitId, unit)
+    await database.setUnitProps(unitId, unit)
     database.pushUnitToCollection(unit.OwnerId, unitId)
 
     return unit
@@ -69,36 +94,35 @@ units.isMilitary = (unit) => {
     return unit.Type == UnitType.APPRENTICE || unit.Type == UnitType.SOLDIER
 }
 
-units.establishState = async (unit) => {
+units.establishState = (unit) => {
 
     if (unit.Health <= 0)
         return UnitState.DEAD
 
-    if (unit.Target && unit.Position != unit.Target)
+    if (unit.Target != "" && unit.Position != unit.Target)
         return UnitState.MOVING
 
-    if (unit.Position == unit.Work)
+    if (unit.Work != "" && unit.Position == unit.Work)
         return UnitState.WORKING
 
-    if (unit.Position == unit.Storage && unit.HeldResource)
+    if (unit.Position == unit.Storage && unit.HeldResource != "")
         return UnitState.STORING
 
     if (unit.Fatigue > 0 && unit.Position == unit.Home)
         return UnitState.RESTING
 
-    if (!unit.Work)
+    if (unit.Work == "")
         return UnitState.IDLE
     
     return UnitState.LOST
 }
 
-/*units.establishMilitaryState = (unit) => {
-    let pos = units.getPosition(unit)
+units.establishMilitaryState = (unit) => {
 
     if (unit.Health <= 0)
         return UnitState.DEAD
 
-    if (unit.Target && pos != unit.Target)
+    if (unit.Target && unit.Position != unit.Target)
         return UnitState.MOVING
 
     if (unit.Attack)
@@ -110,20 +134,19 @@ units.establishState = async (unit) => {
     if (unit.MilitaryWorkType == MilitaryWorkType.GUARDPOST)
         return UnitState.GUARDING
 
-    if (unit.Fatigue > 0 && pos == unit.Home)
+    if (unit.Fatigue > 0 && unit.Position == unit.Home)
         return UnitState.RESTING
     
     if (!unit.Work)
         return UnitState.IDLE
 
     return UnitState.LOST
-}*/
+}
 
-units.processUnit = async (id) => {
-    let unit = await database.getUnit(id)
-    if (!unit.Id) return
+units.processUnit = async (unit) => {
+    if (!unit) return
 
-    if (await units.isMilitary(unit))
+    if (units.isMilitary(unit))
         return units.processMilitaryUnit(unit)
 
     let state = await units.establishState(unit)
@@ -191,8 +214,8 @@ units.processUnit = async (id) => {
             }
 
             userstats.add(unit.OwnerId, unit.HeldResource, unit.HeldAmount)
-            database.delUnitProp(id, "HeldResource")
-            database.delUnitProp(id, "HeldAmount")
+            database.delUnitProp(unit.Id, "HeldResource")
+            database.delUnitProp(unit.Id, "HeldAmount")
             delete unit.HeldResource
             delete unit.HeldAmount
 
@@ -204,34 +227,21 @@ units.processUnit = async (id) => {
             break
     }
 
-    database.setUnitProps(id, unit)
+    //database.setUnitProps(unit.Id, unit)
 }
 
 units.processMilitaryUnit = async (unit) => {
-    let changes = {}
     let state = units.establishMiliatryState(unit)
     unit.State = state
 
     switch (state) {
         case UnitState.MOVING:
-            let trip = unit.Trip
-            if (!trip) {
-                unit.State = UnitState.LOST
-                break
-            }
+            let path = await tiles.findMilitaryPath(unit.Position, unit.Target);
 
-            let nextIndex = Math.min(unit.TripIndex + 1, trip.length - 1) || 0;
-            let nextPos = trip[nextIndex];
-            let [nextX, nextY] = common.strToPosition(nextPos);
-            let tile = await tiles.dbFromCoords(nextX, nextY);
-            
-            if (tile && nextPos != unit.Work && tile.UnitList.length > 0) {
-                unit.Target = units.getPosition(unit)
-                unit.Attack = nextPos
-            } else {
-                unit.TripIndex = nextIndex;
-                [unit.Posx, unit.Posy] = [nextX, nextY];
-            }
+            if (path)
+                unit.Position = path[0]
+            else
+                unit.State = UnitState.LOST
             break
 
         case UnitState.TRAINING:
@@ -249,11 +259,11 @@ units.processMilitaryUnit = async (unit) => {
             break
 
         case UnitState.COMBAT:
-            changes.Damage = {
+            /*changes.Damage = {
                 Pos: unit.Attack,
                 UnitId: unit.Id,
                 Health: 10,
-            }
+            }*/
             changes.InCombat = unit.OwnerId
             break
     }
@@ -262,35 +272,36 @@ units.processMilitaryUnit = async (unit) => {
     return changes
 }
 
-units.processSpawns = async () => {
-    let UnitSpawns = await database.getUnitSpawns()
+units.processSpawns = async (id) => {
+    let UnitSpawns = await database.getUnitSpawns(id)
 
     for (let pos in UnitSpawns) {
 		let tile = await tiles.fromPosString(pos)
 
         if (await userstats.canAfford(tile.OwnerId, resource.Type.FOOD, common.SPAWN_REQUIRED_FOOD)) {  
-			if (UnitSpawns[pos] > common.SPAWN_ATTEMPTS_REQUIRED)
+            UnitSpawns[pos] = parseInt(UnitSpawns[pos])
+			if (UnitSpawns[pos] > common.SPAWN_ATTEMPTS_REQUIRED) {
                 units.spawn(pos)
-            else
-                database.updateUnitSpawn(pos, UnitSpawns[pos] + 1)
+            } else {
+                database.updateUnitSpawn(id, pos, UnitSpawns[pos] + 1)
+            }
         }
     }
 }
 
 units.spawn = async (pos) => {
-    console.log("Spawning")
     let tile = await tiles.fromPosString(pos)
     let id = (await database.incrementUnitCount()).toString()
-    let unit = units.initialiseNewUnit(id, tile.OwnerId, pos)
+    let unit = await units.initialiseNewUnit(id, tile.OwnerId, pos)
 
     userstats.use(unit.OwnerId, resource.Type.FOOD, 100)
     tile.UnitList.push(id)
     database.updateTile(pos, tile)
 
     if (tile.UnitList.length >= common.HOUSE_UNIT_NUMBER) {
-        database.deleteUnitSpawn(pos)
+        database.deleteUnitSpawn(tile.OwnerId, pos)
     } else {
-        database.updateUnitSpawn(pos, 0)
+        database.updateUnitSpawn(tile.OwnerId, pos, 0)
     }
 
     return unit
@@ -308,12 +319,12 @@ units.getSpawns = async () => {
     return database.getUnitSpawns()
 }
 
-units.setSpawn = (pos) => {
-    database.updateUnitSpawn(pos, 0)
+units.setSpawn = (id, pos) => {
+    database.updateUnitSpawn(id, pos, 0)
 }
 
-units.removeSpawn = (pos) => {
-    database.deleteUnitSpawn(pos)
+units.removeSpawn = (id, pos) => {
+    database.deleteUnitSpawn(id, pos)
 }
 
 units.unassignWork = async (unit) => {
@@ -336,6 +347,7 @@ units.unassignWork = async (unit) => {
 units.assignWork = async (unit, pos) => {
     let tile = await tiles.fromPosString(pos)
     let type = tiles.getSafeType(tile)
+    console.log(pos, type, tile)
 
     await units.unassignWork(unit)
 
@@ -396,7 +408,7 @@ units.kill = (unit) => {
     tiles.unassignWorker(unit.Home, unit)
 
     //Allow a new unit to be spawned in their place
-    units.setSpawn(unit.Home)
+    units.setSpawn(unit.OwnerId, unit.Home)
 
     //Final update for clients
     unit.Health = 0
