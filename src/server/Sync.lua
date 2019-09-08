@@ -7,6 +7,7 @@ local Tile         = require(Common.Tile)
 local Unit         = require(Common.Unit)
 local UserStats    = require(Common.UserStats)
 local UserSettings = require(Common.UserSettings)
+local Util         = require(Common.Util)
 
 local Players       = game:GetService("Players")
 local Http          = game:GetService("HttpService")
@@ -16,8 +17,9 @@ local SYNC_RATE = 0.5
 local API_URL = "https://api.mysty.dev/pion/"
 local API_KEY = ServerStorage.APIKey.Value
 local syncing, currentWorld
-local requestedTiles = Replication.getRequestedTiles()
-local unitReferences = Replication.getUnitReferences()
+--local requestedTiles = Replication.getRequestedTiles()
+--local unitReferences = Replication.getUnitReferences()
+local playerPositions = Replication.getPlayerPositions()
 
 local function syncStats(player, world)
     local syncTime = 0
@@ -42,26 +44,17 @@ local function syncUpdates()
 
     while syncing do 
 
-        --Convert tile list to friendly format
-        local tileList = {}
-        for _, tiles in pairs(requestedTiles) do
-            for tile, _ in pairs(tiles) do
-                table.insert(tileList, tile)
-            end
-        end
-
-        --Convert unit list to friendly format
-        local unitList = {}
-        for id, _ in pairs(unitReferences) do
-            table.insert(unitList, id)
+        --Convert position list to friendly format
+        local playerPosList = {}
+        for _, position in pairs(playerPositions) do
+            table.insert(playerPosList, Util.worldVectorToAxialPositionString(position))
         end
 
         --Construct payload and send it to backend
         local payload = Http:JSONEncode({
             apikey = API_KEY,
             time = syncTime, 
-            tiles = tileList, 
-            units = unitList, 
+            poslist = playerPosList,
             chats = Replication.getChats(),
             feedback = Replication.getFeedback(),
         })

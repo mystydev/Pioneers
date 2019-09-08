@@ -31,6 +31,14 @@ function Util.positionStringToVector(posStr)
     return Vector2.new(tonumber(x), tonumber(y))
 end
 
+function Util.vectorToPositionString(pos)
+    return pos.x..":"..pos.y
+end
+
+function Util.worldVectorToAxialPositionString(pos)
+    return Util.vectorToPositionString(Util.worldCoordToAxialCoord(pos))
+end
+
 function Util.circularCollection(tiles, posx, posy, startRadius, endRadius)
 
     local collection = {}

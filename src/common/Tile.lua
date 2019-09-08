@@ -106,7 +106,6 @@ function Tile.deserialise(index, data)
     tile.UnitList = data.UnitList]]--
 
     local x, y    = unpack(string.split(index, ':'))
-
     data.Type = tonumber(data.Type)
     data.OwnerId  = tonumber(data.OwnerId)
     data.Health = tonumber(data.Health)
@@ -142,7 +141,7 @@ function Tile.isDifferent(original, other)
 end
 
 function Tile.defaultGrass(pos)
-    return Tile.deserialise(pos, "{\"Type\":0}")
+    return Tile.deserialise(pos, {Type = 0})
 end
 
 function Tile.getIndex(tile)

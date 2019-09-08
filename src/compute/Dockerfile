@@ -1,5 +1,5 @@
 
-FROM node:8
+FROM node:12
 
 WORKDIR /app
 COPY package*.json ./

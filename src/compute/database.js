@@ -2,8 +2,65 @@ let database = {}
 module.exports = database
 let common = require("./common")
 let units = require("./units")
+let tiles = require("./tiles")
 let Redis = require("ioredis")
 let redis
+
+let positionSweepSize = 100
+
+//Converts position list into a dict of slot friendly lists with prefix prefixed to the positions
+//This sweep partitions the world allowing the partitions to be divided across redis nodes
+//Collections of tiles in one sweep can all be retrieved from redis with one command
+//The dict key is floor(x / positionSweepSize)
+//eg tile [5:7, 234:423] -> { 0 : [tile{0}5:7], 2 : [tile{2}234:423]}
+function convertPositionList(positions) {
+    let batches = {}
+
+    for (let pos of positions) {
+        let sweepId = Math.floor((pos.split(":")[0])/positionSweepSize)
+        if (!batches[sweepId]) batches[sweepId] = []
+        batches[sweepId].push(pos)
+    }
+
+    return batches
+}
+
+function convertTileList(tileList) {
+    let batches = {}
+
+    for (let tile of tileList) {
+        let sweepId = Math.floor((pos.split(":")[0])/positionSweepSize)
+        if (!batches[sweepId]) batches[sweepId] = []
+        batches[sweepId].push(tile)
+    }
+
+    return batches
+}
+
+//Converts a unit list into a dict of slot friendly lists
+//The dict key is the unit's owner id
+function convertUnitList(unitList) {
+    let batches = {}
+
+    for (let unit of unitList) {
+        if (!batches[unit.OwnerId]) batches[unit.OwnerId] = []
+        batches[unit.OwnerId].push(unit)
+    }
+
+    return batches
+}
+
+function convertUnitIdList(unitIdList) {
+    let batches = {}
+
+    for (let id of unitIdList) {
+        let ownerId = id.match(/\d+/)[0]
+        if (!batches[ownerId]) batches[ownerId] = []
+        batches[ownerId].push(id)
+    }
+
+    return batches
+}
 
 database.connect = () => {
     redis = new Redis.Cluster([{
@@ -26,121 +83,140 @@ database.getTile = async (pos) => {
 }
 
 database.getTiles = async (positions) => {
+    if (positions.length == 0) return []
 
-    [Types, OwnerIds, Healths, MaxHealths, UnitLists, Positions] = await Promise.all([
-        redis.hmget("tile:Type", ...positions),
-        redis.hmget("tile:OwnerId", ...positions),
-        redis.hmget("tile:Health", ...positions),
-        redis.hmget("tile:MaxHealth", ...positions),
-        redis.hmget("tile:UnitList", ...positions)])
+    let data = {}
+    let batches = convertPositionList(positions)
 
-    let tiles = []
-    for (let index in Types) {
-        tiles.push({
-            Type      : parseInt(Types[index]),
-            OwnerId   : OwnerIds[index],
-            Health    : Healths[index],
-            MaxHealth : MaxHealths[index],
-            UnitList  : JSON.parse(UnitLists[index]),
-            Position  : positions[index]
-        })
+    for (let prop of tiles.TileFields)
+        data[prop] = []
+
+    for (let sweepId in batches) {
+        let batch = batches[sweepId]
+
+        if (batch.length > 0) 
+            for (let prop of tiles.TileFields)
+                data[prop].push(redis.hmget("tile{".concat(sweepId, prop, "}"), ...batch))
     }
 
-    return tiles
+    for (let prop of tiles.TileFields)
+        data[prop] = (await Promise.all(data[prop])).flat()
+
+    let tileList = []
+
+    for (let i in data["OwnerId"]) {
+        let tile = {}
+        for (let prop of tiles.TileFields) {
+            if (prop == "UnitList")
+                tile[prop] = JSON.parse(data[prop][i])
+            else
+                tile[prop] = data[prop][i]
+        }
+
+        tileList.push(tile)
+    }
+
+    return tileList
 }
 
-database.getUnit = async (id) => {
-    return await database.getUnitProps(id, units.UnitFields)
+database.getUnit = async (ownerId, id) => {
+    let req = {}
+    req[ownerId] = [id]
+    return await database.getUnits(req)
 }
 
-database.getUnits = async (idList) => {
-    if (idList.length == 0) return []
-
+// idDict = {ownerid: [id...], owner2id: [...
+database.getUnits = async (idDict) => {
     let data = {}
 
     for (let prop of units.UnitFields)
-        data[prop] = redis.hmget("unit:"+prop, ...idList)
+        data[prop] = []
+
+    for (let owner in idDict) {
+        let idList = idDict[owner]
+
+        if (idList.length > 0)
+            for (let prop of units.UnitFields)
+                data[prop].push(redis.hmget("unit{".concat(owner, prop, "}"), ...idList))
+    }
 
     for (let prop of units.UnitFields)
-        data[prop] = await data[prop]
+        data[prop] = (await Promise.all(data[prop])).flat()
 
     let unitList = []
-    for (let id in idList) {
+
+    for (let i in data["Id"]) {
         let unit = {}
         for (let prop of units.UnitFields)
-            unit[prop] = data[prop][id]
+            unit[prop] = data[prop][i]
 
         unitList.push(unit)
     }
-    
-    return Promise.all(unitList)
+
+    return unitList
 }
 
 database.updateUnits = async (unitList) => {
     if (unitList.length == 0) return
 
-    let data = {}
+    let batches = convertUnitList(unitList)
+    let cacheData = {}
 
-    for (let prop of units.UnitFields)
-        data[prop] = {}
+    for (let i in batches) {
+        let unitBatch = batches[i]
+        let data = {}
 
-    for (let unit of unitList)
         for (let prop of units.UnitFields)
-            data[prop][unit.Id] = unit[prop]
+            data[prop] = {}
 
-    for (let prop of units.UnitFields)
-        redis.hmset("unit:"+prop, data[prop])
-}
+        for (let unit of unitBatch){
+            for (let prop of units.UnitFields)
+                data[prop][unit.Id] = unit[prop]
 
-database.getUnitsAtPosition = async (pos) => {
-    return redis.smembers("unitcache:"+pos)
-}
+            let sweepId = Math.floor((unit.Position.split(":")[0])/positionSweepSize)
+            if (!cacheData[sweepId]) cacheData[sweepId] = {}
+            cacheData[sweepId][unit.Position+"@"+unit.Id] = unit.OwnerId
+        }
 
-database.getUnitsAtPositions = async (posList) => {
-    let cacheList = posList.map(pos => "unitcache:"+pos)
-    return redis.sunion(...cacheList)
-}
-
-database.getUnitProp = async (id, prop) => {
-    return redis.hget("unit:"+prop, id)
-}
-
-database.setUnitProp = (id, prop, value) => {
-    redis.hset("unit:"+prop, id, value)
-}
-
-database.delUnitProp = (id, prop) => {
-    redis.hdel("unit:"+prop, id)
-}
-
-database.getUnitProps = async (id, props) => {
-    let data = {}
-
-    for (let prop of props)
-        data[prop] = redis.hget("unit:"+prop, id)
-    
-    for (let prop of props)
-        data[prop] = await data[prop]
-
-    return data
-}
-
-database.setUnitProps = async (id, data) => {
-    if (data.Position) {
-        let oldPos = await database.getUnitProp(id, "Position")
-        redis.srem("unitcache:"+oldPos, id)
-        redis.sadd("unitcache:"+data.Position, id)
+        for (let prop of units.UnitFields)
+            redis.hmset("unit".concat("{", i, prop, "}"), data[prop])    
     }
 
-    let processing = []
-    for (let prop in data)
-        processing.push(redis.hset("unit:"+prop, id, data[prop]))
-
-    return Promise.all(processing)
+    for (let sweepId in cacheData)
+        redis.hmset("unitcache{".concat(sweepId, "}"), cacheData[sweepId])
 }
 
-database.increaseUnitProp = (id, prop, amount) => {
-    redis.hincrby("unit:"+prop, id, amount)
+database.updateUnit = (unit) => {
+    database.updateUnits([unit])
+}
+
+database.getUnitIdsAtPosition = async (pos) => {
+    return database.getUnitIdsAtPositions([pos])
+}
+
+database.getUnitIdsAtPositions = async (posList) => {
+    
+    let batches = convertPositionList(posList)
+    let unculledIdList = []
+
+    for (let sweepId in batches)
+        unculledIdList.push(redis.hgetall("unitcache{".concat(sweepId, "}")))
+
+    unculledIdList = Object.assign({}, ...(await Promise.all(unculledIdList)))
+
+    let posSet = new Set(posList)
+    let idDict = {}
+
+    for (let key in unculledIdList) {
+        [pos, id] = key.split("@")
+        if (posSet.has(pos)) {
+            let owner = unculledIdList[key]
+            if (!idDict[owner]) idDict[owner] = []
+            idDict[owner].push(id)
+        }
+    }
+    
+    return idDict
 }
 
 database.getAllStats = async () => {
@@ -240,29 +316,32 @@ database.pushUnitToCollection = (id, data) => {
     redis.rpush("unitcollection:"+id, data)
 }
 
-database.updateTile = (pos, tile) => {
-    redis.hset("tile:Type", pos, tile.Type)
-    redis.hset("tile:OwnerId", pos, tile.OwnerId)
-    redis.hset("tile:Health", pos, tile.Health)
-    redis.hset("tile:MaxHealth", pos, tile.MaxHealth)
-    redis.hset("tile:UnitList", pos, JSON.stringify(tile.UnitList || []))
+database.updateTile = async (pos, tile) => {
+    let sweepId = Math.floor((pos.split(":")[0])/positionSweepSize)
+
+    for (let prop of tiles.TileFields) {
+        if (typeof tile[prop] == "object")
+            redis.hset("tile{".concat(sweepId, prop, "}"), pos, JSON.stringify(tile[prop]))
+        else
+            redis.hset("tile{".concat(sweepId, prop, "}"), pos, tile[prop])
+    }
 }
 
 database.updateTileProp = (prop, pos, value) => {
-    redis.hset("tile:"+prop+":"+pos, value)
+    let sweepId = Math.floor((pos.split(":")[0])/positionSweepSize)
+    redis.hset("tile{".concat(sweepId, prop, "}"), pos, value)
 }
 
 database.deleteTile = (pos) => {
-    redis.hdel("tile:Type", pos)
-    redis.hdel("tile:OwnerId", pos)
-    redis.hdel("tile:Health", pos)
-    redis.hdel("tile:MaxHealth", pos)
-    redis.hdel("tile:UnitList", pos)
+    let sweepId = Math.floor((pos.split(":")[0])/positionSweepSize)
+
+    for (let prop of tiles.TileFields)
+        redis.hdel("tile{".concat(sweepId, prop, "}"), pos)
 }
 
 database.deleteUnit = async (unitId) => {
     let pos = await database.getUnitProp(unitId, "Position")
-    redis.srem("unitcache:"+pos, unitId)
+    redis.srem("unitcache:"+positionConversion(pos), unitId)
     redis.hset("unit:Health", unitId, 0)
 }
 

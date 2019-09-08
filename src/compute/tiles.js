@@ -7,19 +7,19 @@ let userstats = require("./userstats")
 let units = require("./units")
 
 let TileType = tiles.TileType = {
-    DESTROYED:-1,
-    GRASS:0,
-    KEEP:1,
-    PATH:2,
-    HOUSE:3,
-    FARM:4,
-    MINE:5,
-    FORESTRY:6,
-    STORAGE:7,
-    BARRACKS:8,
-    WALL:9,
-    GATE:10,
-    OTHERPLAYER:1000,
+    DESTROYED:'-1',
+    GRASS:'0',
+    KEEP:'1',
+    PATH:'2',
+    HOUSE:'3',
+    FARM:'4',
+    MINE:'5',
+    FORESTRY:'6',
+    STORAGE:'7',
+    BARRACKS:'8',
+    WALL:'9',
+    GATE:'10',
+    OTHERPLAYER:'1000',
 };
 
 let defaults = tiles.defaults = {}
@@ -64,6 +64,14 @@ TileOutputs[TileType.FARM]     = resource.Type.FOOD
 TileOutputs[TileType.FORESTRY] = resource.Type.WOOD
 TileOutputs[TileType.MINE]     = resource.Type.STONE
 
+tiles.TileFields = [
+    "Type",
+    "OwnerId",
+    "Health",
+    "MaxHealth",
+    "UnitList",
+    "Position",
+]
 //Tiles to temporarily ignore during pathfinding
 let pathfindingBlacklist = {}
 
@@ -381,20 +389,7 @@ tiles.unassignWorker = async (pos, unit) => {
 }
 
 tiles.getCircularCollection = (pos, radius) => {
-    let [posx, posy] = common.strToPosition(pos)
-    let collection = []
-
-    for (let r = 0; r < radius; r++) {
-        for (let i = 0; i < radius; i++) {
-            collection.push((posx     + i) + ":" + (posy + r    ))
-            collection.push((posx + r    ) + ":" + (posy + r - i))
-            collection.push((posx + r - i) + ":" + (posy     - i))
-            collection.push((posx     - i) + ":" + (posy - r    ))
-            collection.push((posx - r    ) + ":" + (posy - r + i))
-            collection.push((posx - r + i) + ":" + (posy     + i))
-        }
-    }
-
+    let collection = common.circularPosList(pos, radius)
     return tiles.fromPosList(collection).then(c => c.filter(t => t != undefined))
 }
 

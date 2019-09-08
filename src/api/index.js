@@ -1,4 +1,6 @@
 let database = require("./compute/database")
+let tiles = require("./compute/tiles")
+let common = require("./compute/common")
 var fs = require('fs');
 var https = require('https');
 var Redis = require('ioredis');
@@ -189,15 +191,13 @@ app.post("/pion/syncupdates", (req, res) => {
     for (let feedback of req.body.feedback)
         cluster.lpush("feedback", feedback).catch(e => {})
 
-    fetchingUnits = database.getUnits(req.body.units)
-
-    fetchingTiles = [
-        cluster.hmget("tile:Type", ...req.body.tiles).catch(e => {}),
-        cluster.hmget("tile:OwnerId", ...req.body.tiles).catch(e => {}),
-        cluster.hmget("tile:Health", ...req.body.tiles).catch(e => {}),
-        cluster.hmget("tile:MaxHealth", ...req.body.tiles).catch(e => {}),
-        cluster.hmget("tile:UnitList", ...req.body.tiles).catch(e => {})]
-
+    let posList = []
+    for (let pos of req.body.poslist)
+        posList = posList.concat(common.circularPosList(pos, 30))
+    
+    let fetchingTiles = database.getTiles(posList)
+    let fetchingUnits = database.getUnitIdsAtPositions(posList).then(ids => database.getUnits(ids))
+    
     let updates = {}
     let processed   = waitForProcess(req.body.time)
     let lastUpdate  = cluster.get("lastupdate")
@@ -205,32 +205,13 @@ app.post("/pion/syncupdates", (req, res) => {
     let chats       = cluster.lrange("chats", 0, 100)
 
     //Wait for redis to return all the data
-    Promise.all([processed, lastUpdate, lastDeploy, Promise.all(fetchingTiles), fetchingUnits, chats])
+    Promise.all([processed, lastUpdate, lastDeploy, fetchingTiles, fetchingUnits, chats])
     .then(values => {
         
-        //convert indexes to correct versions
-        [Types, OwnerIds, Healths, MaxHealths, UnitLists, Positions] = values[3]
-        let i = 0
         updates.tiles = {}
-        for (let pos of req.body.tiles) {
-            if (Types[i]) {
-                updates.tiles[pos] = {
-                    Type      : Types[i],
-                    OwnerId   : OwnerIds[i],
-                    Health    : Healths[i],
-                    MaxHealth : MaxHealths[i],
-                    UnitList  : JSON.parse(UnitLists[i]),
-                    Position  : pos
-                }
-            }
-            i++
-        }
-
-        i = 0
         updates.units = {}
-        for (let id of req.body.units)
-            updates.units[id] = values[4][i++]
-
+        values[3].forEach(tile => {updates.tiles[tile.Position] = tile})
+        values[4].forEach(unit => {updates.units[unit.Id] = unit})
         updates.lastProcess = lastProcess //last round processed
         updates.lastUpdate  = values[1]; //last time an update was issued
         updates.lastDeploy  = values[2]; //last time the update redeployed instances in kubernetes

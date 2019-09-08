@@ -1,5 +1,5 @@
 
-FROM node:8
+FROM node:12
 
 WORKDIR /app
 COPY api/package*.json ./
@@ -8,7 +8,6 @@ RUN npm install
 COPY api/* ./
 COPY compute/* compute/
 
-# Make port 80 available to the world outside this container
 EXPOSE 443
 EXPOSE 6379
 

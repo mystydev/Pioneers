@@ -19,8 +19,9 @@ local API_KEY = ServerStorage.APIKey.Value
 local Actions = World.Actions
 
 local currentWorld
-local tilesRequested = {}
-local unitReferences = {}
+--local tilesRequested = {}
+--local unitReferences = {}
+local playerPositions = {}
 local chatBuffer = {}
 local feedbackBuffer = {}
 local filterCache = {}
@@ -150,6 +151,10 @@ local function unitRequest(player, unitList)
     return units
 end
 
+local function playerPositionUpdate(player, position)
+    playerPositions[player] = position
+end
+
 local function getTesterStatus(player)
     local payload = {
         apikey = API_KEY,
@@ -210,6 +215,7 @@ function Replication.assignWorld(w)
     Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
     Network.Chatted.OnServerEvent:Connect(chatRequest)
     Network.FeedbackRequest.OnServerEvent:Connect(feedbackRequest)
+    Network.PlayerPositionUpdate.OnServerEvent:Connect(playerPositionUpdate)
 end
 
 function Replication.pushStatsChange(stats)
@@ -223,7 +229,8 @@ end
 function Replication.pushTileChange(tilePos)
     local tile = currentWorld.Tiles[tilePos] or Tile.defaultGrass(tilePos)
 
-    for _, player in pairs(Players:GetChildren()) do
+    Network.TileUpdate:FireAllClients(tile)
+    --[[for _, player in pairs(Players:GetChildren()) do
         if tilesRequested[player][tilePos] then
             Network.TileUpdate:FireClient(player, tile)
         end
@@ -233,7 +240,7 @@ function Replication.pushTileChange(tilePos)
         for _, unitId in pairs(tile.UnitList) do
             unitReferences[unitId] = true
         end
-    end
+    end]]--
 end
 
 function Replication.pushUnitUpdate(oldUnit, newUnit)
@@ -245,7 +252,7 @@ function Replication.pushUnitUpdate(oldUnit, newUnit)
         end
     end
 
-    Replication.pushUnitChanges(newUnit.Id, changes)
+    Replication.pushUnitChanges(newUnit.Id, newUnit)
 end
 
 function Replication.pushUnitChanges(unitId, changes)
@@ -258,6 +265,10 @@ end
 
 function Replication.getUnitReferences()
     return unitReferences
+end
+
+function Replication.getPlayerPositions()
+    return playerPositions
 end
 
 function Replication.handleTileInfo(tileList)
@@ -351,7 +362,7 @@ end
 
 Network.Ready.OnServerInvoke = function() return nil end
 
-Players.PlayerAdded:Connect(function(player) tilesRequested[player] = {} end)
-Players.PlayerRemoving:Connect(function(player) tilesRequested[player] = nil end)
+--Players.PlayerAdded:Connect(function(player) tilesRequested[player] = {} end)
+--Players.PlayerRemoving:Connect(function(player) tilesRequested[player] = nil end)
 
 return Replication

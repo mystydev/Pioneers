@@ -31,7 +31,8 @@ async function canBuild(id, pos, type) {
 	let neighbours = tiles.getNeighbours(pos)
 
 	//Tile is currently empty with no units assigned
-    tile = await tile
+	tile = await tile
+
 	if (!tiles.isEmpty(tile) || !tiles.isVacant(tile))
 		return false
 
@@ -82,32 +83,37 @@ async function verifyTilePlacement(id, pos, type) {
 }
 
 async function verifyWorkAssignment(id, unitid, pos) {
-    let unit = await units.fromid(unitid)
+    let unit = await units.fromid(id, unitid)
 	
 	console.log(unit)
+	console.log(id, unit.OwnerId)
 	//Does the unit exist and is the unit owned by the player making the request
 	if (!unit || id != unit.OwnerId)
 		return
 
+	console.log("passed1")
 	//If there is no position then deassign the unit's work
 	if (!pos)
 		 return units.unassignWork(unit)
+		 console.log("passed1")
 
 	//Is it a military unit and if not can it be assigned work
 	if (!units.isMilitary(unit) && !await tiles.canAssignWorker(pos, unit))
 		return 
 	
+	console.log("passed2")
 	//If it is a military unit can it be assigned military work
 	if (units.isMilitary(unit) && !await tiles.canAssignMilitaryWorker(pos, unit))
 		return 
 
+	console.log("passed3")
 	//Assign the worker
 	await tiles.assignWorker(pos, unit)
 	await units.assignWork(unit, pos)
 }
 
 async function verifyAttackAssignment(id, unitid, pos) {
-	let unit = await units.fromid(unitid)
+	let unit = await units.fromid(id, unitid)
 
 	//Check if the unit exists, is owned by the same owner and is a military unit
 	if (!unit || id != unit.OwnerId || !units.isMilitary(unit))
@@ -222,8 +228,9 @@ async function computeRequest(id) {
     await units.processSpawns(id)
     await userstats.processMaintenance(id)
 
-	let unitids = await database.getUnitCollection(id)
-	let unitList = await database.getUnits(unitids)
+	let req = {}
+	req[id] = await database.getUnitCollection(id)
+	let unitList = await database.getUnits(req)
 
     for (let unit of unitList)
         processing.push(units.processUnit(unit))

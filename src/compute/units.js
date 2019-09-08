@@ -74,7 +74,7 @@ units.initialiseNewUnit = async (unitId, ownerId, pos) => {
         Home: pos,
     }
 
-    await database.setUnitProps(unitId, unit)
+    await database.updateUnit(unit)
     database.pushUnitToCollection(unit.OwnerId, unitId)
 
     return unit
@@ -214,8 +214,6 @@ units.processUnit = async (unit) => {
             }
 
             userstats.add(unit.OwnerId, unit.HeldResource, unit.HeldAmount)
-            database.delUnitProp(unit.Id, "HeldResource")
-            database.delUnitProp(unit.Id, "HeldAmount")
             delete unit.HeldResource
             delete unit.HeldAmount
 
@@ -227,7 +225,6 @@ units.processUnit = async (unit) => {
             break
     }
 
-    //database.setUnitProps(unit.Id, unit)
 }
 
 units.processMilitaryUnit = async (unit) => {
@@ -268,7 +265,7 @@ units.processMilitaryUnit = async (unit) => {
             break
     }
 
-    database.updateUnit(unit.Id, unit)
+    database.updateUnit(unit)
     return changes
 }
 
@@ -311,8 +308,11 @@ units.getUnitCount = async () => {
     return database.getUnitCount()
 }
 
-units.fromid = async (id) => {
-    return database.getUnit(id)
+units.fromid = async (ownerId, id) => {
+    console.log(id)
+    let units = await database.getUnit(ownerId, id)
+    console.log(units)
+    return (await units)[0]
 }
 
 units.getSpawns = async () => {
@@ -335,13 +335,12 @@ units.unassignWork = async (unit) => {
         units.revokeAttack(unit)
 
     delete unit.Work
-    database.delUnitProp(unit.Id, "Work")
     unit.Target = await tiles.findClosestStorage(unit.Position)
 
     if (!units.isMilitary(unit))
         unit.Type = units.UnitType.VILLAGER
 
-    database.setUnitProps(unit.Id, unit)
+    database.updateUnit(unit)
 }
 
 units.assignWork = async (unit, pos) => {
@@ -381,23 +380,20 @@ units.assignWork = async (unit, pos) => {
         //userstats.addPerRoundProduce(unit.OwnerId, unit.ProduceType, unit.ProduceAmount / unit.Trip.length)
     }
 
-    database.setUnitProps(unit.Id, unit)
+    database.updateUnit(unit)
 }
 
 units.assignAttack = async (unit, pos) => {
     await units.unassignWork(unit)
     unit.Target = pos
     unit.Attack = pos
-    database.setUnitProps(unit.Id, unit)
+    database.updateUnit(unit)
 }
 
 units.revokeAttack = (unit) => {
     delete unit.Target
     delete unit.Work
     delete unit.Attack
-    database.delUnitProp(unit.Id, "Target")
-    database.delUnitProp(unit.Id, "Work")
-    database.delUnitProp(unit.Id, "Attack")
 }
 
 units.kill = (unit) => {
@@ -412,7 +408,7 @@ units.kill = (unit) => {
 
     //Final update for clients
     unit.Health = 0
-    database.setUnitProps(unit.Id, unit)
+    database.updateUnit(unit)
 
     //Remove them entirely!
     setTimeout(database.deleteUnit, 5000, unit.Id) //Allow clients to pick up 0 health and perform a local kill

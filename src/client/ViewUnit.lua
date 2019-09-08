@@ -201,6 +201,7 @@ function ViewUnit.displayUnit(unit, oldModel)
         model.HumanoidRootPart.CFrame = CFrame.new(Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET)
     end
 
+    unit.lastDrawTime = tick()
     model.Parent = Workspace
     animMoving[model] = model.Humanoid:LoadAnimation(walkAnimation)
     animMining[model] = model.Humanoid:LoadAnimation(mineAnimation)
@@ -221,6 +222,15 @@ function ViewUnit.updateDisplay(unit)
 
     if not model then
         return end
+
+    delay(2.1, function()
+        if tick() - unit.lastDrawTime > 2 then
+            model.Parent = nil
+        end
+    end)
+
+    model.Parent = Workspace
+    unit.lastDrawTime = tick()
 
     if unit.Health < unit.MHealth then
         UIBase.displayObjectHealth(unit)

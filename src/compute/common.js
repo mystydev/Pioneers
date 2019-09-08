@@ -36,4 +36,22 @@ common.xyToWorldPos = (x, y) => {
     return [x * 0.866, y + x * -0.5]
 }
 
+common.circularPosList = (pos, radius) => {
+    let [posx, posy] = common.strToPosition(pos)
+    let list = []
+
+    for (let r = 0; r < radius; r++) {
+        for (let i = 0; i < radius; i++) {
+            list.push((posx     + i) + ":" + (posy + r    ))
+            list.push((posx + r    ) + ":" + (posy + r - i))
+            list.push((posx + r - i) + ":" + (posy     - i))
+            list.push((posx     - i) + ":" + (posy - r    ))
+            list.push((posx - r    ) + ":" + (posy - r + i))
+            list.push((posx - r + i) + ":" + (posy     + i))
+        }
+    }
+
+    return list
+}
+
 module.exports = common

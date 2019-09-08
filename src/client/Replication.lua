@@ -24,12 +24,6 @@ local syncing = true
 local UIBase = nil
 
 local function handleUnitUpdate(id, changes)
-    if not unitReferences[id] then
-        table.insert(unrequestedUnits, id)
-        unitReferences[id] = true
-        return
-    end
-
     local localUnit = currentWorld.Units[id]
 
     if changes.Health and changes.Health <= 0 then
@@ -42,6 +36,10 @@ local function handleUnitUpdate(id, changes)
             end
 
             ViewUnit.updateDisplay(localUnit)
+        else
+            if not changes.Id then return end
+            currentWorld.Units[changes.Id] = changes
+            ViewUnit.displayUnit(changes)
         end
     end
 end
@@ -112,15 +110,6 @@ local function handleTileUpdate(tile, t)
     for i, v in pairs(tile) do
         if not (localTile.lastChange and t - localTile.lastChange < 4) then
             localTile[i] = v
-        end
-    end
-
-    if localTile.UnitList then
-        for _, id in pairs(localTile.UnitList) do
-            if not unitReferences[id] then
-                table.insert(unrequestedUnits, id)
-                unitReferences[id] = true
-            end
         end
     end
     
@@ -268,7 +257,7 @@ function Replication.updateTiles(pos, radius)
 end
 
 function Replication.keepViewAreaLoaded()
-    debug.profilebegin("keepViewAreaLoaded")
+    --[[debug.profilebegin("keepViewAreaLoaded")
     local pos  = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
     local area = Util.circularPosCollection(pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
     local unloaded = {}
@@ -288,7 +277,16 @@ function Replication.keepViewAreaLoaded()
         handleTileUpdate(tile, t)
     end
 
-    handleUnrequestedUnits()
+    handleUnrequestedUnits()]]--
+
+    local pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
+
+    local area = Util.circularPosCollection(pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
+    for _, tilePos in pairs(area) do
+        local p = Util.positionStringToVector(tilePos)
+        handleTileUpdate(World.getTile(currentWorld.Tiles, p.x, p.y), tick())
+    end
+    Network.PlayerPositionUpdate:FireServer(ClientUtil.getPlayerPosition())
 end
 
 function Replication.requestTiles(tilePosList)
