@@ -113,6 +113,14 @@ userstats.processMaintenance = async (id) => {
     })
 }
 
+//Simulated round with no actual unit calculations
+userstats.processRoundSim = async (id) => {
+    let stats = await database.getStats(id)
+    database.addStat(id, "Food", stats.FoodProduced)
+    database.addStat(id, "Wood", stats.WoodProduced - stats.WoodCost)
+    database.addStat(id, "Stone", stats.StoneProduced - stats.StoneCost)
+}
+
 userstats.setInCombat = (id) => {
     database.setStat(id, "InCombat", Math.floor(Date.now() / 1000))
 }

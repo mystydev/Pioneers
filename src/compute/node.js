@@ -229,16 +229,23 @@ async function computeRequest(id) {
     await units.processSpawns(id)
     await userstats.processMaintenance(id)
 
-	let req = {}
-	req[id] = await database.getUnitCollection(id)
-	let unitList = await database.getUnits(req)
+	let shouldSimulate = await database.wasIdRequested(id)
+	
+	if (!shouldSimulate) {
+		console.log("Skipping sim on ", id, " as inactive")
+		await userstats.processRoundSim(id)
+	} else {
+		let req = {}
+		req[id] = await database.getUnitCollection(id)
+		let unitList = await database.getUnits(req)
 
-    for (let unit of unitList)
-        processing.push(units.processUnit(unit))
+		for (let unit of unitList)
+			processing.push(units.processUnit(unit))
 
-	await Promise.all(processing)
-	database.updateUnits(unitList)
-	tiles.clearCaches()
+		await Promise.all(processing)
+		database.updateUnits(unitList)
+		tiles.clearCaches()
+	}
 
     let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
     console.log("Compute request took: " + timeTaken + "ms")

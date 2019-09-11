@@ -229,7 +229,11 @@ function ViewUnit.updateDisplay(unit)
         end
     end)
 
-    model.Parent = Workspace
+    if model.Parent ~= Workspace then
+        model.Parent = Workspace
+        model.HumanoidRootPart.CFrame = CFrame.new(Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET)
+    end
+
     unit.lastDrawTime = tick()
 
     if unit.Health < unit.MHealth then
@@ -269,7 +273,7 @@ function ViewUnit.updateDisplay(unit)
     end
 
     if gatherStatus[unit] ~= unit.HeldAmount then
-        model.HumanoidRootPart.StatusEmitter.Rate = math.max(0, (unit.HeldAmount - gatherStatus[unit])/4)
+        model.HumanoidRootPart.StatusEmitter.Rate = math.clamp((unit.HeldAmount - gatherStatus[unit])/4, 0, 2.5)
         model.HumanoidRootPart.StatusEmitter.Size = NumberSequence.new((model.HumanoidRootPart.StatusEmitter.Rate/2)^1.5)
         gatherStatus[unit] = unit.HeldAmount
     end

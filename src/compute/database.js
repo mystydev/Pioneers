@@ -1,13 +1,12 @@
 let database = {}
 module.exports = database
 let common = require("./common")
-let units = require("./units")
 let tiles = require("./tiles")
 let Redis = require("ioredis")
-let hash = require("object-hash")
 let redis
 
-let positionSweepSize = 100
+//The world is split into many squares with width/height of partitionSize
+//These partitions allow for efficient caching of a large number of tiles
 let partitionSize = 20
 
 //Modified Cantor pairing to convert 2d partitions to 1d label
@@ -42,9 +41,6 @@ database.partitionIndex = (position) => {
 }
 
 //Converts position list into a dict of slot friendly lists
-//This sweep partitions the world allowing the partitions to be divided across redis nodes
-//Collections of tiles in one sweep can all be retrieved from redis with one command
-//The dict key is floor(x / positionSweepSize)
 //eg tile [5:7, 234:423] -> { 0 : [5:7...], 2 : [234:423...]}
 function convertPositionList(positions) {
     let partitions = {}
@@ -56,18 +52,6 @@ function convertPositionList(positions) {
     }
 
     return partitions
-}
-
-function convertTileList(tileList) {
-    let batches = {}
-
-    for (let tile of tileList) {
-        let sweepId = Math.floor((pos.split(":")[0])/positionSweepSize)
-        if (!batches[sweepId]) batches[sweepId] = []
-        batches[sweepId].push(tile)
-    }
-
-    return batches
 }
 
 //Converts a unit list into a dict of slot friendly lists
@@ -263,22 +247,22 @@ database.getUnitsAtPartitions = async (partitions) => {
 
     for (let partitionId in partitions)
         fetching.push(redis.hgetall("unitCache{"+partitionId+"}", 
-                (e, dict) => {console.log(dict); Object.assign(idMap, dict)}))
+                (e, dict) => Object.assign(idMap, dict)))
 
     await Promise.all(fetching)
 
     let unitList = []
-    let pipelines = {}
+    let pipelines = {requestedPipeline: redis.pipeline()}
     fetching = []
-
-    console.log(idMap)
 
     for (let id in idMap) {
         let [ownerId, unitId] = id.split(":")
 
         if (!pipelines[ownerId])
             pipelines[ownerId] = redis.pipeline()
-
+        
+        pipelines.requestedPipeline.set("requested{"+ownerId+"}", true)
+        pipelines.requestedPipeline.expire("requested{"+ownerId+"}", 30)
         pipelines[ownerId].hgetall("unit{"+ownerId+"}"+unitId, 
             (e, unit) => unit.Id && unitList.push(unit))
     }
@@ -287,8 +271,11 @@ database.getUnitsAtPartitions = async (partitions) => {
         fetching.push(pipelines[i].exec())
 
     await Promise.all(fetching)
-    console.log(unitList)
     return unitList
+}
+
+database.wasIdRequested = async (id) => {
+    return await redis.get("requested{"+id+"}")
 }
 
 database.getAllStats = async () => {
@@ -320,6 +307,10 @@ database.setStat = (id, type, value) => {
 
 database.setStats = (id, stats) => {
     redis.hmset("stats:"+id, stats)
+}
+
+database.getStats = async (id) => {
+    return redis.hgetall("stats:"+id)
 }
 
 database.getAllSettings = async () => {
