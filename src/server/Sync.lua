@@ -20,6 +20,7 @@ local syncing, currentWorld
 --local requestedTiles = Replication.getRequestedTiles()
 --local unitReferences = Replication.getUnitReferences()
 local playerPositions = Replication.getPlayerPositions()
+local partitionHashes = Replication.getPartitionHashes()
 
 local function syncStats(player, world)
     local syncTime = 0
@@ -44,33 +45,39 @@ local function syncUpdates()
 
     while syncing do 
 
-        --Convert position list to friendly format
-        local playerPosList = {}
+        local requiredPartitions = {}
+
         for _, position in pairs(playerPositions) do
-            table.insert(playerPosList, Util.worldVectorToAxialPositionString(position))
+            local axialPosition = Util.worldVectorToAxialPositionString(position)
+            local partitions = Util.findOverlappedPartitions(axialPosition)
+
+            for _, partitionId in pairs(partitions) do
+                requiredPartitions[partitionId] = partitionHashes[partitionId] or "0"
+            end
         end
 
         --Construct payload and send it to backend
         local payload = Http:JSONEncode({
             apikey = API_KEY,
             time = syncTime, 
-            poslist = playerPosList,
+            partitions = requiredPartitions,
             chats = Replication.getChats(),
             feedback = Replication.getFeedback(),
         })
-
-        local res = Http:JSONDecode(Http:PostAsync(API_URL.."syncupdates", payload))
-        syncTime = tonumber(res.lastUpdate)
+    
+        local rawres = Http:PostAsync(API_URL.."syncupdates", payload)
+        local res = Http:JSONDecode(rawres)
+        syncTime = tonumber(res.lastProcess)
 
         --Sync tiles/units
-        Replication.handleTileInfo(res.tiles or {})
+        Replication.handlePartitionInfo(res.partitions or {})
         Replication.handleUnitInfo(res.units or {})
         Replication.handleChats(res.chats or {})
 
         --If the lastupdate was issued earlier than the last deploy then the backend is updating
         if tonumber(res.lastUpdate or 0) > tonumber(res.lastDeploy or 0) then --TODO: remove these tonumbers
             Replication.pushUpdateAlert(true)
-        elseif tonumber(res.lastDeploy or 0) < res.lastProcess then
+        elseif tonumber(res.lastDeploy or 0) < tonumber(res.lastProcess) then
             Replication.pushUpdateAlert(false)
         end
 

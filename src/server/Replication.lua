@@ -25,6 +25,7 @@ local playerPositions = {}
 local chatBuffer = {}
 local feedbackBuffer = {}
 local filterCache = {}
+local partitionHashes = {} --[id] = hash
 
 local function worldStateRequest(player)
     return currentWorld
@@ -50,7 +51,7 @@ end
 
 local function tilePlacementRequest(player, tile, type)
     
-    local stile = World.getTile(currentWorld.Tiles, tile.Position.x, tile.Position.y)
+    local stile = World.getTileXY(currentWorld.Tiles, tile.Position.x, tile.Position.y)
 
     local payload = {
         apikey = API_KEY,
@@ -135,7 +136,7 @@ local function tileRequest(player, posList)
 
     for _, pos in pairs(posList) do
         tilesRequested[player][pos] = true
-        table.insert(tiles, World.getTileFromString(currentWorld.Tiles, pos))
+        table.insert(tiles, World.getTile(currentWorld.Tiles, pos))
     end
 
     return tiles
@@ -271,10 +272,26 @@ function Replication.getPlayerPositions()
     return playerPositions
 end
 
-function Replication.handleTileInfo(tileList)
-    local t = tick()
+function Replication.getPartitionHashes()
+    return partitionHashes
+end
 
-    for pos, tile in pairs(tileList) do
+function Replication.handlePartitionInfo(partitions)
+    for _, partitionData in pairs(partitions) do
+        local partitionId = partitionData[1]
+        local partitionHash = partitionData[2]
+        local tileupdates = partitionData[3]
+
+        if (partitionId) then
+            partitionHashes[partitionId] = partitionHash
+            Replication.handleTileInfo(tileupdates)
+        end
+    end
+end
+
+function Replication.handleTileInfo(tileList)
+    for _, tile in pairs(tileList) do
+        local pos = tile.Position
         local stile = currentWorld.Tiles[pos]
 
         currentWorld.Tiles[pos] = Tile.deserialise(pos, tile)
@@ -286,9 +303,9 @@ function Replication.handleTileInfo(tileList)
 
     for pos, tile in pairs(currentWorld.Tiles) do
         if not tileList[pos] and tile.Type ~= Tile.GRASS then
-            print("Removing deleted tile")
-            currentWorld.Tiles[pos] = nil
-            Replication.pushTileChange(pos)
+            --print("Removing deleted tile")
+            --currentWorld.Tiles[pos] = nil
+            --Replication.pushTileChange(pos)
         end
     end
 end

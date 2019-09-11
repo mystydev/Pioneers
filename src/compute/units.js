@@ -99,19 +99,19 @@ units.establishState = (unit) => {
     if (unit.Health <= 0)
         return UnitState.DEAD
 
-    if (unit.Target != "" && unit.Position != unit.Target)
+    if (unit.Target && unit.Position != unit.Target)
         return UnitState.MOVING
 
-    if (unit.Work != "" && unit.Position == unit.Work)
+    if (unit.Work && unit.Position == unit.Work)
         return UnitState.WORKING
 
-    if (unit.Position == unit.Storage && unit.HeldResource != "")
+    if (unit.Position == unit.Storage && unit.HeldResource)
         return UnitState.STORING
 
     if (unit.Fatigue > 0 && unit.Position == unit.Home)
         return UnitState.RESTING
 
-    if (unit.Work == "")
+    if (!unit.Work)
         return UnitState.IDLE
     
     return UnitState.LOST
@@ -215,8 +215,7 @@ units.processUnit = async (unit) => {
 
             userstats.add(unit.OwnerId, unit.HeldResource, unit.HeldAmount)
             delete unit.HeldResource
-            delete unit.HeldAmount
-
+            unit.HeldAmount = 0
             unit.StepsSinceStore = 0
 
             if (unit.Fatigue > 0)
@@ -292,6 +291,7 @@ units.spawn = async (pos) => {
     let unit = await units.initialiseNewUnit(id, tile.OwnerId, pos)
 
     userstats.use(unit.OwnerId, resource.Type.FOOD, 100)
+    console.log(tile)
     tile.UnitList.push(id)
     database.updateTile(pos, tile)
 
@@ -309,10 +309,7 @@ units.getUnitCount = async () => {
 }
 
 units.fromid = async (ownerId, id) => {
-    console.log(id)
-    let units = await database.getUnit(ownerId, id)
-    console.log(units)
-    return (await units)[0]
+    return database.getUnit(ownerId, id)
 }
 
 units.getSpawns = async () => {

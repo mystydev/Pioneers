@@ -30,6 +30,7 @@ async function init() {
 }
 
 async function processRound() {
+	database.setRoundStart()
 	let start = performance.now()
 	let playerList = await database.getPlayerList()
 	let processing = []

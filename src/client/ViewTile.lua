@@ -149,12 +149,12 @@ function ViewTile.updateDisplay(tile, displaySize)
         local orientation
         local pos = tile.Position
 
-        local n1 = World.getTile(currentTiles, pos.x + 1, pos.y)
-        local n2 = World.getTile(currentTiles, pos.x - 1, pos.y)
-        local n3 = World.getTile(currentTiles, pos.x + 1, pos.y + 1)
-        local n4 = World.getTile(currentTiles, pos.x - 1, pos.y - 1)
-        local n5 = World.getTile(currentTiles, pos.x    , pos.y + 1)
-        local n6 = World.getTile(currentTiles, pos.x    , pos.y - 1)
+        local n1 = World.getTileXY(currentTiles, pos.x + 1, pos.y)
+        local n2 = World.getTileXY(currentTiles, pos.x - 1, pos.y)
+        local n3 = World.getTileXY(currentTiles, pos.x + 1, pos.y + 1)
+        local n4 = World.getTileXY(currentTiles, pos.x - 1, pos.y - 1)
+        local n5 = World.getTileXY(currentTiles, pos.x    , pos.y + 1)
+        local n6 = World.getTileXY(currentTiles, pos.x    , pos.y - 1)
 
         if (n1 and n1.Type == Tile.WALL and n2 and n2.Type == Tile.WALL) then
             orientation = 3
@@ -184,12 +184,12 @@ function ViewTile.updateDisplay(tile, displaySize)
     if tile.Type == Tile.PATH then
         local pos = tile.Position
 
-        local n1 = World.getTile(currentTiles, pos.x    , pos.y + 1)
-        local n2 = World.getTile(currentTiles, pos.x + 1, pos.y + 1)
-        local n3 = World.getTile(currentTiles, pos.x + 1, pos.y    )
-        local n4 = World.getTile(currentTiles, pos.x    , pos.y - 1)
-        local n5 = World.getTile(currentTiles, pos.x - 1, pos.y - 1)
-        local n6 = World.getTile(currentTiles, pos.x - 1, pos.y    )
+        local n1 = World.getTileXY(currentTiles, pos.x    , pos.y + 1)
+        local n2 = World.getTileXY(currentTiles, pos.x + 1, pos.y + 1)
+        local n3 = World.getTileXY(currentTiles, pos.x + 1, pos.y    )
+        local n4 = World.getTileXY(currentTiles, pos.x    , pos.y - 1)
+        local n5 = World.getTileXY(currentTiles, pos.x - 1, pos.y - 1)
+        local n6 = World.getTileXY(currentTiles, pos.x - 1, pos.y    )
 
         local encodedString = 
            (((n6 and n6.Type == Tile.PATH and "1") or "0")

@@ -32,7 +32,7 @@ async function canBuild(id, pos, type) {
 
 	//Tile is currently empty with no units assigned
 	tile = await tile
-
+	console.log(tile, typeof(tile), tiles.getSafeType(tile), tiles.isEmpty(tile), tiles.isVacant(tile))
 	if (!tiles.isEmpty(tile) || !tiles.isVacant(tile))
 		return false
 
@@ -78,7 +78,8 @@ async function verifyTilePlacement(id, pos, type) {
 	userstats.addTileMaintenance(id, tiles.TileMaintenanceCosts[type])
     
 	//Create tile and recompute cached values (like unit trips)
-	new tiles.AuthoritativeTile(type, id, pos)
+	let tile = new tiles.Tile(type, id, pos)
+	await database.updateTile(pos, tile)
 	//units.recomputeCiv(id)
 }
 
@@ -237,6 +238,7 @@ async function computeRequest(id) {
 
 	await Promise.all(processing)
 	database.updateUnits(unitList)
+	tiles.clearCaches()
 
     let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
     console.log("Compute request took: " + timeTaken + "ms")

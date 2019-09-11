@@ -20,7 +20,6 @@ function ActionHandler.provideUnitChangeHook(hook)
 end
 
 function ActionHandler.attemptBuild(tile, type)
-    print(type)
     tile.Type = type
     tile.OwnerId = Players.LocalPlayer.UserId
     tile.lastChange = tick()

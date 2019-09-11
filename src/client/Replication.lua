@@ -104,7 +104,7 @@ end
 
 local function handleTileUpdate(tile, t)
     local pos = tile.Position
-    local localTile = World.getTile(currentWorld.Tiles, pos.x, pos.y)
+    local localTile = World.getTileXY(currentWorld.Tiles, pos.x, pos.y)
     local t = t or tick()
 
     for i, v in pairs(tile) do
@@ -216,7 +216,7 @@ function Replication.requestUnitWork(unit, tile)
         print("Work request failed!")
     else
         if unit.Work then
-            local workTile = World.getTileFromString(currentWorld.Tiles, unit.Work)
+            local workTile = World.getTile(currentWorld.Tiles, unit.Work)
             if workTile.UnitList then
                 workTile.UnitList = nil
             end
@@ -257,35 +257,14 @@ function Replication.updateTiles(pos, radius)
 end
 
 function Replication.keepViewAreaLoaded()
-    --[[debug.profilebegin("keepViewAreaLoaded")
-    local pos  = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
-    local area = Util.circularPosCollection(pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
-    local unloaded = {}
-
-    debug.profilebegin("detectUnrequestedTiles")
-    for _, tilePos in pairs(area) do
-        if not RequestedTiles[tilePos] then
-            table.insert(unloaded, tilePos)
-            RequestedTiles[tilePos] = true
-        end
-    end
-
-    local tiles = Replication.requestTiles(unloaded)
-    local t = tick()
-
-    for _, tile in pairs(tiles) do
-        handleTileUpdate(tile, t)
-    end
-
-    handleUnrequestedUnits()]]--
-
     local pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
 
     local area = Util.circularPosCollection(pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
     for _, tilePos in pairs(area) do
-        local p = Util.positionStringToVector(tilePos)
-        handleTileUpdate(World.getTile(currentWorld.Tiles, p.x, p.y), tick())
+        local tile = World.getTile(currentWorld.Tiles, tilePos)
+        ViewTile.updateDisplay(tile)
     end
+
     Network.PlayerPositionUpdate:FireServer(ClientUtil.getPlayerPosition())
 end
 

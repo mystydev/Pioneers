@@ -200,12 +200,12 @@ local function getNeighbours(tile)
     local pos = tile.Position
 
     return {
-        World.getTile(tiles, pos.x    , pos.y + 1),
-        World.getTile(tiles, pos.x + 1, pos.y + 1),
-        World.getTile(tiles, pos.x + 1, pos.y    ),
-        World.getTile(tiles, pos.x    , pos.y - 1),
-        World.getTile(tiles, pos.x - 1, pos.y - 1),
-        World.getTile(tiles, pos.x - 1, pos.y    ),
+        World.getTileXY(tiles, pos.x    , pos.y + 1),
+        World.getTileXY(tiles, pos.x + 1, pos.y + 1),
+        World.getTileXY(tiles, pos.x + 1, pos.y    ),
+        World.getTileXY(tiles, pos.x    , pos.y - 1),
+        World.getTileXY(tiles, pos.x - 1, pos.y - 1),
+        World.getTileXY(tiles, pos.x - 1, pos.y    ),
     }
 end
 

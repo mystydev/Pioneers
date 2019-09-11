@@ -4,25 +4,58 @@ let common = require("./common")
 let units = require("./units")
 let tiles = require("./tiles")
 let Redis = require("ioredis")
+let hash = require("object-hash")
 let redis
 
 let positionSweepSize = 100
+let partitionSize = 20
 
-//Converts position list into a dict of slot friendly lists with prefix prefixed to the positions
+//Modified Cantor pairing to convert 2d partitions to 1d label
+//Integers mapped to naturals to allow cantor to map every integer pair
+database.findPartitionId = (pos) => {
+    let [x, y] = common.strToPosition(pos)
+    x = Math.floor(x / partitionSize)
+    y = Math.floor(y / partitionSize)
+    x = x >= 0 ? x * 2 : -x * 2 - 1
+    y = y >= 0 ? y * 2 : -y * 2 - 1
+    return 0.5 * (x + y) * (x + y + 1) + y
+}
+
+//Inverse cantor pairing
+function findXYFromPartitionId(id) {
+    id = parseInt(id)
+    let w = Math.floor((Math.sqrt(8 * id + 1) - 1) / 2)
+    let t = (w**2 + w) / 2
+    let y = id - t
+    let x = w - y
+    x = x%2 ? (x + 1) / -2 : x = x / -2
+    y = y%2 ? (y + 1) / -2 : y = y / -2
+
+    return [x * partitionSize, y * partitionSize]
+}
+
+database.partitionIndex = (position) => {
+    let [x, y] = common.strToPosition(position)
+    x = x >= 0 ? x % partitionSize : partitionSize + x % partitionSize
+    y = y >= 0 ? y % partitionSize : partitionSize + y % partitionSize
+    return x * partitionSize + y
+}
+
+//Converts position list into a dict of slot friendly lists
 //This sweep partitions the world allowing the partitions to be divided across redis nodes
 //Collections of tiles in one sweep can all be retrieved from redis with one command
 //The dict key is floor(x / positionSweepSize)
-//eg tile [5:7, 234:423] -> { 0 : [tile{0}5:7], 2 : [tile{2}234:423]}
+//eg tile [5:7, 234:423] -> { 0 : [5:7...], 2 : [234:423...]}
 function convertPositionList(positions) {
-    let batches = {}
+    let partitions = {}
 
     for (let pos of positions) {
-        let sweepId = Math.floor((pos.split(":")[0])/positionSweepSize)
-        if (!batches[sweepId]) batches[sweepId] = []
-        batches[sweepId].push(pos)
+        let partitionId = database.findPartitionId(pos)
+        if (!partitions[partitionId]) partitions[partitionId] = []
+        partitions[partitionId].push(pos)
     }
 
-    return batches
+    return partitions
 }
 
 function convertTileList(tileList) {
@@ -78,112 +111,134 @@ database.disconnect = () => {
 }
 
 database.getTile = async (pos) => {
-    let [tile] = await database.getTiles([pos])
-    return tile
+    return redis.hgetall("tile{"+database.findPartitionId(pos)+"}"+pos)
 }
 
 database.getTiles = async (positions) => {
     if (positions.length == 0) return []
 
-    let data = {}
-    let batches = convertPositionList(positions)
-
-    for (let prop of tiles.TileFields)
-        data[prop] = []
-
-    for (let sweepId in batches) {
-        let batch = batches[sweepId]
-
-        if (batch.length > 0) 
-            for (let prop of tiles.TileFields)
-                data[prop].push(redis.hmget("tile{".concat(sweepId, prop, "}"), ...batch))
-    }
-
-    for (let prop of tiles.TileFields)
-        data[prop] = (await Promise.all(data[prop])).flat()
-
+    let partitions = convertPositionList(positions)
     let tileList = []
+    let fetching = []
 
-    for (let i in data["OwnerId"]) {
-        let tile = {}
-        for (let prop of tiles.TileFields) {
-            if (prop == "UnitList")
-                tile[prop] = JSON.parse(data[prop][i])
-            else
-                tile[prop] = data[prop][i]
-        }
+    for (let partitionId in partitions) {
+        let pipeline = redis.pipeline()
 
-        tileList.push(tile)
+        for (let pos of partitions[partitionId])
+            pipeline.hgetall("tile{"+partitionId+"}"+pos, 
+                (e, tile) => tile.Position && tileList.push(tiles.sanitise(tile)))
+
+        fetching.push(pipeline.exec())
     }
 
+    await Promise.all(fetching)
     return tileList
 }
 
+database.getStaleTilesFromVersionCache = async (partitionId, versionCache) => {
+    let freshVersionCache = await redis.get("versionCache{" + partitionId + "}") || "0".repeat(partitionSize**2)
+
+    //Exit early if given hash is valid (requestee already has up to date tiles)
+    if (versionCache == freshVersionCache) return {}
+
+    let hashes = versionCache.split("")
+    let freshHashes = freshVersionCache.split("")
+    let pipeline = redis.pipeline()
+    let [xoffset, yoffset] = findXYFromPartitionId(partitionId)
+    let tileList = []
+
+    //Calculate the position of stale tiles and fetch them
+    for (let i = 0; i < partitionSize**2; i++) {
+        if (hashes[i] != freshHashes[i]) {
+           
+            let y = i % partitionSize
+            let x = (i - y) / partitionSize
+            //console.log(i, x, y, xoffset, yoffset)
+            x += xoffset
+            y += yoffset
+            
+            pipeline.hgetall("tile{"+partitionId+"}"+x+":"+y, 
+                (e, tile) => tile.Position && tileList.push(tiles.sanitise(tile)))
+        }
+    }
+
+    await pipeline.exec()
+    return [partitionId, freshVersionCache, tileList]
+}
+
+//{partitionId: versionCache, ...} -> [[partitionId, versionCache, tiles], ...]
+database.getStaleTilesFromPartitions = async (partitionDict) => {
+    let updates = []
+
+    for (let partitionId in partitionDict)
+        updates.push(database.getStaleTilesFromVersionCache(partitionId, partitionDict[partitionId]))
+
+    return await Promise.all(updates)
+}
+
 database.getUnit = async (ownerId, id) => {
-    let req = {}
-    req[ownerId] = [id]
-    return await database.getUnits(req)
+    return redis.hgetall("unit{"+ownerId+"}"+id)
 }
 
 // idDict = {ownerid: [id...], owner2id: [...
 database.getUnits = async (idDict) => {
-    let data = {}
-
-    for (let prop of units.UnitFields)
-        data[prop] = []
+    let unitList = []
+    let fetching = []
 
     for (let owner in idDict) {
-        let idList = idDict[owner]
+        let pipeline = redis.pipeline()
 
-        if (idList.length > 0)
-            for (let prop of units.UnitFields)
-                data[prop].push(redis.hmget("unit{".concat(owner, prop, "}"), ...idList))
+        for (let id of idDict[owner])
+            pipeline.hgetall("unit{"+owner+"}"+id, 
+                (e, unit) => unit.Id && unitList.push(unit))
+
+        fetching.push(pipeline.exec())
     }
 
-    for (let prop of units.UnitFields)
-        data[prop] = (await Promise.all(data[prop])).flat()
-
-    let unitList = []
-
-    for (let i in data["Id"]) {
-        let unit = {}
-        for (let prop of units.UnitFields)
-            unit[prop] = data[prop][i]
-
-        unitList.push(unit)
-    }
-
+    await Promise.all(fetching)
     return unitList
 }
 
 database.updateUnits = async (unitList) => {
     if (unitList.length == 0) return
 
+    //Get unit batches by owner id
     let batches = convertUnitList(unitList)
-    let cacheData = {}
 
-    for (let i in batches) {
-        let unitBatch = batches[i]
-        let data = {}
+    //Update unit data
+    for (let owner in batches) {
+        let pipeline = redis.pipeline()
 
-        for (let prop of units.UnitFields)
-            data[prop] = {}
+        for (let unit of batches[owner])
+            pipeline.hmset("unit{"+owner+"}"+unit.Id, unit)
 
-        for (let unit of unitBatch){
-            for (let prop of units.UnitFields)
-                data[prop][unit.Id] = unit[prop]
-
-            let sweepId = Math.floor((unit.Position.split(":")[0])/positionSweepSize)
-            if (!cacheData[sweepId]) cacheData[sweepId] = {}
-            cacheData[sweepId][unit.Position+"@"+unit.Id] = unit.OwnerId
-        }
-
-        for (let prop of units.UnitFields)
-            redis.hmset("unit".concat("{", i, prop, "}"), data[prop])    
+        pipeline.exec()
     }
 
-    for (let sweepId in cacheData)
-        redis.hmset("unitcache{".concat(sweepId, "}"), cacheData[sweepId])
+    //Update unit cache data
+    let pipelines = {}
+
+    for (let owner in batches){
+        for (let unit of batches[owner]) {
+            let partitionId = String(database.findPartitionId(unit.Position))
+
+            if (!pipelines[partitionId]) 
+                pipelines[partitionId] = redis.pipeline()
+
+            pipelines[partitionId].hset("unitCache{"+partitionId+"}", owner+":"+unit.Id, unit.Position)
+
+            if (partitionId != unit.PartitionId) {
+                if (!pipelines[unit.PartitionId]) 
+                    pipelines[unit.PartitionId] = redis.pipeline()
+
+                pipelines[unit.PartitionId].hdel("unitCache{"+unit.PartitionId+"}", owner+":"+unit.Id)
+                redis.hset("unit{"+owner+"}"+unit.Id, "PartitionId", partitionId)
+            }
+        }
+    }
+
+    for (let partitionId in pipelines)
+        pipelines[partitionId].exec()
 }
 
 database.updateUnit = (unit) => {
@@ -195,28 +250,45 @@ database.getUnitIdsAtPosition = async (pos) => {
 }
 
 database.getUnitIdsAtPositions = async (posList) => {
-    
-    let batches = convertPositionList(posList)
-    let unculledIdList = []
+    console.log("Unimplemented getUnitIdsAtPositions")
+}
 
-    for (let sweepId in batches)
-        unculledIdList.push(redis.hgetall("unitcache{".concat(sweepId, "}")))
+database.getUnitIdsAtPartitions = async (partitions) => {
+    console.log("Unimplemented getUnitIdsAtPartitions")
+}
 
-    unculledIdList = Object.assign({}, ...(await Promise.all(unculledIdList)))
+database.getUnitsAtPartitions = async (partitions) => {
+    let idMap = {}
+    let fetching = []
 
-    let posSet = new Set(posList)
-    let idDict = {}
+    for (let partitionId in partitions)
+        fetching.push(redis.hgetall("unitCache{"+partitionId+"}", 
+                (e, dict) => {console.log(dict); Object.assign(idMap, dict)}))
 
-    for (let key in unculledIdList) {
-        [pos, id] = key.split("@")
-        if (posSet.has(pos)) {
-            let owner = unculledIdList[key]
-            if (!idDict[owner]) idDict[owner] = []
-            idDict[owner].push(id)
-        }
+    await Promise.all(fetching)
+
+    let unitList = []
+    let pipelines = {}
+    fetching = []
+
+    console.log(idMap)
+
+    for (let id in idMap) {
+        let [ownerId, unitId] = id.split(":")
+
+        if (!pipelines[ownerId])
+            pipelines[ownerId] = redis.pipeline()
+
+        pipelines[ownerId].hgetall("unit{"+ownerId+"}"+unitId, 
+            (e, unit) => unit.Id && unitList.push(unit))
     }
-    
-    return idDict
+
+    for (let i in pipelines)
+        fetching.push(pipelines[i].exec())
+
+    await Promise.all(fetching)
+    console.log(unitList)
+    return unitList
 }
 
 database.getAllStats = async () => {
@@ -316,33 +388,79 @@ database.pushUnitToCollection = (id, data) => {
     redis.rpush("unitcollection:"+id, data)
 }
 
-database.updateTile = async (pos, tile) => {
-    let sweepId = Math.floor((pos.split(":")[0])/positionSweepSize)
+database.updateTile = async (position, tile) => {
+    let pipeline = redis.pipeline()
 
-    for (let prop of tiles.TileFields) {
-        if (typeof tile[prop] == "object")
-            redis.hset("tile{".concat(sweepId, prop, "}"), pos, JSON.stringify(tile[prop]))
-        else
-            redis.hset("tile{".concat(sweepId, prop, "}"), pos, tile[prop])
+    //Update tile definition
+    let partitionId = database.findPartitionId(position)
+    pipeline.hmset("tile{"+partitionId+"}"+tile.Position, tiles.storePrep(tile))
+    
+    //Calculate location of tile in partition hash
+    let cacheIndex = database.partitionIndex(position)
+
+    //0 = grass, 1 = walkable, 2 = non-walkable, 3 = storage,
+    let walkableVal = !(tiles.getSafeType(tile) == tiles.TileType.GRASS) + !tiles.isWalkable(tile, true) + tiles.isStorageTile(tile)
+    //How many adjacent tiles of the same type are there
+    let neighbours = await tiles.getNeighbours(position)
+    let adjacentVal = await tiles.getNumberOfSimilarAdjacentTiles(tile, neighbours)
+
+    //Update fast lookup partition caches
+    pipeline.setnx("versionCache{"+partitionId+"}", "0".repeat(partitionSize**2))
+    pipeline.setnx("fastPathCache{"+partitionId+"}", "0".repeat(partitionSize**2))
+    pipeline.setnx("adjacencyCache{"+partitionId+"}", "0".repeat(partitionSize**2))
+    pipeline.bitfield("versionCache{"+partitionId+"}", "SET", "u8", cacheIndex * 8, 48 + tile.CyclicVersion)
+    pipeline.bitfield("fastPathCache{"+partitionId+"}", "SET", "u8", cacheIndex * 8, 48 + walkableVal)
+    pipeline.bitfield("adjacencyCache{"+partitionId+"}", "SET", "u8", cacheIndex * 8, 48 + adjacentVal, 
+        (e, previousValue) => {if (previousValue[0] != 48 + adjacentVal) database.updateAdjacencyCaches(neighbours)})
+
+    await pipeline.exec()
+}
+
+//Update surrounding tiles adjacency values
+database.updateAdjacencyCaches = async (tileList) => {
+    for (let tile of tileList) {
+        if (!tile) continue
+
+        let partitionId = database.findPartitionId(tile.Position)
+        let cacheIndex = database.partitionIndex(tile.Position)
+        let adjacentVal = await tiles.getNumberOfSimilarAdjacentTiles(tile)
+        
+        redis.setnx("adjacencyCache{"+partitionId+"}", "0".repeat(partitionSize**2))
+        redis.bitfield("adjacencyCache{"+partitionId+"}", "SET", "u8", cacheIndex * 8, 48 + adjacentVal)
     }
 }
 
-database.updateTileProp = (prop, pos, value) => {
-    let sweepId = Math.floor((pos.split(":")[0])/positionSweepSize)
-    redis.hset("tile{".concat(sweepId, prop, "}"), pos, value)
+database.getFastPathCache = async (partitionId) => {
+    let cache = await redis.get("fastPathCache{"+partitionId+"}")
+    
+    if (!cache) {
+        cache = "0".repeat(partitionSize**2)
+        redis.set("fastPathCache{"+partitionId+"}", cache)
+    }
+
+    return cache
 }
 
-database.deleteTile = (pos) => {
-    let sweepId = Math.floor((pos.split(":")[0])/positionSweepSize)
+database.getAdjacencyCache = async (partitionId) => {
+    let cache = await redis.get("adjacencyCache{"+partitionId+"}")
+    
+    if (!cache) {
+        cache = "0".repeat(partitionSize**2)
+        redis.set("adjacencyCache{"+partitionId+"}", cache)
+    }
 
-    for (let prop of tiles.TileFields)
-        redis.hdel("tile{".concat(sweepId, prop, "}"), pos)
+    return cache
 }
 
-database.deleteUnit = async (unitId) => {
-    let pos = await database.getUnitProp(unitId, "Position")
-    redis.srem("unitcache:"+positionConversion(pos), unitId)
-    redis.hset("unit:Health", unitId, 0)
+database.updateTileProp = (prop, position, value) => {
+    console.log("danger, unfinished tile prop edit")
+    let partitionId = database.findPartitionId(position)
+    redis.hset("tile{"+partitionId+"}"+position, prop, value)
+}
+
+database.deleteTile = (position) => {
+    let partitionId = database.findPartitionId(position)
+    redis.del("tile{"+partitionId+"}"+position)
 }
 
 database.updateStatus = (time, status) => {
@@ -352,4 +470,8 @@ database.updateStatus = (time, status) => {
 
 database.waitForRedis = async () => {
     return await redis.wait(1, 2000)
+}
+
+database.setRoundStart = () => {
+    redis.set("roundStart", new Date().getTime())
 }

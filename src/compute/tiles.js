@@ -72,8 +72,11 @@ tiles.TileFields = [
     "UnitList",
     "Position",
 ]
-//Tiles to temporarily ignore during pathfinding
+
 let pathfindingBlacklist = {}
+
+tiles.fastPathCache = {}
+tiles.adjacencyCache = {}
 
 function Tile(type, id, pos, unitlist) {
     this.Type = type
@@ -82,19 +85,9 @@ function Tile(type, id, pos, unitlist) {
     this.MaxHealth = defaults[type].Health
     this.UnitList = unitlist || []
     this.Position = pos
-}
+    this.CyclicVersion = "0"
 
-//A tile which will update database values on creation
-//Should only be used when a new tile is made, not a representation of an exisiting tile
-function AuthoritativeTile(type, id, pos, unitlist) {
-    this.Type = type
-    this.OwnerId = id
-    this.Health = defaults[type].Health
-    this.MaxHealth = defaults[type].Health
-    this.UnitList = unitlist || []
-    this.Position = pos
-
-    database.updateTile(pos, this)
+    
 
     if (type == TileType.HOUSE && this.UnitList.length < common.HOUSE_UNIT_NUMBER) {
         units.setSpawn(id, pos)
@@ -104,41 +97,38 @@ function AuthoritativeTile(type, id, pos, unitlist) {
         let neighbours = tiles.getNeighbourPositions(pos)
 
         for (let p of neighbours)
-            new AuthoritativeTile(TileType.PATH, id, p)
+            new Tile(TileType.PATH, id, p)
 
         userstats.assignKeep(id, pos)
     }
 }
 
 tiles.Tile = Tile
-tiles.AuthoritativeTile = AuthoritativeTile
+
+tiles.sanitise = (tile) => {
+    tile.UnitList = tile.UnitList ? JSON.parse(tile.UnitList) : []
+    return tile
+}
+
+tiles.storePrep = (tile) => {
+    tile.CyclicVersion = tile.CyclicVersion % 9 + 1
+    let preppedTile = {}
+    Object.assign(preppedTile, tile)
+    preppedTile.UnitList = JSON.stringify(preppedTile.UnitList)
+    return preppedTile
+}
 
 tiles.deleteTile = (tile) => {
     units.removeSpawn(tile.OwnerId, tile.Position)
     database.deleteTile(tile.Position)
 }
 
-tiles.tileFromJSON = (rawdata, pos) => {
-    if (!rawdata)
-        return undefined 
-
-    let data = JSON.parse(rawdata)
-    let tile = new Tile(data.Type, data.OwnerId, pos, data.UnitList)
-
-    for (let prop in data)
-        tile[prop] = data[prop]
-
-    database.updateTile(pos, tile)
-
-    return tile
-}
-
 tiles.load = async () => {
     console.log("Tiles would have loaded!")
 }
 
-tiles.fromPosString = (pos) => {
-    return database.getTile(pos)
+tiles.fromPosString = async (pos) => {
+    return tiles.sanitise(await database.getTile(pos))
 }
 
 tiles.fromPosList = async (list) => {
@@ -254,6 +244,50 @@ function reconstructPath(start, target, cameFrom) {
     return path
 }
 
+tiles.clearCaches = () => {
+    tiles.fastPathCache = {}
+    tiles.adjacencyCache = {}
+}
+
+tiles.fastWalkableCheck = async (position, isMilitary) => {
+    let partitionId = database.findPartitionId(position)
+    let partitionIndex = database.partitionIndex(position)
+
+    if (!tiles.fastPathCache[partitionId]) 
+        tiles.fastPathCache[partitionId] = database.getFastPathCache(partitionId)
+
+    tiles.fastPathCache[partitionId] = await tiles.fastPathCache[partitionId]
+    
+    if (isMilitary)
+        return tiles.fastPathCache[partitionId][partitionIndex] <= 1
+    else
+        return tiles.fastPathCache[partitionId][partitionIndex] == 1
+}
+
+tiles.fastStorageCheck = async (position) => {
+    let partitionId = database.findPartitionId(position)
+    let partitionIndex = database.partitionIndex(position)
+
+    if (!tiles.fastPathCache[partitionId]) 
+        tiles.fastPathCache[partitionId] = database.getFastPathCache(partitionId)
+
+    tiles.fastPathCache[partitionId] = await tiles.fastPathCache[partitionId]
+
+    return tiles.fastPathCache[partitionId][partitionIndex] == 3
+}
+
+tiles.fastAdjacencyCheck = async (position) => {
+    let partitionId = database.findPartitionId(position)
+    let partitionIndex = database.partitionIndex(position)
+
+    if (!tiles.adjacencyCache[partitionId]) 
+        tiles.adjacencyCache[partitionId] = database.getAdjacencyCache(partitionId)
+
+    tiles.adjacencyCache[partitionId] = await tiles.adjacencyCache[partitionId]
+
+    return parseInt(tiles.adjacencyCache[partitionId][partitionIndex])
+}
+
 tiles.findPath = async (start, target, isMilitary) => {
     if (!start) {
         console.error("Undefined start tile passed to findPath!")
@@ -287,14 +321,12 @@ tiles.findPath = async (start, target, isMilitary) => {
 
         closedSet.add(current.p)
 
-        let neighbours = await tiles.getNeighbours(current.p)
+        let neighbours = tiles.getNeighbourPositions(current.p)
 
-        for (let neighbour of neighbours) {
-            if (!neighbour) continue
-            let neighbourPos = neighbour.Position
+        for (let neighbourPos of neighbours) {
             if (pathfindingBlacklist[neighbourPos]) continue
             if (closedSet.has(neighbourPos)) continue
-            if (!tiles.isWalkable(neighbour, isMilitary) && neighbourPos != target) continue
+            if (!await tiles.fastWalkableCheck(neighbourPos, isMilitary) && neighbourPos != target) continue
             if (!gScore[neighbourPos]) gScore[neighbourPos] = Infinity
 
             let g = gScore[current.p] + 1
@@ -313,16 +345,14 @@ tiles.findMilitaryPath = (start, target) => {
 }
 
 tiles.findClosestStorage = async (pos) => {
-    let tile = await tiles.fromPosString(pos)
-    let searchQueue = [tile]
+    let searchQueue = []
     let index = 0
-    let current = true
+    let current = pos
     let distance = {}
     distance[pos] = 0
 
     while (current) {
-        current = searchQueue[index++]
-        let neighbours = await tiles.getNeighbours(current.Position)
+        let neighbours = tiles.getNeighbourPositions(current)
         let dist = distance[current] + 1
 
         for (let neighbour of neighbours) {
@@ -331,26 +361,31 @@ tiles.findClosestStorage = async (pos) => {
 
             distance[neighbour] = dist
 
-            if (tiles.isStorageTile(neighbour) && neighbour.Health > 0)
-                return neighbour.Position
-            else if (tiles.isWalkable(neighbour)) {
+            if (await tiles.fastStorageCheck(neighbour)) //TODO: Check if storage has health?
+                return neighbour
+            else if (await tiles.fastWalkableCheck(neighbour)) {
                 searchQueue.push(neighbour)
             }
         }
+
+        current = searchQueue[index++]
     }
 }
 
-tiles.getOutput = async (pos) => {
-    let tile = await tiles.fromPosString(pos)
-    let neighbours = await tiles.getNeighbours(pos)
-    let produce = 6
+tiles.getNumberOfSimilarAdjacentTiles = async (tile, neighbours) => {
+    neighbours = neighbours || await tiles.getNeighbours(tile.Position)
+    let n = 0
 
-    for (let n of neighbours) {
-        if (tiles.getSafeType(n) == tile.Type)
-            produce++
-    }
+    for (let neighbour of neighbours)
+        if (tiles.getSafeType(neighbour) == tile.Type)
+            n++
 
-    return [TileOutputs[tile.Type], produce]
+    return n        
+}
+
+tiles.getOutput = async (position) => {
+    let tile = await tiles.fromPosString(position)
+    return [TileOutputs[tile.Type], 6 + await tiles.fastAdjacencyCheck(position)]
 }
 
 //Nothing is built here
@@ -367,7 +402,8 @@ tiles.isVacant = (tile) => {
 }
 
 tiles.assignWorker = async (pos, unit) => {
-    let tile = await tiles.fromPosString(pos) || new Tile(TileType.GRASS, unit.OwnerId, pos)
+    let tile = await tiles.fromPosString(pos)
+    if (!tile) return
     tile.UnitList.push(unit.Id)
     database.updateTile(pos, tile)
 }

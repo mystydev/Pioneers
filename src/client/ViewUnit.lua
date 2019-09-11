@@ -223,7 +223,7 @@ function ViewUnit.updateDisplay(unit)
     if not model then
         return end
 
-    delay(2.1, function()
+    delay(4.1, function()
         if tick() - unit.lastDrawTime > 2 then
             model.Parent = nil
         end

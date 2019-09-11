@@ -149,15 +149,13 @@ function preload.tellReady()
     if not preload.Aborting and not preload.Loaded then
         preload.Loaded = true
 
-        delay(5, function()
+        spawn(function()
             repeat wait() until assetsLoaded and queuelength == 0
 
             if preload.Aborting then
                 return end
 
             updateInfo("Ready", true)
-
-            
 
             wait(1)
 

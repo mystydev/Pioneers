@@ -145,17 +145,16 @@ async function processTimeUpdate(){
     })
 }
 
-setInterval(processTimeUpdate, 20);
+setInterval(processTimeUpdate, 100);
 
 async function waitForProcess(n) {
+    console.log(typeof n, n, typeof lastProcess, lastProcess)
     while (n == lastProcess){
         await sleep(100);
     }
 
     return true
 }
-
-
 
 app.post("/pion/longpolluserstats", (req, res) => {
     waitForProcess(req.body.time).then(() => {
@@ -181,7 +180,7 @@ app.post("/pion/updatedeploying", (req, res) => {
     res.json("ok")
 })
 
-app.post("/pion/syncupdates", (req, res) => {
+app.post("/pion/syncupdates", async (req, res) => {
    
     //Push chat messages to redis
     cluster.lpush("chats", ...req.body.chats).catch(e => {})
@@ -191,30 +190,24 @@ app.post("/pion/syncupdates", (req, res) => {
     for (let feedback of req.body.feedback)
         cluster.lpush("feedback", feedback).catch(e => {})
 
-    let posList = []
-    for (let pos of req.body.poslist)
-        posList = posList.concat(common.circularPosList(pos, 30))
-    
-    let fetchingTiles = database.getTiles(posList)
-    let fetchingUnits = database.getUnitIdsAtPositions(posList).then(ids => database.getUnits(ids))
-    
+    await waitForProcess(req.body.time)
+
     let updates = {}
-    let processed   = waitForProcess(req.body.time)
+    let fetchingTiles = database.getStaleTilesFromPartitions(req.body.partitions)
+    let fetchingUnits = database.getUnitsAtPartitions(req.body.partitions)
+    let lastProcess = cluster.get("lastprocess")
     let lastUpdate  = cluster.get("lastupdate")
     let lastDeploy  = cluster.get("lastupdatedeploy")
     let chats       = cluster.lrange("chats", 0, 100)
 
     //Wait for redis to return all the data
-    Promise.all([processed, lastUpdate, lastDeploy, fetchingTiles, fetchingUnits, chats])
+    Promise.all([fetchingTiles, fetchingUnits, lastProcess, lastUpdate, lastDeploy, chats])
     .then(values => {
-        
-        updates.tiles = {}
-        updates.units = {}
-        values[3].forEach(tile => {updates.tiles[tile.Position] = tile})
-        values[4].forEach(unit => {updates.units[unit.Id] = unit})
-        updates.lastProcess = lastProcess //last round processed
-        updates.lastUpdate  = values[1]; //last time an update was issued
-        updates.lastDeploy  = values[2]; //last time the update redeployed instances in kubernetes
+        updates.partitions  = values[0];
+        updates.units       = values[1];
+        updates.lastProcess = values[2]; //last round processed
+        updates.lastUpdate  = values[3]; //last time an update was issued
+        updates.lastDeploy  = values[4]; //last time the update redeployed instances in kubernetes
         updates.chats       = values[5];
         res.json(updates)
     })

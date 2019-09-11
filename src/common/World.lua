@@ -21,27 +21,33 @@ function World.new(Tiles, Units)
     return new
 end
 
-function World.setTile(tiles, tile, x, y)
+function World.setTileXY(tiles, tile, x, y)
     tiles[format("%d:%d", x, y)] = tile
 end
 
-function World.getTile(tiles, x, y)
-    local tile = tiles[format("%d:%d", x, y)]
+function World.setTile(tiles, tile, p)
+    tiles[p] = tile
+end
+
+function World.getTileXY(tiles, x, y)
+    local pos = format("%d:%d", x, y)
+    local tile = tiles[pos]
 
     if not tile then
         tile = {Type = Tile.GRASS, Position = Vector2.new(x, y)}
-        World.setTile(tiles, tile, x, y)
+        World.setTile(tiles, tile, pos)
     end
 
     return tile
 end
 
-function World.getTileFromString(tiles, pos)
+function World.getTile(tiles, pos)
     local tile = tiles[pos]
-    local x, y = unpack(string.split(pos, ':'))
 
     if not tile then
+        local x, y = unpack(string.split(pos, ':'))
         tile = {Type = Tile.GRASS, Position = Vector2.new(x, y)}
+        World.setTile(tiles, tile, pos)
     end
 
     return tile

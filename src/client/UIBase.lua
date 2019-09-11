@@ -79,7 +79,7 @@ local updatingBinding, setUpdating = Roact.createBinding(false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
 player.PlayerGui:SetTopbarTransparency(1)
 
-local adminEditorEnabled = true
+local adminEditorEnabled = false
 
 function UIBase.init(world, displaystats)
     stats = displaystats 
@@ -373,7 +373,6 @@ function UIBase.highlightBuildableTile(tile, type)
     if clone then
         UIBase.listenToInst(inst,
             function()
-                print(tile, type)
                 ActionHandler.attemptBuild(tile, type)
                 UIBase.highlightType(type, true)
             end, 
