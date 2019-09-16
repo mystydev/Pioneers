@@ -108,13 +108,15 @@ local function handleTileUpdate(tile, t)
     local t = t or tick()
 
     for i, v in pairs(tile) do
-        if not (localTile.lastChange and t - localTile.lastChange < 4) then
+        --if not (localTile.lastChange and t - localTile.lastChange < 4) then
             localTile[i] = v
-        end
+        --end
     end
     
     ViewTile.updateDisplay(localTile)
 end
+
+Replication.handleTileUpdate = handleTileUpdate
 
 local function handleUpdateAlert(updating)
     if updating then
@@ -268,8 +270,8 @@ function Replication.keepViewAreaLoaded()
     Network.PlayerPositionUpdate:FireServer(ClientUtil.getPlayerPosition())
 end
 
-function Replication.requestTiles(tilePosList)
-    return Network.RequestTiles:InvokeServer(tilePosList)
+function Replication.requestTile(position)
+    return Network.RequestTile:InvokeServer(position)
 end
 
 function Replication.requestUnits(unitIdList)

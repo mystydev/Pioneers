@@ -117,6 +117,8 @@ end
 function ViewTile.updateDisplay(tile, displaySize)
     local model = TileToInstMap[tile]
 
+    if tick() < (tile.lastChange or 0) then return end
+
     if not model then
         return ViewTile.displayTile(tile)
     else

@@ -3,83 +3,267 @@ local Client   = script.Parent
 local Common   = game.ReplicatedStorage.Pioneers.Common
 local Assets   = game.ReplicatedStorage.Pioneers.Assets
 
-local ClientUtil   = require(Client.ClientUtil)
-local SoundManager = require(Client.SoundManager)
-local Util         = require(Common.Util)
-local Unit         = require(Common.Unit)
-local Tile         = require(Common.Tile)
+local World = require(Common.World)
+local Unit  = require(Common.Unit)
+local Util  = require(Common.Util)
+local PID   = require(Common.PID)
+local FiniteStateMachine = require(Common.FiniteStateMachine)
+local RunService = game:GetService("RunService")
 
-local RunService   = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-
-local UIBase
-local clamp      = math.clamp
-local VillagerModel  = Assets.Villager
-local SoldierModel = Assets.Soldier
-local tweenInfo  = TweenInfo.new(2.25, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-local fastTween  = TweenInfo.new(0.25, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-
-local POSITION_OFFSET = Vector3.new(0, 4.2, 0)
-
-local walkAnimation = Instance.new("Animation")
-walkAnimation.AnimationId = "rbxassetid://03090565308"
-local mineAnimation = Instance.new("Animation")
-mineAnimation.AnimationId = "rbxassetid://3090615222"
-local putBackAnim = Instance.new("Animation")
-putBackAnim.AnimationId = "rbxassetid://03090678702"
-local getBackAnim = Instance.new("Animation")
-getBackAnim.AnimationId = "rbxassetid://03090713020"
-local spearAnim = Instance.new("Animation")
-spearAnim.AnimationId = "rbxassetid://3112144281"
-local spearGuardAnim = Instance.new("Animation")
-spearGuardAnim.AnimationId = "rbxassetid://03115431882"
-
-local StatusIds = {}
-StatusIds.FOOD = "rbxassetid://3101321804"
-StatusIds.WOOD = "rbxassetid://3101322014"
-StatusIds.STONE = "rbxassetid://3101321954"
-StatusIds.IDLE = "rbxassetid://3101321886"
-
-local StatusCols = {}
-StatusCols.FOOD = ColorSequence.new(Color3.fromRGB(255, 236, 179))
-StatusCols.WOOD = ColorSequence.new(Color3.fromRGB(46, 125, 50))
-StatusCols.STONE = ColorSequence.new(Color3.fromRGB(230, 230, 230))
-StatusCols.IDLE = ColorSequence.new(Color3.fromRGB(171, 8, 0))
-
-local unitToInstMap = {}
-local instToUnitMap = {}
-
-local modelSizeOffset = Vector3.new(2, 5, 2)
-
+--Instance is the unit model
+local instanceToUnitMap = {}
+local unitToInstanceMap = {}
+local modelToUnitMap = {}
 local currentWorld
-function ViewUnit.init(w)
-    currentWorld = w
-end
 
-local function unload(model) --TODO: fully unload from memory
-    unitToInstMap[instToUnitMap[model]] = nil
-    instToUnitMap[model] = nil
-    model:Destroy()
-end
+local POSITION_OFFSET = Vector3.new(0, 5, 0)
+local WALK_VELOCITY = 0.50
+local MAX_FATIGUE = 10
 
-local function autoUnload() --TODO: fully unload from memory
-    local getPos = ClientUtil.getPlayerPosition
-    local dist
-    
-    --[[repeat
-        for tile, model in pairs(unitToInstMap) do
-            local position = model.HumanoidRootPart.Position
-            dist = (position - getPos()).magnitude
-            --local n = clamp((((model.Size.x / 2)*20) + (300/(dist))^2-1)/21, 0, 1)
-            --model.Size = Vector3.new(n,n,n) * modelSizeOffset
+local instanceDefaults = {velocity = 0, heading = 0}
 
-            if dist > 1500 then
-                --unload(tile, model)
-            end
+local instanceModels = {}
+instanceModels[Unit.NONE]       = {unit = Assets.Villager, tool = nil}
+instanceModels[Unit.VILLAGER]   = {unit = Assets.Villager, tool = nil}
+instanceModels[Unit.FARMER]     = {unit = Assets.Villager, tool = Assets.Hoe}
+instanceModels[Unit.LUMBERJACK] = {unit = Assets.Villager, tool = Assets.Axe}
+instanceModels[Unit.MINER]      = {unit = Assets.Villager, tool = Assets.Pickaxe}
+instanceModels[Unit.APPRENTICE] = {unit = Assets.Villager, tool = Assets.Spear}
+instanceModels[Unit.SOLDIER]    = {unit = Assets.Soldier, tool = Assets.Spear}
+
+--Prevent tool from physics sleeping and no longer moving with animation
+local function giveToolInsomnia(model)
+    spawn(function()
+        local victim = model.Handle.AlignPosition
+
+        while model.Parent do
+            victim.LimitsEnabled = true
+            victim.LimitsEnabled = false
+
+            wait(0.2)
         end
+    end)
+end
 
-        RunService.Stepped:Wait()
-    until false]]--
+local function getNewInstanceFromUnitType(type)
+    local newInstance = Util.tableCopy(instanceDefaults)
+
+    newInstance.model = instanceModels[type].unit:Clone()
+    newInstance.tool = instanceModels[type].tool and instanceModels[type].tool:Clone()
+    newInstance.pidInfo = PID.newController()
+    newInstance.fsm = FiniteStateMachine.newMachine(Unit.UnitState, Unit.UnitState.IDLE)
+
+    FiniteStateMachine.addTransition(newInstance.fsm, Unit.UnitState.IDLE, Unit.UnitState.MOVING, ViewUnit.transitionIdleToMoving)
+    FiniteStateMachine.addTransition(newInstance.fsm, Unit.UnitState.MOVING, Unit.UnitState.MOVING, ViewUnit.transitionMovingToMoving)
+    FiniteStateMachine.addTransition(newInstance.fsm, Unit.UnitState.MOVING, Unit.UnitState.IDLE, ViewUnit.transitionMovingToIdle)
+    FiniteStateMachine.addTransition(newInstance.fsm, Unit.UnitState.WORKING, Unit.UnitState.MOVING, ViewUnit.transitionWorkToMoving)
+    FiniteStateMachine.addTransition(newInstance.fsm, Unit.UnitState.WORKING, Unit.UnitState.WORKING, ViewUnit.transitionWorkToWork)
+    FiniteStateMachine.addTransition(newInstance.fsm, Unit.UnitState.MOVING, Unit.UnitState.WORKING, ViewUnit.transitionMovingToWork)
+
+    if newInstance.tool then
+        newInstance.tool.Parent = newInstance.model
+    end
+
+    return newInstance
+end
+
+local function cframeToHeading(cf)
+    local _, y, _ = cf:ToOrientation()
+    return y
+end
+
+local function headingDifference(heading, targetHeading)
+    assert(heading <= math.pi and heading >= -math.pi, "invalid heading: " .. heading)
+    assert(targetHeading <= math.pi and targetHeading >= -math.pi, "invalid target heading: " .. targetHeading)
+
+    local difference = targetHeading - heading
+    local absDifference = math.abs(difference)
+
+    if absDifference < math.pi then
+        return absDifference == math.pi and absDifference or difference
+    elseif targetHeading > heading then
+        return absDifference - math.pi * 2
+    else 
+        return math.pi * 2 - absDifference
+    end
+end
+
+local function equipTool(instance, unit)
+    local model = instance.model
+    local tool = instance.tool
+
+    tool.Handle.AlignPosition.Attachment1 = model.RightHand.RightGripAttachment
+    tool.Handle.AlignOrientation.Attachment1 = model.RightHand.RightGripAttachment
+    tool.SecondHandle.AlignPosition.Attachment1 = model.LeftHand.LeftGripAttachment
+end
+
+local function unequipTool(instance, unit)
+    local model = instance.model
+    local tool = instance.tool
+
+    tool.Handle.AlignPosition.Attachment1 = model.UpperTorso.ToolBackAttach
+    tool.Handle.AlignOrientation.Attachment1 = model.UpperTorso.ToolBackAttach
+    tool.SecondHandle.AlignPosition.Attachment1 = nil
+end
+
+--Create a new unit instance
+local function initiateNewUnit(unit)
+    assert(unit, "Undefined unit passed to initiateNewUnit")
+    assert(not unitToInstanceMap[unit], "Initiating new unit view when unit view is already initiated!")
+
+    local instance = getNewInstanceFromUnitType(unit.Type)
+    local model = instance.model
+
+    unitToInstanceMap[unit] = instance
+    instanceToUnitMap[instance] = unit
+    modelToUnitMap[model] = unit
+
+    local worldPosition = Util.axialCoordToWorldCoord(unit.Position)
+    model:SetPrimaryPartCFrame(CFrame.new(worldPosition + POSITION_OFFSET))
+    model.Parent = workspace
+    unequipTool(instance, unit)
+
+    return instance
+end
+
+local function displayUpdateLoop(time, frameDelta)
+    for unit, instance in pairs(unitToInstanceMap) do
+        ViewUnit.stepDisplay(unit, instance, frameDelta)
+    end
+end
+
+--Update already existing view to closer resemble underlying data
+function ViewUnit.stepDisplay(unit, instance, frameDelta)
+    local model = instance.model
+
+    local worldPosition = Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET
+    local viewPosition = model.PrimaryPart.Position
+    local viewDelta = worldPosition - viewPosition
+    local viewOrientation = model.PrimaryPart.CFrame - model.PrimaryPart.Position
+    local viewHeading = cframeToHeading(viewOrientation)
+
+    if viewDelta.Magnitude < 1 then
+        return
+    end
+
+    local targetVelocity = viewDelta.Magnitude * WALK_VELOCITY
+    instance.velocity = instance.velocity + (targetVelocity - instance.velocity) * frameDelta / (instance.velocity + 0.1)
+
+    local targetHeading = cframeToHeading(CFrame.new(viewPosition, worldPosition))
+    local headingDelta = headingDifference(viewHeading, targetHeading)
+    local newPosition = viewPosition + viewOrientation * Vector3.new(0,0,-1) * instance.velocity * frameDelta
+    local newHeading = viewHeading - PID.getValue(instance.pidInfo, headingDelta, frameDelta)
+    local newOrientation = CFrame.Angles(0, newHeading, 0)
+
+    model:SetPrimaryPartCFrame(newOrientation + newPosition)
+    model.Parent = workspace
+
+    if instance.currentAnim and instance.currentAnim.Animation == Assets.Animations.Walking then
+        instance.currentAnim:AdjustSpeed(instance.velocity / 6.5)
+    end
+end
+
+function ViewUnit.updateDisplay(unit, frameDelta)
+    assert(unit, "Undefined unit passed to updateDisplay")
+    assert(unitToInstanceMap[unit], "Updating display for uninitialised unit view")
+
+    local instance = unitToInstanceMap[unit]
+    local transition = FiniteStateMachine.toState(instance.fsm, unit.State)
+
+    if transition then
+        transition(instance, unit)
+    end
+end
+
+function ViewUnit.init(world)
+    currentWorld = world
+    RunService.Stepped:Connect(displayUpdateLoop)
+end
+
+function ViewUnit.transitionIdleToMoving(instance, unit)
+    local currentAnimation = instance.currentAnim
+
+    if currentAnimation then
+        --currentAnimation:Stop()
+        --currentAnimation:Destroy()
+    end
+
+    if instance.model.Parent then
+        local newAnim = instance.model.Humanoid:LoadAnimation(Assets.Animations.Walking)
+        newAnim:Play(2)
+        instance.currentAnim = newAnim
+    end
+end
+
+function ViewUnit.transitionWorkToMoving(instance, unit)
+    local currentAnimation = instance.currentAnim
+
+    if currentAnimation then
+        currentAnimation:Stop(0.5)
+    end
+
+    if instance.model.Parent then
+        local newAnim = instance.model.Humanoid:LoadAnimation(Assets.Animations.Walking)
+        newAnim:Play()
+        instance.currentAnim = newAnim
+    end
+end
+
+function ViewUnit.transitionMovingToWork(instance, unit)
+    local currentAnimation = instance.currentAnim
+
+    if instance.model.Parent then
+        local grabAnim = instance.model.Humanoid:LoadAnimation(Assets.Animations.GetTool)
+        grabAnim:Play(2)
+
+        delay(1, function()
+            local workAnim = instance.model.Humanoid:LoadAnimation(Assets.Animations.Working)
+            workAnim:Play(2)
+            instance.currentAnim = workAnim
+        
+            equipTool(instance, unit)
+            wait(0.5)
+            grabAnim:Stop(0.5)
+        end)
+    end
+
+    if currentAnimation then
+        currentAnimation:Stop(2)
+    end
+end
+
+function ViewUnit.transitionWorkToWork(instance, unit)
+    if unit.Fatigue >= MAX_FATIGUE then
+        if instance.currentAnim then instance.currentAnim:Stop(2) end
+        local newAnim = instance.model.Humanoid:LoadAnimation(Assets.Animations.PutTool)
+        newAnim:Play(1)
+        instance.currentAnim = newAnim
+        instance.tool.SecondHandle.AlignPosition.Attachment1 = nil
+        delay(2, function() 
+            unequipTool(instance, unit)
+        end)
+    elseif not instance.currentAnim and instance.model.Parent then
+        local newAnim = instance.model.Humanoid:LoadAnimation(Assets.Animations.Working)
+        newAnim:Play()
+        instance.currentAnim = newAnim
+    end
+end
+
+function ViewUnit.transitionMovingToMoving(instance, unit)
+    if not instance.currentAnim and instance.model.Parent then
+        local newAnim = instance.model.Humanoid:LoadAnimation(Assets.Animations.Walking)
+        newAnim:Play()
+        instance.currentAnim = newAnim
+    end
+end
+
+function ViewUnit.transitionMovingToIdle(instance, unit)
+    local currentAnimation = instance.currentAnim
+
+    if currentAnimation then
+        currentAnimation:Stop()
+        currentAnimation:Destroy()
+    end
 end
 
 function ViewUnit.getUnitFromInst(inst)
@@ -94,429 +278,41 @@ function ViewUnit.getUnitFromInst(inst)
         inst = inst.Parent
     end
     
-    return instToUnitMap[inst]
+    return modelToUnitMap[inst]
 end
 
 function ViewUnit.getInstFromUnit(unit)
-    return unitToInstMap[unit]
-end
-
-local animMoving = {}
-local animMining = {}
-local animGetTool = {}
-local animPutTool = {}
-local animSpear = {}
-local animSpearGuard = {}
-local lastanims = {}
-local equipped = {}
-local onBack = {}
-
-local function giveToolInsomnia(model)
-    spawn(function()
-        local victim = model.Handle.AlignPosition
-
-        while model.Parent do
-            --debug.profilebegin("Insomnia")
-            victim.LimitsEnabled = true
-            victim.LimitsEnabled = false
-            --debug.profileend()
-
-            --RunService.Stepped:Wait()
-            wait(0.2)
-        end
-    end)
+    return unitToInstanceMap[unit] and unitToInstanceMap[unit].model
 end
 
 function ViewUnit.displayUnit(unit, oldModel)
-    local model
-
-    if unit.Type >= Unit.VILLAGER and unit.Type <= Unit.APPRENTICE then
-        model = VillagerModel:Clone()
-    elseif unit.Type >= Unit.SOLDIER and unit.Type <= Unit.SOLDIER then
-        model = SoldierModel:Clone()
-    end
-
-    unitToInstMap[unit] = model
-    instToUnitMap[model] = unit
-
-    if oldModel then
-        model.HumanoidRootPart.CFrame = oldModel.HumanoidRootPart.CFrame
-        equipped[unit]:Destroy()
-        equipped[unit] = nil
-
-        for _, value in pairs(oldModel:GetChildren()) do
-            if value:IsA("BasePart") and model:FindFirstChild(value.Name) then
-                value.Anchored = true
-                model[value.Name].CFrame = value.CFrame
-                model[value.Name].Transparency = 1
-            end
-        end
-
-        for _, value in pairs(model:GetChildren()) do
-            if value:IsA("Accessory") then
-                value.Handle.Transparency = 1
-            end
-        end
-
-        spawn(function()
-            local length = 240
-            local fadelength = 240
-
-            for i = 1, length+1 do
-                local fadeVal = math.clamp((length - i) / fadelength, 0, 1)
-                fadeVal = math.clamp(TweenService:GetValue(1 - fadeVal, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), 0, 1)
-                fadeVal = math.clamp(((fadeVal*1.05)^50)/11.4, 0, 1)
-                fadeVal = fadeVal > 0.1 and (fadeVal < 0.9 and fadeVal or 1) or 0
-
-                for _, value in pairs(oldModel:GetChildren()) do
-                    if value:IsA("BasePart") and value.Name ~= "HumanoidRootPart" and model:FindFirstChild(value.Name) then
-
-                        value.CFrame = model[value.Name].CFrame
-                        value.Transparency = fadeVal
-                        model[value.Name].Transparency = 1 - fadeVal
-
-                        if value.Name == "Head" then
-                            value.face.Transparency = fadeVal
-                        end
-
-                    elseif value:IsA("Accessory") then
-                        value.Handle.Transparency = math.clamp(fadeVal, 0, 1)
-                    end
-                end
-
-                for _, value in pairs(model:GetChildren()) do
-                    if value.Name == "Head" then
-                        value.face.Transparency = 1 - fadeVal
-                    elseif value:IsA("Accessory") then
-                        value.Handle.Transparency = math.clamp(1 - fadeVal, 0, 1)
-                    end
-                end
-
-                RunService.Heartbeat:Wait()
-            end
-
-            oldModel:Destroy()
-        end)
-    else
-        model.HumanoidRootPart.CFrame = CFrame.new(Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET)
-    end
-
-    unit.lastDrawTime = tick()
-    model.Parent = Workspace
-    animMoving[model] = model.Humanoid:LoadAnimation(walkAnimation)
-    animMining[model] = model.Humanoid:LoadAnimation(mineAnimation)
-    animGetTool[model] = model.Humanoid:LoadAnimation(getBackAnim)
-    animPutTool[model] = model.Humanoid:LoadAnimation(putBackAnim)
-    animSpear[model] = model.Humanoid:LoadAnimation(spearAnim)
-    animSpearGuard[model] = model.Humanoid:LoadAnimation(spearGuardAnim)
-
+    initiateNewUnit(unit)
     ViewUnit.updateDisplay(unit)
-    return model
-end
-
-local positionCache = {}
-local gatherStatus = {}
-
-function ViewUnit.updateDisplay(unit)
-    local model = unitToInstMap[unit]
-
-    if not model then
-        return end
-
-    delay(4.1, function()
-        if tick() - unit.lastDrawTime > 2 then
-            model.Parent = nil
-        end
-    end)
-
-    if model.Parent ~= Workspace then
-        model.Parent = Workspace
-        model.HumanoidRootPart.CFrame = CFrame.new(Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET)
-    end
-
-    unit.lastDrawTime = tick()
-
-    if unit.Health < unit.MHealth then
-        UIBase.displayObjectHealth(unit)
-    end
-
-    local onTile = currentWorld.Tiles[unit.Position.x ..":"..unit.Position.y]
-    if onTile and onTile.Type == Tile.GATE then
-        local gate = require(Client.ViewWorld).convertObjectToInst(onTile) --TODO: This
-
-        gate.Bars.PrismaticConstraint.Attachment1 = gate.Up
-        onTile.LastUnder = tick()
-
-        delay(2, function()
-
-            gate.Bars.PrismaticConstraint.Attachment1 = gate.Up
-            onTile.LastUnder = tick()
-            
-            wait(1)
-
-            if tick() - onTile.LastUnder >= 1 then
-                gate.Bars.PrismaticConstraint.Attachment1 = gate.Down
-            end
-        end)
-    end
-    
-    if model.Name == "Soldier" and unit.Type >= Unit.VILLAGER and unit.Type <= Unit.APPRENTICE then
-        return ViewUnit.displayUnit(unit, model)
-    elseif model.Name == "Villager" and unit.Type >= Unit.SOLDIER and unit.Type <= Unit.SOLDIER then
-        return ViewUnit.displayUnit(unit, model)
-    end
-
-    local currentItem = equipped[unit]
-
-    if not gatherStatus[unit] then
-        gatherStatus[unit] = unit.HeldAmount
-    end
-
-    if gatherStatus[unit] ~= unit.HeldAmount then
-        model.HumanoidRootPart.StatusEmitter.Rate = math.clamp((unit.HeldAmount - gatherStatus[unit])/4, 0, 2.5)
-        model.HumanoidRootPart.StatusEmitter.Size = NumberSequence.new((model.HumanoidRootPart.StatusEmitter.Rate/2)^1.5)
-        gatherStatus[unit] = unit.HeldAmount
-    end
-
-    local needsUpdate = false
-    if unit.Type == Unit.MINER then
-
-        if not currentItem or currentItem.Name ~= "Pickaxe" then
-
-            needsUpdate = Assets.Pickaxe:Clone()
-            model.HumanoidRootPart.StatusEmitter.Enabled = false
-            model.HumanoidRootPart.StatusEmitter.Texture = StatusIds.STONE
-            model.HumanoidRootPart.StatusEmitter.Color = StatusCols.STONE
-        end
-
-    elseif unit.Type == Unit.LUMBERJACK then
-
-        if not currentItem or currentItem.Name ~= "Axe" then
-
-            needsUpdate = Assets.Axe:Clone()
-            model.HumanoidRootPart.StatusEmitter.Enabled = false
-            model.HumanoidRootPart.StatusEmitter.Texture = StatusIds.WOOD
-            model.HumanoidRootPart.StatusEmitter.Color = StatusCols.WOOD
-        end
-    elseif unit.Type == Unit.FARMER then
-
-        if not currentItem or currentItem.Name ~= "Hoe" then
-
-            needsUpdate = Assets.Hoe:Clone()
-            model.HumanoidRootPart.StatusEmitter.Enabled = false
-            model.HumanoidRootPart.StatusEmitter.Texture = StatusIds.FOOD
-            model.HumanoidRootPart.StatusEmitter.Color = StatusCols.FOOD
-        end
-
-    elseif unit.Type == Unit.APPRENTICE or unit.Type == Unit.SOLDIER then
-
-        if not currentItem or currentItem.Name ~= "Spear" then
-
-            needsUpdate = Assets.Spear:Clone()
-            model.HumanoidRootPart.StatusEmitter.Enabled = false
-        end
-    end
-
-    if needsUpdate then
-
-        if currentItem then
-            currentItem:Destroy()
-        end
-
-        currentItem = needsUpdate
-        currentItem.Parent = model
-        equipped[unit] = currentItem
-        currentItem.CFrame = model.UpperTorso.ToolBackAttach.WorldCFrame
-
-        if unit.State == Unit.UnitState.WORKING or unit.State == Unit.UnitState.TRAINING then
-            currentItem.Handle.AlignPosition.Attachment1 = model.LeftHand.LeftGripAttachment
-            currentItem.Handle.AlignOrientation.Attachment1 = model.LeftHand.LeftGripAttachment
-            currentItem.SecondHandle.AlignPosition.Attachment1 = model.RightHand.RightGripAttachment
-            onBack[model] = false
-        else
-            currentItem.Handle.AlignPosition.Attachment1 = model.UpperTorso.ToolBackAttach
-            currentItem.Handle.AlignOrientation.Attachment1 = model.UpperTorso.ToolBackAttach
-            onBack[model] = true
-        end
-        giveToolInsomnia(currentItem)
-    end
-
-    local actionAnim
-
-    if unit.Type == Unit.APPRENTICE or unit.Type == Unit.SOLDIER then
-        if unit.State == Unit.UnitState.TRAINING or unit.State == Unit.UnitState.COMBAT then
-            actionAnim = animSpear[model]
-        else
-            actionAnim = animSpearGuard[model]
-        end
-    else
-        actionAnim = animMining[model]
-    end
-
-    if currentItem then
-        
-        if ((unit.State == Unit.UnitState.WORKING or unit.State == Unit.UnitState.TRAINING or unit.State == Unit.UnitState.COMBAT or unit.State == Unit.UnitState.GUARDING)
-            and unit.Target 
-            and unit.Target == unit.Work)
-            or unit.State == Unit.UnitState.COMBAT then
-
-            if onBack[model] then
-
-                onBack[model] = false
-                animGetTool[model]:Play(1, 1)
-
-                local ap = currentItem.Handle.AlignPosition
-                local ao = currentItem.Handle.AlignOrientation
-                local sap = currentItem.SecondHandle.AlignPosition
-
-                delay(1, function()
-                    if currentItem.Parent and model.Parent then
-                        ap.Attachment1 = model.LeftHand.LeftGripAttachment
-                        ao.Attachment1 = model.LeftHand.LeftGripAttachment
-
-                        wait(1.53)
-                        if ao.Attachment1 == model.LeftHand.LeftGripAttachment then
-                            sap.Attachment1 = model.RightHand.RightGripAttachment
-                        end
-                    end
-                end)
-            end
-        else
-            if not onBack[model] then
-
-                onBack[model] = true
-                actionAnim:Stop(0.5)
-                animPutTool[model]:Play(1, 1)
-                lastanims[model] = animPutTool[model]
-                currentItem.SecondHandle.AlignPosition.Attachment1 = nil
-
-                delay(1.5, function()
-                    if currentItem.Parent and model.Parent then
-                        currentItem.Handle.AlignPosition.Attachment1 = model.UpperTorso.ToolBackAttach
-                        currentItem.Handle.AlignOrientation.Attachment1 = model.UpperTorso.ToolBackAttach
-                    end
-                end)
-            end
-        end
-    end
-
-    if positionCache[unit] ~= unit.Position and model and unit.State ~= Unit.UnitState.COMBAT then
-        positionCache[unit] = unit.Position
-        local cpos = model.HumanoidRootPart.Position
-        local pos = Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET
-
-        local dir = (pos - cpos).unit
-        local toTurn = cpos:Lerp(pos, 0.1)
-        local turncf = CFrame.new(toTurn, pos)
-        local targetcf = CFrame.new(pos, pos + dir)
-        
-        spawn(function()
-            if dir.magnitude < 2 then
-                TweenService:Create(model.HumanoidRootPart, fastTween, {CFrame = turncf}):Play()
-                wait(0.25)
-                TweenService:Create(model.HumanoidRootPart, tweenInfo, {CFrame = targetcf}):Play()
-            end
-        end)
-    
-    elseif unit.State == Unit.UnitState.COMBAT then
-        local cpos = model.HumanoidRootPart.Position
-        local pos = Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET
-        local astr = Util.positionStringToVector(unit.Attack)
-        local apos = Util.axialCoordToWorldCoord(astr) + POSITION_OFFSET
-
-        local dir = (apos - cpos).unit
-        local targetcf = CFrame.new(pos:Lerp(apos, 0.15), apos)
-
-        TweenService:Create(model.HumanoidRootPart, tweenInfo, {CFrame = targetcf}):Play()
-    end
-
-    if unit.State == Unit.UnitState.IDLE then
-        model.HumanoidRootPart.StatusEmitter.Texture = StatusIds.IDLE
-        model.HumanoidRootPart.StatusEmitter.Color = StatusCols.IDLE
-        model.HumanoidRootPart.StatusEmitter.Rate = 1/3
-        model.HumanoidRootPart.StatusEmitter.Size = NumberSequence.new(4)
-        model.HumanoidRootPart.StatusEmitter.Enabled = true
-        model.HumanoidRootPart.StatusEmitter.Lifetime = NumberRange.new(3)
-    else
-        model.HumanoidRootPart.StatusEmitter.Lifetime = NumberRange.new(1)
-        model.HumanoidRootPart.StatusEmitter.Enabled = false
-    end
-
-    if unit.State == Unit.UnitState.MOVING then
-
-        if not lastanims[model] or lastanims[model] ~= animMoving[model] then
-            lastanims[model] = animMoving[model]
-            animMoving[model]:Play(0.3, 1, 1.1)
-        end
-
-    elseif unit.State == Unit.UnitState.COMBAT then
-
-        if not lastanims[model] or lastanims[model] ~= actionAnim then
-            lastanims[model] = actionAnim
-            actionAnim:Play(1)
-        end
-
-    elseif (unit.State == Unit.UnitState.WORKING or unit.State == Unit.UnitState.TRAINING or unit.State == Unit.UnitState.COMBAT or unit.State == Unit.UnitState.GUARDING) and unit.Target and unit.Target == unit.Work then
-
-        animMoving[model]:Stop(3)
-        
-        if not lastanims[model] or lastanims[model] ~= actionAnim then
-            lastanims[model] = actionAnim
-            SoundManager.animSounds(currentItem, actionAnim)
-            delay(math.random()+0.75, function() actionAnim:Play(1) end)
-        end
-
-        model.HumanoidRootPart.StatusEmitter.Enabled = not Unit.isMilitary(unit)
-
-    elseif unit.State == Unit.UnitState.IDLE then
-        animMoving[model]:Stop(0.5)
-        animMining[model]:Stop()
-        animSpear[model]:Stop()
-        lastanims[model] = nil
-    end
 end
 
 function ViewUnit.removeUnit(unit)
-    local model = unitToInstMap[unit]
-    
-    if model then
-        model:Destroy()
-        unitToInstMap[unit] = nil
-        instToUnitMap[model] = nil
-    end
+
 end
 
 function ViewUnit.convertIdListToUnits(list)
-    local units = {}
-
-    for _, unit in pairs(list) do
-        table.insert(units, currentWorld.Units[unit])
-    end
-
-    return units
+    return World.convertIdListToUnits(currentWorld.Units, list)
 end
 
 function ViewUnit.convertIdListToInsts(list)
-    if not list then
-        return end
+    if not list then return end
 
-    local units = {}
+    local unitList = World.convertIdListToUnits(currentWorld.Units, list)
+    local insts = {}
 
-    for _, unit in pairs(ViewUnit.convertIdListToUnits(list)) do
-        local inst = ViewUnit.getInstFromUnit(unit)
-
-        if inst then
-            table.insert(units, inst)
-        end
+    for _, unit in pairs(unitList) do
+        table.insert(insts, unitToInstanceMap[unit].model)
     end
 
-    return units
+    return insts
 end
 
 function ViewUnit.provideUIBase(base)
-    UIBase = base
-end
 
-spawn(autoUnload)
+end
 
 return ViewUnit

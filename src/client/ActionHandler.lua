@@ -20,18 +20,26 @@ function ActionHandler.provideUnitChangeHook(hook)
 end
 
 function ActionHandler.attemptBuild(tile, type)
+    local oldType = tile.Type
+    local oldId = tile.OwnerId
     tile.Type = type
     tile.OwnerId = Players.LocalPlayer.UserId
-    tile.lastChange = tick()
-
     ViewTile.updateDisplay(tile)
+    tile.lastChange = tick()
 
     for _, n in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
         ViewTile.updateDisplay(n)
     end
 
-    spawn(function()
-        local status = Replication.requestTilePlacement(tile, type)
+    Replication.requestTilePlacement(tile, type)
+
+    delay(5, function()
+        local liveTile = Replication.requestTile(tile.Position)
+        Replication.handleTileUpdate(liveTile)
+        
+        for _, n in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
+            ViewTile.updateDisplay(n)
+        end
     end)
 end
 

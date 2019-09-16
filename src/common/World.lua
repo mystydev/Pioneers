@@ -53,4 +53,18 @@ function World.getTile(tiles, pos)
     return tile
 end
 
+function World.getUnit(units, id)
+    return units[id]
+end
+
+function World.convertIdListToUnits(units, idList)
+    local unitList = {}
+
+    for _, unitId in pairs(idList) do
+        table.insert(unitList, units[unitId])
+    end
+
+    return unitList
+end
+
 return World

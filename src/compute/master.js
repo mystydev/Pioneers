@@ -36,7 +36,7 @@ async function processRound() {
 	let processing = []
 
 	for (let userId of playerList)
-		processing.push(sendComputeRequest(userId))
+		processing.push(sendComputeRequest({time: start, id: userId}))
 
 	await Promise.all(processing)
 
@@ -47,14 +47,14 @@ async function processRound() {
 	database.updateStatus(Date.now(), "ok: " + outInfo)
 }
 
-async function sendComputeRequest(userId) {
+async function sendComputeRequest(data) {
 	let req = http.request(options)
 
 	req.on("error", (e) => {
 		console.log("Failed to send compute request: " + e)
 	})
 
-	req.write(userId)
+	req.write(JSON.stringify(data))
 	req.end()
 
 	return new Promise ((resolve) => {

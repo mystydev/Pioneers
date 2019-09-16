@@ -131,15 +131,8 @@ local function getCircularTiles(player, pos, radius)
     return Util.circularCollection(currentWorld.Tiles, pos.x, pos.y, 0, radius)
 end
 
-local function tileRequest(player, posList)
-    local tiles = {}
-
-    for _, pos in pairs(posList) do
-        tilesRequested[player][pos] = true
-        table.insert(tiles, World.getTile(currentWorld.Tiles, pos))
-    end
-
-    return tiles
+local function tileRequest(player, position)
+    return World.getTileXY(currentWorld.Tiles, position.x, position.y)
 end
 
 local function unitRequest(player, unitList)
@@ -209,7 +202,7 @@ function Replication.assignWorld(w)
     Network.RequestTileRepair.OnServerInvoke    = tileRepairRequest
     Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
     Network.RequestUnitAttack.OnServerInvoke    = unitAttackRequest
-    Network.RequestTiles.OnServerInvoke         = tileRequest
+    Network.RequestTile.OnServerInvoke          = tileRequest
     Network.RequestUnits.OnServerInvoke         = unitRequest
     Network.GetCircularTiles.OnServerInvoke     = getCircularTiles
     Network.Ready.OnServerInvoke                = getTesterStatus

@@ -2,6 +2,7 @@ let database = {}
 module.exports = database
 let common = require("./common")
 let tiles = require("./tiles")
+let units = require("./units")
 let Redis = require("ioredis")
 let redis
 
@@ -27,16 +28,16 @@ function findXYFromPartitionId(id) {
     let t = (w**2 + w) / 2
     let y = id - t
     let x = w - y
-    x = x%2 ? (x + 1) / -2 : x = x / -2
-    y = y%2 ? (y + 1) / -2 : y = y / -2
+    x = x%2 ? (x + 1) / -2 : x = x / 2
+    y = y%2 ? (y + 1) / -2 : y = y / 2
 
     return [x * partitionSize, y * partitionSize]
 }
 
 database.partitionIndex = (position) => {
     let [x, y] = common.strToPosition(position)
-    x = x >= 0 ? x % partitionSize : partitionSize + x % partitionSize
-    y = y >= 0 ? y % partitionSize : partitionSize + y % partitionSize
+    x = x >= 0 ? x % partitionSize : partitionSize + (x % partitionSize)
+    y = y >= 0 ? y % partitionSize : partitionSize + (y % partitionSize)
     return x * partitionSize + y
 }
 
@@ -161,7 +162,14 @@ database.getStaleTilesFromPartitions = async (partitionDict) => {
 }
 
 database.getUnit = async (ownerId, id) => {
-    return redis.hgetall("unit{"+ownerId+"}"+id)
+    let unit = await redis.hgetall("unit{"+ownerId+"}"+id)
+
+    if (!unit.Id) {
+        redis.del("unit{"+ownerId+"}"+id)
+        return null
+    } else {
+        return unit
+    } 
 }
 
 // idDict = {ownerid: [id...], owner2id: [...
@@ -193,8 +201,12 @@ database.updateUnits = async (unitList) => {
     for (let owner in batches) {
         let pipeline = redis.pipeline()
 
-        for (let unit of batches[owner])
+        for (let unit of batches[owner]) {
+            let health = unit.Health
+            delete unit.Health
             pipeline.hmset("unit{"+owner+"}"+unit.Id, unit)
+            unit.Health = health
+        }
 
         pipeline.exec()
     }
@@ -209,11 +221,17 @@ database.updateUnits = async (unitList) => {
             if (!pipelines[partitionId]) 
                 pipelines[partitionId] = redis.pipeline()
 
+            if (units.isMilitary(unit))
+                pipelines[partitionId].hset("militaryUnitCache{"+partitionId+"}", owner+":"+unit.Id, unit.Position)
+
             pipelines[partitionId].hset("unitCache{"+partitionId+"}", owner+":"+unit.Id, unit.Position)
 
             if (partitionId != unit.PartitionId) {
                 if (!pipelines[unit.PartitionId]) 
                     pipelines[unit.PartitionId] = redis.pipeline()
+
+                if (units.isMilitary(unit))
+                    pipelines[unit.PartitionId].hdel("militaryUnitCache{"+unit.PartitionId+"}", owner+":"+unit.Id)
 
                 pipelines[unit.PartitionId].hdel("unitCache{"+unit.PartitionId+"}", owner+":"+unit.Id)
                 redis.hset("unit{"+owner+"}"+unit.Id, "PartitionId", partitionId)
@@ -225,8 +243,31 @@ database.updateUnits = async (unitList) => {
         pipelines[partitionId].exec()
 }
 
-database.updateUnit = (unit) => {
-    database.updateUnits([unit])
+database.updateUnit = async (unit) => {
+    let partitionId = database.findPartitionId(unit.Position)
+    let health = unit.Health
+    delete unit.Health
+
+    if (partitionId != unit.PartitionId)
+        redis.hdel("unitCache{"+unit.PartitionId+"}", unit.OwnerId+":"+unit.Id)
+
+    let commands = [
+        redis.hmset("unit{"+unit.OwnerId+"}"+unit.Id, unit),
+        redis.hset("unit{"+ unit.OwnerId+"}"+unit.Id, "PartitionId", partitionId),
+        redis.hset("unitCache{"+partitionId+"}", unit.OwnerId+":"+unit.Id, unit.Position)]
+    
+    unit.Health = health
+    
+    await Promise.all(commands)
+}
+
+database.damageUnit = async (unit, damage) => {
+    return redis.hincrby("unit{"+ unit.OwnerId+"}"+unit.Id, "Health", -damage)
+}
+
+database.damageUnitByKey = async (key, damage) => {
+    let [ownerId, unitId] = key.split(":")
+    return redis.hincrby("unit{"+ ownerId+"}"+unitId, "Health", -damage)
 }
 
 database.getUnitIdsAtPosition = async (pos) => {
@@ -240,6 +281,24 @@ database.getUnitIdsAtPositions = async (posList) => {
 database.getUnitIdsAtPartitions = async (partitions) => {
     console.log("Unimplemented getUnitIdsAtPartitions")
 }
+
+database.getMilitaryUnitPositionsInPartition = async (partitionId) => {
+    let data = await redis.hgetall("militaryUnitCache{"+partitionId+"}")
+    let positionDict = {}
+
+    if (data) {
+        for (let key in data) {
+            let position = data[key]
+
+            if (!positionDict[position])
+                positionDict[position] = []
+
+            positionDict[position].push(key)
+        }
+    }
+
+    return positionDict
+}   
 
 database.getUnitsAtPartitions = async (partitions) => {
     let idMap = {}
@@ -261,8 +320,8 @@ database.getUnitsAtPartitions = async (partitions) => {
         if (!pipelines[ownerId])
             pipelines[ownerId] = redis.pipeline()
         
-        pipelines.requestedPipeline.set("requested{"+ownerId+"}", true)
-        pipelines.requestedPipeline.expire("requested{"+ownerId+"}", 30)
+        pipelines[ownerId].set("requested{"+ownerId+"}", true)
+        pipelines[ownerId].expire("requested{"+ownerId+"}", 30)
         pipelines[ownerId].hgetall("unit{"+ownerId+"}"+unitId, 
             (e, unit) => unit.Id && unitList.push(unit))
     }
@@ -298,7 +357,7 @@ database.getStat = (id, type) => {
 }
 
 database.addStat = (id, type, amount) => {
-    redis.hincrby("stats:"+id, type, parseInt(amount))
+    redis.hincrby("stats:"+id, type, parseInt(amount || 0))
 }
 
 database.setStat = (id, type, value) => {
@@ -443,10 +502,24 @@ database.getAdjacencyCache = async (partitionId) => {
     return cache
 }
 
-database.updateTileProp = (prop, position, value) => {
-    console.log("danger, unfinished tile prop edit")
-    let partitionId = database.findPartitionId(position)
-    redis.hset("tile{"+partitionId+"}"+position, prop, value)
+//Do not use to update type as this skips type dependant caches
+//Use the full updateTile method for type/significant updates
+database.incrementTileProp = async (position, prop, value) => {
+    let pipeline = redis.pipeline()
+
+    let partitionId   = database.findPartitionId(position)
+    let cacheIndex    = database.partitionIndex(position)
+    let cyclicVersion = await redis.hget("tile{"+partitionId+"}"+position, "CyclicVersion")
+    let health
+
+    pipeline.hincrby("tile{"+partitionId+"}"+position, prop, value, (e, val) => health = val)
+    pipeline.hset("tile{"+partitionId+"}"+position, "CyclicVersion", 49 + cyclicVersion%9)
+    pipeline.setnx("versionCache{"+partitionId+"}", "0".repeat(partitionSize**2))
+    pipeline.bitfield("versionCache{"+partitionId+"}", "SET", "u8", cacheIndex * 8, 49 + cyclicVersion%9)
+
+    await pipeline.exec()
+    console.log("Health from increment tile prop", health)
+    return health
 }
 
 database.deleteTile = (position) => {

@@ -32,7 +32,6 @@ async function canBuild(id, pos, type) {
 
 	//Tile is currently empty with no units assigned
 	tile = await tile
-	console.log(tile, typeof(tile), tiles.getSafeType(tile), tiles.isEmpty(tile), tiles.isVacant(tile))
 	if (!tiles.isEmpty(tile) || !tiles.isVacant(tile))
 		return false
 
@@ -126,14 +125,7 @@ async function verifyAttackAssignment(id, unitid, pos) {
 	if (!tile || tiles.isWalkable(tile) || tile.OwnerId == unit.OwnerId)
 		return
 
-	//Find path to tile
-	let path = tiles.findMilitaryPath(units.getPosition(unit), pos)
-
-	//Check if path is found
-	if (!path)
-		return
-
-	units.assignAttack(unit, pos, path)
+	units.assignAttack(unit, pos)
 }
 
 async function verifyTileDeletion(id, pos) {
@@ -219,9 +211,18 @@ async function processActionQueue(id) {
 
 }
 
+let lastRoundTime = 0
 
-async function computeRequest(id) {
-    console.log("Handling compute request:", id)
+async function computeRequest(roundStart, id) {
+
+	if (roundStart != lastRoundTime) {
+		lastRoundTime = roundStart
+		tiles.clearCaches()
+		console.log("-----Cleared caches-----")
+	}
+
+	console.log("Handling compute request:", id)
+
     let start = performance.now()
     let processing = []
 
@@ -232,19 +233,18 @@ async function computeRequest(id) {
 	let shouldSimulate = await database.wasIdRequested(id)
 	
 	if (!shouldSimulate) {
-		console.log("Skipping sim on ", id, " as inactive")
 		await userstats.processRoundSim(id)
 	} else {
 		let req = {}
 		req[id] = await database.getUnitCollection(id)
 		let unitList = await database.getUnits(req)
+		let inCombat = await userstats.isInCombat(id)
 
 		for (let unit of unitList)
-			processing.push(units.processUnit(unit))
+			processing.push(units.processUnit(unit, inCombat))
 
 		await Promise.all(processing)
 		database.updateUnits(unitList)
-		tiles.clearCaches()
 	}
 
     let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
@@ -266,7 +266,7 @@ function init() {
 }
 
 httpserver.post("/", (req, res) => {
-    computeRequest(req.body).then(response => {
+    computeRequest(req.body.time, req.body.id).then(response => {
         res.json(response)
     })
 })

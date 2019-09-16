@@ -140,4 +140,14 @@ function Util.findOverlappedPartitions(position)
     return overlappedPartitions
 end
 
+function Util.tableCopy(copyTable)
+    local newTable = {}
+
+    for i, v in pairs(copyTable) do
+        newTable[i] = v
+    end
+
+    return newTable
+end
+
 return Util

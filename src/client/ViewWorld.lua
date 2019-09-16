@@ -34,6 +34,7 @@ function ViewWorld.convertInstanceToTile(inst)
 end
 
 function ViewWorld.convertInstanceToUnit(inst)
+    print(inst, "->", ViewUnit.getUnitFromInst(inst))
     return ViewUnit.getUnitFromInst(inst)
 end
 

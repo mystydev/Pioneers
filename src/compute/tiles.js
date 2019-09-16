@@ -77,6 +77,7 @@ let pathfindingBlacklist = {}
 
 tiles.fastPathCache = {}
 tiles.adjacencyCache = {}
+tiles.fastUnitCollisionCache = {}
 
 function Tile(type, id, pos, unitlist) {
     this.Type = type
@@ -87,8 +88,6 @@ function Tile(type, id, pos, unitlist) {
     this.Position = pos
     this.CyclicVersion = "0"
 
-    
-
     if (type == TileType.HOUSE && this.UnitList.length < common.HOUSE_UNIT_NUMBER) {
         units.setSpawn(id, pos)
     }
@@ -97,7 +96,7 @@ function Tile(type, id, pos, unitlist) {
         let neighbours = tiles.getNeighbourPositions(pos)
 
         for (let p of neighbours)
-            new Tile(TileType.PATH, id, p)
+            database.updateTile(p, new Tile(TileType.PATH, id, p))
 
         userstats.assignKeep(id, pos)
     }
@@ -247,6 +246,7 @@ function reconstructPath(start, target, cameFrom) {
 tiles.clearCaches = () => {
     tiles.fastPathCache = {}
     tiles.adjacencyCache = {}
+    tiles.fastUnitCollisionCache = {}
 }
 
 tiles.fastWalkableCheck = async (position, isMilitary) => {
@@ -254,14 +254,18 @@ tiles.fastWalkableCheck = async (position, isMilitary) => {
     let partitionIndex = database.partitionIndex(position)
 
     if (!tiles.fastPathCache[partitionId]) 
-        tiles.fastPathCache[partitionId] = database.getFastPathCache(partitionId)
+        tiles.fastPathCache[partitionId] = await database.getFastPathCache(partitionId)
 
-    tiles.fastPathCache[partitionId] = await tiles.fastPathCache[partitionId]
-    
-    if (isMilitary)
-        return tiles.fastPathCache[partitionId][partitionIndex] <= 1
-    else
-        return tiles.fastPathCache[partitionId][partitionIndex] == 1
+    let walkValue = tiles.fastPathCache[partitionId][partitionIndex]
+
+    if (isMilitary) {
+        let unitObstructing = await tiles.fastUnitCollisionCheck(position)
+        //no unit obstructing and there is a path or grass
+        return !unitObstructing && walkValue <= 1 
+    } else {
+        //there is a path
+        return walkValue == 1 
+    }
 }
 
 tiles.fastStorageCheck = async (position) => {
@@ -269,9 +273,7 @@ tiles.fastStorageCheck = async (position) => {
     let partitionIndex = database.partitionIndex(position)
 
     if (!tiles.fastPathCache[partitionId]) 
-        tiles.fastPathCache[partitionId] = database.getFastPathCache(partitionId)
-
-    tiles.fastPathCache[partitionId] = await tiles.fastPathCache[partitionId]
+        tiles.fastPathCache[partitionId] = await database.getFastPathCache(partitionId)
 
     return tiles.fastPathCache[partitionId][partitionIndex] == 3
 }
@@ -281,11 +283,47 @@ tiles.fastAdjacencyCheck = async (position) => {
     let partitionIndex = database.partitionIndex(position)
 
     if (!tiles.adjacencyCache[partitionId]) 
-        tiles.adjacencyCache[partitionId] = database.getAdjacencyCache(partitionId)
-
-    tiles.adjacencyCache[partitionId] = await tiles.adjacencyCache[partitionId]
+        tiles.adjacencyCache[partitionId] = await database.getAdjacencyCache(partitionId)
 
     return parseInt(tiles.adjacencyCache[partitionId][partitionIndex])
+}
+
+tiles.fastUnitCollisionCheck = async (position) => {
+    let partitionId = database.findPartitionId(position)
+    
+    if (!tiles.fastUnitCollisionCache[partitionId]) 
+        tiles.fastUnitCollisionCache[partitionId] = await database.getMilitaryUnitPositionsInPartition(partitionId)
+
+    return tiles.fastUnitCollisionCache[partitionId][position] != undefined
+}
+
+tiles.fastClosestHostileUnitToPosition = async (playerId, position) => {
+    let partitionId = database.findPartitionId(position)
+    
+    if (!tiles.fastUnitCollisionCache[partitionId]) 
+        tiles.fastUnitCollisionCache[partitionId] = await database.getMilitaryUnitPositionsInPartition(partitionId)
+
+    let cache = tiles.fastUnitCollisionCache[partitionId]
+    let closestDist = Infinity
+    let closestUnit
+
+    for (let unitPosition in cache) {
+        let dist = costHeuristic(position, unitPosition)
+
+        if (dist < closestDist) {
+            for (let unitKey of cache[unitPosition]) {
+                let [ownerId, unitId] = unitKey.split(":")
+                
+                if (ownerId != playerId) {
+                    closestDist = dist
+                    closestUnit = unitKey
+                    break
+                }
+            }
+        }
+    }
+
+    return closestUnit
 }
 
 tiles.findPath = async (start, target, isMilitary) => {
@@ -304,7 +342,7 @@ tiles.findPath = async (start, target, isMilitary) => {
     let cameFrom = {}
     let gScore = {}
     let iterations = 0
-    let iterationLimit = 1000
+    let iterationLimit = 3000
 
     openSet.push({p:start, f:0})
     gScore[start] = 0
@@ -324,10 +362,17 @@ tiles.findPath = async (start, target, isMilitary) => {
         let neighbours = tiles.getNeighbourPositions(current.p)
 
         for (let neighbourPos of neighbours) {
-            if (pathfindingBlacklist[neighbourPos]) continue
-            if (closedSet.has(neighbourPos)) continue
-            if (!await tiles.fastWalkableCheck(neighbourPos, isMilitary) && neighbourPos != target) continue
-            if (!gScore[neighbourPos]) gScore[neighbourPos] = Infinity
+            if (pathfindingBlacklist[neighbourPos])
+                continue
+
+            if (closedSet.has(neighbourPos)) 
+                continue
+
+            if (!await tiles.fastWalkableCheck(neighbourPos, isMilitary) && neighbourPos != target) 
+                continue
+
+            if (!gScore[neighbourPos]) 
+                gScore[neighbourPos] = Infinity
 
             let g = gScore[current.p] + 1
 
@@ -338,6 +383,8 @@ tiles.findPath = async (start, target, isMilitary) => {
             }
         }
     }
+
+    console.log("Pathfinding hit iteration limit")
 }
 
 tiles.findMilitaryPath = (start, target) => {

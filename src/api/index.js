@@ -148,7 +148,6 @@ async function processTimeUpdate(){
 setInterval(processTimeUpdate, 100);
 
 async function waitForProcess(n) {
-    console.log(typeof n, n, typeof lastProcess, lastProcess)
     while (n == lastProcess){
         await sleep(100);
     }

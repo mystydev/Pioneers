@@ -125,13 +125,13 @@ units.establishMilitaryState = (unit) => {
     if (unit.Target && unit.Position != unit.Target)
         return UnitState.MOVING
 
-    if (unit.Attack)
+    if (unit.Attack || unit.AttackUnit)
         return UnitState.COMBAT
 
-    if (unit.MilitaryWorkType == MilitaryWorkType.BARRACKS)
+    if (unit.WorkType == tiles.TileType.BARRACKS)
         return UnitState.TRAINING
 
-    if (unit.MilitaryWorkType == MilitaryWorkType.GUARDPOST)
+    if (unit.WorkType == tiles.TileType.GRASS)
         return UnitState.GUARDING
 
     if (unit.Fatigue > 0 && unit.Position == unit.Home)
@@ -143,11 +143,17 @@ units.establishMilitaryState = (unit) => {
     return UnitState.LOST
 }
 
-units.processUnit = async (unit) => {
+units.processUnit = async (unit, inCombat) => {
     if (!unit) return
 
     if (units.isMilitary(unit))
-        return units.processMilitaryUnit(unit)
+        return await units.processMilitaryUnit(unit, inCombat)
+
+    if (inCombat) {
+        unit.Target = unit.Home
+    } else if (unit.State == units.UnitState.LOST) {
+        unit.Target = unit.Work
+    }
 
     let state = await units.establishState(unit)
     unit.State = state
@@ -195,25 +201,28 @@ units.processUnit = async (unit) => {
         
         case UnitState.STORING:
             let perRoundProduce = Math.floor(unit.HeldAmount / unit.StepsSinceStore)
+            
+            if (Number.isInteger(perRoundProduce)) {
+                if (perRoundProduce != unit.PerRoundProduce || unit.HeldResource != unit.ResourceCollected) {
 
-            if (perRoundProduce != unit.PerRoundProduce || unit.HeldResource != unit.ResourceCollected) {
+                    if (unit.ResourceCollected) {
+                        let oldFood = Math.floor((common.MAX_FATIGUE * common.FOOD_PER_FATIGUE) / unit.TripLength)
+                        userstats.removePerRoundProduce(unit.OwnerId, unit.ResourceCollected, unit.PerRoundProduce)
+                        userstats.addPerRoundProduce(unit.OwnerId, resource.Type.FOOD, oldFood)
+                    }
 
-                if (unit.ResourceCollected) {
-                    let oldFood = Math.floor((common.MAX_FATIGUE * common.FOOD_PER_FATIGUE) / unit.TripLength)
-                    userstats.removePerRoundProduce(unit.OwnerId, unit.ResourceCollected, unit.PerRoundProduce)
-                    userstats.addPerRoundProduce(unit.OwnerId, resource.Type.FOOD, oldFood)
+                    let newFood = Math.floor((common.MAX_FATIGUE * common.FOOD_PER_FATIGUE) / unit.StepsSinceStore)
+                    userstats.removePerRoundProduce(unit.OwnerId, resource.Type.FOOD, newFood)
+                    userstats.addPerRoundProduce(unit.OwnerId, unit.HeldResource, perRoundProduce)
+                    unit.TripLength = unit.StepsSinceStore
+                    unit.ResourceCollected = unit.HeldResource
+                    unit.AmountPerTrip = unit.HeldAmount
+                    unit.PerRoundProduce = perRoundProduce
                 }
 
-                let newFood = Math.floor((common.MAX_FATIGUE * common.FOOD_PER_FATIGUE) / unit.StepsSinceStore)
-                userstats.removePerRoundProduce(unit.OwnerId, resource.Type.FOOD, newFood)
-                userstats.addPerRoundProduce(unit.OwnerId, unit.HeldResource, perRoundProduce)
-                unit.TripLength = unit.StepsSinceStore
-                unit.ResourceCollected = unit.HeldResource
-                unit.AmountPerTrip = unit.HeldAmount
-                unit.PerRoundProduce = perRoundProduce
+                userstats.add(unit.OwnerId, unit.HeldResource, unit.HeldAmount)
             }
 
-            userstats.add(unit.OwnerId, unit.HeldResource, unit.HeldAmount)
             delete unit.HeldResource
             unit.HeldAmount = 0
             unit.StepsSinceStore = 0
@@ -226,18 +235,81 @@ units.processUnit = async (unit) => {
 
 }
 
-units.processMilitaryUnit = async (unit) => {
-    let state = units.establishMiliatryState(unit)
+units.calculateAttackTarget = async (unit) => {
+
+    //If attacking a tile
+    if (unit.Attack) {
+        let path = await tiles.findMilitaryPath(unit.Position, unit.Attack);
+        
+        //If can attack then go there, otherwise find closest unit to attack
+        if (path && path.length >= 2) {
+            let tile = await tiles.fromPosString(unit.Attack)
+            userstats.setInCombat(tile.OwnerId)
+            userstats.setInCombat(unit.OwnerId)
+            return unit.Target = path[path.length - 2]
+        } else if (path && path.length == 1) {
+            
+        } else {
+            let closest = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position)
+            unit.AttackUnit = closest
+            unit.Attack = ""
+        }
+    }
+
+    //If attacking a unit
+    if (unit.AttackUnit) {
+        let [ownerId, unitId] = unit.AttackUnit.split(":")
+        let hostile = await database.getUnit(ownerId, unitId)
+
+        //If unit to attack doesn't exist then give up
+        if (!hostile)
+            return
+
+        let path = await tiles.findMilitaryPath(unit.Position, hostile.Position);
+
+        //If can attack then go there, otherwise find closest unit to attack
+        if (path && path.length >= 2) {
+            userstats.setInCombat(hostile.OwnerId)
+            userstats.setInCombat(unit.OwnerId)
+            return unit.Target = path[path.length - 2]
+        } else if (path && path.length == 1) {
+            
+        } else {
+            let closest = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position)
+            unit.AttackUnit = closest
+            unit.Attack = ""
+        }
+    }
+}
+
+units.processMilitaryUnit = async (unit, inCombat) => {
+
+
+    if (inCombat) {
+        unit.AttackUnit = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position)
+        await units.calculateAttackTarget(unit)
+    }
+
+    if (!unit.Target && unit.Work)
+        unit.Target = unit.Work
+
+    let state = units.establishMilitaryState(unit)
     unit.State = state
 
     switch (state) {
         case UnitState.MOVING:
+        
+            if (unit.Attack || unit.AttackUnit) {
+                await units.calculateAttackTarget(unit)
+            }
+
             let path = await tiles.findMilitaryPath(unit.Position, unit.Target);
 
-            if (path)
+            if (path) {
                 unit.Position = path[0]
-            else
+            } else {
                 unit.State = UnitState.LOST
+            }
             break
 
         case UnitState.TRAINING:
@@ -249,23 +321,21 @@ units.processMilitaryUnit = async (unit) => {
                 unit.MaxTraining = 10000
             }
 
-            if (!unit.Target)
-                unit.State = UnitState.LOST
-
             break
 
         case UnitState.COMBAT:
-            /*changes.Damage = {
-                Pos: unit.Attack,
-                UnitId: unit.Id,
-                Health: 10,
-            }*/
-            changes.InCombat = unit.OwnerId
+            let health
+            if (unit.Attack)
+                health = await database.incrementTileProp(unit.Attack, "Health", -10)
+            if (unit.AttackUnit)
+                health = await database.damageUnitByKey(unit.AttackUnit, 10)
+
+            health = parseInt(health)
+
+            if (health <= 0 || !health)
+                units.revokeAttack(unit)
             break
     }
-
-    database.updateUnit(unit)
-    return changes
 }
 
 units.processSpawns = async (id) => {
@@ -291,7 +361,6 @@ units.spawn = async (pos) => {
     let unit = await units.initialiseNewUnit(id, tile.OwnerId, pos)
 
     userstats.use(unit.OwnerId, resource.Type.FOOD, 100)
-    console.log(tile)
     tile.UnitList.push(id)
     database.updateTile(pos, tile)
 
@@ -331,7 +400,9 @@ units.unassignWork = async (unit) => {
     if (unit.Attack)
         units.revokeAttack(unit)
 
-    delete unit.Work
+    unit.Work = ""
+    unit.Attack = ""
+    unit.AttackUnit = ""
     unit.Target = await tiles.findClosestStorage(unit.Position)
 
     if (!units.isMilitary(unit))
@@ -343,7 +414,6 @@ units.unassignWork = async (unit) => {
 units.assignWork = async (unit, pos) => {
     let tile = await tiles.fromPosString(pos)
     let type = tiles.getSafeType(tile)
-    console.log(pos, type, tile)
 
     await units.unassignWork(unit)
 
@@ -359,9 +429,11 @@ units.assignWork = async (unit, pos) => {
 			break
 		case tiles.TileType.BARRACKS:
             if (unit.Type == units.UnitType.VILLAGER)
-			    unit.Type = units.UnitType.APPRENTICE
+                unit.Type = units.UnitType.APPRENTICE
+                unit.WorkType = type
             break
         case tiles.TileType.GRASS:
+            unit.WorkType = type
             break
         default:
             console.log("Attempted to assign unit to an invalid tile")
@@ -372,25 +444,24 @@ units.assignWork = async (unit, pos) => {
     
     unit.Work = pos
     unit.Target = pos
-    
-    if (!units.isMilitary(unit)) {
-        //userstats.addPerRoundProduce(unit.OwnerId, unit.ProduceType, unit.ProduceAmount / unit.Trip.length)
-    }
 
     database.updateUnit(unit)
 }
 
 units.assignAttack = async (unit, pos) => {
-    await units.unassignWork(unit)
-    unit.Target = pos
+    //await units.unassignWork(unit)
+
     unit.Attack = pos
-    database.updateUnit(unit)
+    unit.Target = pos
+
+    await database.updateUnit(unit)
 }
 
 units.revokeAttack = (unit) => {
-    delete unit.Target
-    delete unit.Work
-    delete unit.Attack
+    unit.Target = ""
+    unit.Work = ""
+    unit.Attack = ""
+    unit.AttackUnit = ""
 }
 
 units.kill = (unit) => {

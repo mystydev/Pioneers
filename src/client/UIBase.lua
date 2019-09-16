@@ -79,7 +79,7 @@ local updatingBinding, setUpdating = Roact.createBinding(false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
 player.PlayerGui:SetTopbarTransparency(1)
 
-local adminEditorEnabled = false
+local adminEditorEnabled = true
 
 function UIBase.init(world, displaystats)
     stats = displaystats 

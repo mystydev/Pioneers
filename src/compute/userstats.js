@@ -105,20 +105,24 @@ userstats.removeTileMaintenance = (id, cost) => {
 
 userstats.processMaintenance = async (id) => {
     database.getStat(id, "WoodCost").then(cost => {
-        database.addStat(id, "Wood", cost)
+        if (cost)
+            database.addStat(id, "Wood", cost)
     })
 
     database.getStat(id, "StoneCost").then(cost => {
-        database.addStat(id, "Stone", cost)
+        if (cost)
+            database.addStat(id, "Stone", cost)
     })
 }
 
 //Simulated round with no actual unit calculations
 userstats.processRoundSim = async (id) => {
     let stats = await database.getStats(id)
-    database.addStat(id, "Food", stats.FoodProduced)
-    database.addStat(id, "Wood", stats.WoodProduced - stats.WoodCost)
-    database.addStat(id, "Stone", stats.StoneProduced - stats.StoneCost)
+    if (stats.Keep) {
+        database.addStat(id, "Food", stats.FoodProduced)
+        database.addStat(id, "Wood", stats.WoodProduced - stats.WoodCost)
+        database.addStat(id, "Stone", stats.StoneProduced - stats.StoneCost)
+    }
 }
 
 userstats.setInCombat = (id) => {
