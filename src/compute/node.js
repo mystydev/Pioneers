@@ -126,6 +126,7 @@ async function verifyAttackAssignment(id, unitid, pos) {
 		return
 
 	units.assignAttack(unit, pos)
+	userstats.setInCombat(id)
 }
 
 async function verifyTileDeletion(id, pos) {

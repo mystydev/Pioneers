@@ -230,6 +230,7 @@ function costHeuristic(start, target) {
     else
         return Math.max(Math.abs(dx), Math.abs(dy))
 }
+tiles.costHeuristic = costHeuristic
 
 function reconstructPath(start, target, cameFrom) {
     let path = []
@@ -294,16 +295,59 @@ tiles.fastUnitCollisionCheck = async (position) => {
     if (!tiles.fastUnitCollisionCache[partitionId]) 
         tiles.fastUnitCollisionCache[partitionId] = await database.getMilitaryUnitPositionsInPartition(partitionId)
 
-    return tiles.fastUnitCollisionCache[partitionId][position] != undefined
+    return tiles.fastUnitCollisionCache[partitionId][position]
 }
 
-tiles.fastClosestHostileUnitToPosition = async (playerId, position) => {
+tiles.closestTileToResolveCollision = async (position, targetPosition) => {
+    let searchQueue = tiles.getNeighbourPositions(position)
+
+    for (let position of searchQueue) {
+        if (!await tiles.fastUnitCollisionCheck(position) && await tiles.fastWalkableCheck(position, true)) {
+            let closestDist = Infinity
+            let closestTile
+
+            for (let position of searchQueue) {
+                let collision = await tiles.fastUnitCollisionCheck(position)
+                let distance = costHeuristic(position, targetPosition)
+                if (!collision && distance < closestDist) {
+                    closestDist = distance
+                    closestTile = position
+                }
+            }
+
+            return closestTile
+
+        } else if (searchQueue.indexOf(position) == -1) {
+            searchQueue.push(tiles.getNeighbourPositions(position))
+        }
+    }
+}
+
+tiles.fastClosestHostileUnitToPosition = async (playerId, position, unitId) => {
     let partitionId = database.findPartitionId(position)
     
-    if (!tiles.fastUnitCollisionCache[partitionId]) 
-        tiles.fastUnitCollisionCache[partitionId] = await database.getMilitaryUnitPositionsInPartition(partitionId)
+    let [x, y] = common.strToPosition(position)
+    let partitions = [
+        database.findPartitionId(position),
+        database.findPartitionId((x + 20) + ":" + (y + 20)), //TODO: dont use hardcoded partition size
+        database.findPartitionId((x + 20) + ":" + (y     )),
+        database.findPartitionId((x + 20) + ":" + (y - 20)),
+        database.findPartitionId((x     ) + ":" + (y + 20)),
+        database.findPartitionId((x     ) + ":" + (y - 20)),
+        database.findPartitionId((x - 20) + ":" + (y + 20)),
+        database.findPartitionId((x - 20) + ":" + (y     )),
+        database.findPartitionId((x - 20) + ":" + (y - 20)),
+    ]
 
-    let cache = tiles.fastUnitCollisionCache[partitionId]
+    let cache = {}
+
+    for (let partitionId of partitions) {
+        if (!tiles.fastUnitCollisionCache[partitionId]) 
+            tiles.fastUnitCollisionCache[partitionId] = await database.getMilitaryUnitPositionsInPartition(partitionId)
+        
+        Object.assign(cache, tiles.fastUnitCollisionCache[partitionId])
+    }
+
     let closestDist = Infinity
     let closestUnit
 
@@ -312,18 +356,21 @@ tiles.fastClosestHostileUnitToPosition = async (playerId, position) => {
 
         if (dist < closestDist) {
             for (let unitKey of cache[unitPosition]) {
-                let [ownerId, unitId] = unitKey.split(":")
+                let [ownerId, otherUnitId] = unitKey.split(":")
                 
                 if (ownerId != playerId) {
-                    closestDist = dist
-                    closestUnit = unitKey
-                    break
+                    if (dist != 0 || unitId < otherUnitId) {
+                        closestDist = dist
+                        closestUnit = unitKey
+                        break
+                    }
                 }
             }
         }
     }
 
-    return closestUnit
+    if (closestDist < 10)
+        return closestUnit
 }
 
 tiles.findPath = async (start, target, isMilitary) => {

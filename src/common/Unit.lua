@@ -76,6 +76,8 @@ function Unit.sanitise(unit, tiles)
     unit.State    = tonumber(unit.State)
     unit.HeldResource = unit.HeldResource or false
     unit.HeldAmount = unit.HeldAmount and tonumber(unit.HeldAmount) or 0
+    unit.Attack   = (unit.Attack and unit.Attack ~= "") and unit.Attack or false
+    unit.AttackUnit = (unit.AttackUnit and unit.AttackUnit ~= "") and unit.AttackUnit or false
 
     return unit
 end

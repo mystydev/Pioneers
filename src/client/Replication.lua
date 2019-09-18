@@ -26,7 +26,7 @@ local UIBase = nil
 local function handleUnitUpdate(id, changes)
     local localUnit = currentWorld.Units[id]
 
-    if changes.Health and changes.Health <= 0 then
+    if changes.Health and changes.Health <= 0 and false then --TODO: change this false override
         if localUnit then ViewUnit.removeUnit(localUnit) end
     else
         if localUnit then

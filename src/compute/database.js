@@ -221,7 +221,7 @@ database.updateUnits = async (unitList) => {
             if (!pipelines[partitionId]) 
                 pipelines[partitionId] = redis.pipeline()
 
-            if (units.isMilitary(unit))
+            if (units.isMilitary(unit) && unit.State != units.UnitState.DEAD)
                 pipelines[partitionId].hset("militaryUnitCache{"+partitionId+"}", owner+":"+unit.Id, unit.Position)
 
             pipelines[partitionId].hset("unitCache{"+partitionId+"}", owner+":"+unit.Id, unit.Position)
@@ -235,6 +235,10 @@ database.updateUnits = async (unitList) => {
 
                 pipelines[unit.PartitionId].hdel("unitCache{"+unit.PartitionId+"}", owner+":"+unit.Id)
                 redis.hset("unit{"+owner+"}"+unit.Id, "PartitionId", partitionId)
+            }
+
+            if (units.isMilitary(unit) && unit.State == units.UnitState.DEAD) {
+                pipelines[partitionId].hdel("militaryUnitCache{"+unit.PartitionId+"}", owner+":"+unit.Id)
             }
         }
     }

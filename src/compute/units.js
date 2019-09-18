@@ -244,15 +244,17 @@ units.calculateAttackTarget = async (unit) => {
         //If can attack then go there, otherwise find closest unit to attack
         if (path && path.length >= 2) {
             let tile = await tiles.fromPosString(unit.Attack)
-            userstats.setInCombat(tile.OwnerId)
-            userstats.setInCombat(unit.OwnerId)
+            unit.attackedId = tile.OwnerId
             return unit.Target = path[path.length - 2]
         } else if (path && path.length == 1) {
-            
+            let tile = await tiles.fromPosString(unit.Attack)
+            unit.attackedId = tile.OwnerId
+            return unit.Target = unit.Position
         } else {
             let closest = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position)
             unit.AttackUnit = closest
             unit.Attack = ""
+            unit.attackedId = ""
         }
     }
 
@@ -262,36 +264,82 @@ units.calculateAttackTarget = async (unit) => {
         let hostile = await database.getUnit(ownerId, unitId)
 
         //If unit to attack doesn't exist then give up
-        if (!hostile)
+        if (!hostile || hostile.Health <= 0) {
+            unit.Target = unit.Work
+            unit.AttackUnit = null
+            unit.Attack = ""
+            unit.attackedId = ""
             return
+        }
 
         let path = await tiles.findMilitaryPath(unit.Position, hostile.Position);
 
         //If can attack then go there, otherwise find closest unit to attack
         if (path && path.length >= 2) {
-            userstats.setInCombat(hostile.OwnerId)
-            userstats.setInCombat(unit.OwnerId)
+            unit.attackedId = hostile.OwnerId
             return unit.Target = path[path.length - 2]
         } else if (path && path.length == 1) {
-            
+            unit.attackedId = hostile.OwnerId
+            return unit.Target = unit.Position
         } else {
-            let closest = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position)
-            unit.AttackUnit = closest
+            //let closest = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position)
+            unit.AttackUnit = null
             unit.Attack = ""
+            unit.attackedId = ""
         }
     }
+
+    unit.Target = unit.Work
 }
 
 units.processMilitaryUnit = async (unit, inCombat) => {
 
+    if (units.establishMilitaryState(unit) == UnitState.DEAD) {
+        units.revokeAttack(unit)
+        unit.State = UnitState.DEAD
+        return
+    }
 
     if (inCombat) {
         unit.AttackUnit = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position)
-        await units.calculateAttackTarget(unit)
+        //await units.calculateAttackTarget(unit)
     }
+
+    if (unit.Attack || unit.AttackUnit)
+        await units.calculateAttackTarget(unit)
 
     if (!unit.Target && unit.Work)
         unit.Target = unit.Work
+
+    if (unit.State == UnitState.GUARDING && unit.Position != unit.Work)
+        unit.Target = unit.Work
+
+
+    if (unit.Position == unit.Target) {
+        let collision = await tiles.fastUnitCollisionCheck(unit.Position)
+
+        //If this isn't the only unit on this tile, move to a free one
+        for (let unitKey of collision) {
+            let otherId = unitKey.split(":")[1]
+
+            if (otherId < unit.Id) {
+                let attackLocation 
+
+                if (unit.Attack) {
+                    attackLocation = unit.Attack
+                } else if (unit.AttackUnit) {
+                    let [ownerId, unitId] = unit.AttackUnit.split(":")
+                    let hostile = await database.getUnit(ownerId, unitId)
+                    
+                    if (hostile)
+                        attackLocation = hostile.Position
+                }
+
+                if (attackLocation)
+                    unit.Target = await tiles.closestTileToResolveCollision(unit.Position, attackLocation)
+            }
+        }
+    }
 
     let state = units.establishMilitaryState(unit)
     unit.State = state
@@ -299,17 +347,13 @@ units.processMilitaryUnit = async (unit, inCombat) => {
     switch (state) {
         case UnitState.MOVING:
         
-            if (unit.Attack || unit.AttackUnit) {
-                await units.calculateAttackTarget(unit)
-            }
-
             let path = await tiles.findMilitaryPath(unit.Position, unit.Target);
 
-            if (path) {
-                unit.Position = path[0]
-            } else {
+            if (!path || path.length == 0)
                 unit.State = UnitState.LOST
-            }
+            else if (!await tiles.fastUnitCollisionCheck(path[0]))
+                unit.Position = path[0]
+
             break
 
         case UnitState.TRAINING:
@@ -325,15 +369,37 @@ units.processMilitaryUnit = async (unit, inCombat) => {
 
         case UnitState.COMBAT:
             let health
-            if (unit.Attack)
-                health = await database.incrementTileProp(unit.Attack, "Health", -10)
-            if (unit.AttackUnit)
-                health = await database.damageUnitByKey(unit.AttackUnit, 10)
+            if (unit.Attack) {
+                let distance = tiles.costHeuristic(unit.Position, unit.Attack)
 
-            health = parseInt(health)
+                if (distance == 1)
+                    health = await database.incrementTileProp(unit.Attack, "Health", -10)
+                else
+                    units.calculateAttackTarget(unit)
+            } 
+            if (unit.AttackUnit) {
+                let distance = await units.slowUnitDistance(unit, unit.AttackUnit)
 
-            if (health <= 0 || !health)
+                if (distance == 1)
+                    health = await database.damageUnitByKey(unit.AttackUnit, 10)
+                else
+                    units.calculateAttackTarget(unit)
+            }
+
+            if (health != undefined) {
+                health = parseInt(health)
+
+                if (health <= 0)
+                    units.revokeAttack(unit)
+                else {
+                    userstats.setInCombat(unit.OwnerId)
+                    if (unit.attackedId)
+                        userstats.setInCombat(unit.attackedId)
+                }            
+            } else {
                 units.revokeAttack(unit)
+            }
+
             break
     }
 }
@@ -448,6 +514,14 @@ units.assignWork = async (unit, pos) => {
     database.updateUnit(unit)
 }
 
+units.slowUnitDistance = async (unit, combinedKey) => {
+    let [ownerId, unitId] = combinedKey.split(":")
+    let otherUnit = await database.getUnit(ownerId, unitId)
+    
+    if (otherUnit)
+        return tiles.costHeuristic(unit.Position, otherUnit.Position)
+}
+
 units.assignAttack = async (unit, pos) => {
     //await units.unassignWork(unit)
 
@@ -459,12 +533,12 @@ units.assignAttack = async (unit, pos) => {
 
 units.revokeAttack = (unit) => {
     unit.Target = ""
-    unit.Work = ""
     unit.Attack = ""
     unit.AttackUnit = ""
 }
 
 units.kill = (unit) => {
+    /*
     //Remove them from their work
     units.unassignWork(unit)
 
@@ -480,4 +554,7 @@ units.kill = (unit) => {
 
     //Remove them entirely!
     setTimeout(database.deleteUnit, 5000, unit.Id) //Allow clients to pick up 0 health and perform a local kill
+    */
+
+    unit.Health = 100
 }
