@@ -14,7 +14,7 @@ spec:
         run: pioneers-dev-compute-master
     spec:
       containers:
-      - image: gcr.io/pioneers-237219/devpioncomputemaster:latest
+      - image: gcr.io/pioneers-roblox/devpioncomputemaster:latest
         imagePullPolicy: Always
         name: pioneers-dev-compute-master
         

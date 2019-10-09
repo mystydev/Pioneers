@@ -67,13 +67,13 @@ function Unit.sanitise(unit, tiles)
     unit.Position = Vector2.new(tonumber(x), tonumber(y))
     unit.Type     = tonumber(unit.Type)
     unit.OwnerId  = tonumber(unit.OwnerId)
-    unit.Health   = tonumber(unit.Health)
+    unit.Health   = tonumber(unit.Health) or 1
     unit.MHealth  = unit.MHealth and tonumber(unit.MHealth) or 200
     unit.Fatigue  = tonumber(unit.Fatigue)
     unit.MFatigue = unit.MFatigue and tonumber(unit.MFatigue) or 10
     unit.Training = tonumber(unit.Training)
     unit.MTraining= unit.MaxTraining and tonumber(unit.MaxTraining) or 100
-    unit.State    = tonumber(unit.State)
+    unit.State    = unit.Health > 0 and tonumber(unit.State) or Unit.UnitState.DEAD
     unit.HeldResource = unit.HeldResource or false
     unit.HeldAmount = unit.HeldAmount and tonumber(unit.HeldAmount) or 0
     unit.Attack   = (unit.Attack and unit.Attack ~= "") and unit.Attack or false

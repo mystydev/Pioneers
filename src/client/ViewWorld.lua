@@ -22,7 +22,7 @@ function ViewWorld.displayWorld(world)
     ViewTile.init(tiles)
     ViewUnit.init(world)
 
-    RunService.Stepped:Connect(Replication.keepViewAreaLoaded)
+    Replication.keepViewAreaLoaded()
 
     for id, unit in pairs(units) do 
         ViewUnit.displayUnit(unit)
@@ -34,7 +34,6 @@ function ViewWorld.convertInstanceToTile(inst)
 end
 
 function ViewWorld.convertInstanceToUnit(inst)
-    print(inst, "->", ViewUnit.getUnitFromInst(inst))
     return ViewUnit.getUnitFromInst(inst)
 end
 

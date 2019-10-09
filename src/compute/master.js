@@ -2,18 +2,21 @@
 let http = require("http")
 let performance = require('perf_hooks').performance
 let database = require("./database")
+let Mutex = require('async-mutex').Mutex;
 
 const options = {
 	hostname: "computenode.dev",
 	port: 6420,
 	path: "/",
 	method: "POST",
+	timeout: 2000,
 	headers: {
 		"Content-Type": "application/json"
 	}
 }
 
 let interval
+let processingLock = new Mutex()
 
 function shutdown(code) {
 	console.log("Compute master node shutting down: " + code)
@@ -23,14 +26,26 @@ function shutdown(code) {
 	process.exit(0) //Bit forceful, but we don't care, everything should be in a safe state anyway
 }
 
-async function init() {
+function init() {
 	console.log("Compute master node starting")
 	database.connect()
 	interval = setInterval(processRound, 2000)
 }
 
+function attemptRound() {
+	if (!processingLock.isLocked())
+		processingLock.acquire().then((release) => {
+			processRound().then(() => release()).catch(() => release())
+		})
+		
+	else
+		console.log("Skipping round due to over time simulation")
+}
+
 async function processRound() {
+	console.log("Processing")
 	database.setRoundStart()
+
 	let start = performance.now()
 	let playerList = await database.getPlayerList()
 	let processing = []
@@ -61,10 +76,13 @@ async function sendComputeRequest(data) {
 		req.on("response", () => {
 			resolve()
 		})
+
+		req.on("timeout", () => {
+			console.error("Compute request timed out")
+			resolve()
+		})
 	})
 }
-
-init()
 
 process.on("exit", shutdown)
 process.on("SIGHUP", shutdown)
@@ -78,3 +96,5 @@ process.on('unhandledRejection', (error) => {
 	console.error("!!Encountered a rejection: " + error.message)
 	console.error(error.stack)
 })
+
+init()

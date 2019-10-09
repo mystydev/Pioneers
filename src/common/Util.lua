@@ -12,6 +12,7 @@ local YOFFSET = EDGESPACING * 2 * Vector3.new(1, 0, 0)
 local XOFFSET = EDGESPACING * 2 * Vector3.new(-0.5, 0, 0.866)
 
 local PARTITIONSIZE = 20
+Util.PARTITIONSIZE = PARTITIONSIZE
 
 local getTileXY = World.getTileXY
 local format = string.format
@@ -118,6 +119,20 @@ function Util.findPartitionId(x, y)
     x = x >= 0 and x * 2 or -x * 2 - 1
     y = y >= 0 and y * 2 or -y * 2 - 1
     return tostring(0.5 * (x + y) * (x + y + 1) + y)
+end
+
+function Util.partitionIdToCoordinates(id)
+    id = tonumber(id)
+
+    local w = math.floor(((8 * id + 1)^.5 - 1) / 2)
+    local t = (w^2 + w) / 2
+    local y = id - t
+    local x = w - y
+
+    x = x%2>0 and (x + 1) / -2 or x / 2
+    y = y%2>0 and (y + 1) / -2 or y / 2
+
+    return x * PARTITIONSIZE, y * PARTITIONSIZE
 end
 
 function Util.findOverlappedPartitions(position)

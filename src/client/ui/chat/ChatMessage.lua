@@ -2,10 +2,19 @@
 local Roact = require(game.ReplicatedStorage.Roact)
 local Players = game:GetService("Players")
 
+local nameCache = {}
+
 function ChatMessage(props)
 
     local message = props.message
-    local text = Players:GetNameFromUserIdAsync(message.user) .. "  " .. message.text
+    local text
+
+    if nameCache[message.user] then
+        text = nameCache[message.user] .. "  " .. message.text
+    else
+        nameCache[message.user] = Players:GetNameFromUserIdAsync(message.user)
+        text = nameCache[message.user] .. "  " .. message.text
+    end
 
     local front = Roact.createElement("TextLabel", {
         Name                   = "ChatMessageFront",

@@ -4,6 +4,7 @@ local Common = game.ReplicatedStorage.Pioneers.Common
 
 local Util        = require(Common.Util)
 local Unit        = require(Common.Unit)
+local Tile        = require(Common.Tile)
 local ViewTile    = require(Client.ViewTile)
 local Replication = require(Client.Replication)
 local Players = game:GetService("Players")
@@ -19,28 +20,52 @@ function ActionHandler.provideUnitChangeHook(hook)
     unitChangeHook = hook
 end
 
-function ActionHandler.attemptBuild(tile, type)
+local function tempChangeTileType(tile, type, newId)
+    --Save current tile info to restore if needed later
     local oldType = tile.Type
     local oldId = tile.OwnerId
+    local version = tile.CyclicVersion
+
+    --Assign new info
     tile.Type = type
-    tile.OwnerId = Players.LocalPlayer.UserId
+    tile.OwnerId = newId
+
+    --Update display
     ViewTile.updateDisplay(tile)
     tile.lastChange = tick()
 
+    --Update neighbouring tiles
     for _, n in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
         ViewTile.updateDisplay(n)
     end
 
-    Replication.requestTilePlacement(tile, type)
-
+    --Wait to see if request failed and tile needs to be restored
     delay(5, function()
-        local liveTile = Replication.requestTile(tile.Position)
-        Replication.handleTileUpdate(liveTile)
-        
-        for _, n in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
-            ViewTile.updateDisplay(n)
+
+        --Version didn't change so no update happened
+        if version == tile.CyclicVersion then
+            tile.Type = oldType
+            tile.OwnerId = oldId
+
+            ViewTile.updateDisplay(tile)
+
+            for _, n in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
+                ViewTile.updateDisplay(n)
+            end
         end
     end)
+end
+
+function ActionHandler.attemptBuild(tile, type)
+    --Update tile then send request to place the tile
+    tempChangeTileType(tile, type, Players.LocalPlayer.UserId)
+    Replication.requestTilePlacement(tile, type, Players.LocalPlayer.UserId)
+end
+
+function ActionHandler.attemptDelete(tile)
+    --Update tile then send request to delete the tile
+    tempChangeTileType(tile, Tile.GRASS, nil)
+    Replication.requestTileDelete(tile)
 end
 
 function ActionHandler.assignWork(unit, tile)

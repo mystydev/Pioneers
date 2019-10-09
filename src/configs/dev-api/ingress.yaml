@@ -3,7 +3,7 @@ kind: Ingress
 metadata:
   name: pioneers-dev-api-ingress
   annotations:
-    kubernetes.io/ingress.global-static-ip-name: "dev-api"
+    kubernetes.io/ingress.global-static-ip-name: "api-ip"
     kubernetes.io/ingress.allow-http: "false"
     ingress.gcp.kubernetes.io/pre-shared-cert: "cloudflare"
 spec:

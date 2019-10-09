@@ -104,7 +104,8 @@ function Tile.deserialise(index, data)
     tile.Health   = data.Health
     tile.MHealth  = data.MHealth or Tile.MaxHealth[data.Type]
     tile.UnitList = data.UnitList]]--
-
+    if not index then return end 
+    
     local x, y    = unpack(string.split(index, ':'))
     data.Type = tonumber(data.Type)
     data.OwnerId  = tonumber(data.OwnerId)

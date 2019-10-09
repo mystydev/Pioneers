@@ -47,12 +47,18 @@ async function canBuild(id, pos, type) {
 		return false
 
 	//Special case for keep
-	if (type == tiles.TileType.KEEP && !await userstats.hasKeep(id))
-		return true
+	if (type == tiles.TileType.KEEP)
+		if (await userstats.hasKeep(id))
+			return false
+		else
+			return true
 
 	//Special case for gates
-	if (type == tiles.TileType.GATE && tiles.isWallGap(pos))
-		return true
+	if (type == tiles.TileType.GATE)
+		if (await tiles.isWallGap(pos))
+			return true
+		else
+			return false
 
 	//Tile is attached to a path
 	neighbours = await neighbours
@@ -77,36 +83,29 @@ async function verifyTilePlacement(id, pos, type) {
 	userstats.addTileMaintenance(id, tiles.TileMaintenanceCosts[type])
     
 	//Create tile and recompute cached values (like unit trips)
-	let tile = new tiles.Tile(type, id, pos)
+	let tile = await tiles.newTile(type, id, pos)
 	await database.updateTile(pos, tile)
-	//units.recomputeCiv(id)
 }
 
 async function verifyWorkAssignment(id, unitid, pos) {
     let unit = await units.fromid(id, unitid)
 	
-	console.log(unit)
-	console.log(id, unit.OwnerId)
 	//Does the unit exist and is the unit owned by the player making the request
 	if (!unit || id != unit.OwnerId)
 		return
 
-	console.log("passed1")
 	//If there is no position then deassign the unit's work
 	if (!pos)
 		 return units.unassignWork(unit)
-		 console.log("passed1")
 
 	//Is it a military unit and if not can it be assigned work
 	if (!units.isMilitary(unit) && !await tiles.canAssignWorker(pos, unit))
 		return 
 	
-	console.log("passed2")
 	//If it is a military unit can it be assigned military work
 	if (units.isMilitary(unit) && !await tiles.canAssignMilitaryWorker(pos, unit))
 		return 
 
-	console.log("passed3")
 	//Assign the worker
 	await tiles.assignWorker(pos, unit)
 	await units.assignWork(unit, pos)
@@ -145,13 +144,12 @@ async function verifyTileDeletion(id, pos) {
 		return false
 
 	//Will deleting this tile cause a kingdom fragmentation
-	if (await tiles.isFragmentationDependant(pos, userstats.getKeep(id)))
+	if (await tiles.isFragmentationDependant(pos, await userstats.getKeep(id)))
 		return false
 
 	//Remove maintenance cost from users stats, delete the tile and update cached unit values
 	userstats.removeTileMaintenance(id, tiles.TileMaintenanceCosts[tile.Type])
-	tiles.deleteTile(tile)
-	units.recomputeCiv(id)
+	await tiles.deleteTile(tile)
 }
 
 async function verifyTileRepair(id, pos) {
@@ -166,7 +164,7 @@ async function verifyTileRepair(id, pos) {
 		return false
 
 	//Can the player afford to repair the tile
-	let repairCost = tiles.getRepairCost(pos)
+	let repairCost = await tiles.getRepairCost(pos)
 
 	if (!userstats.canAffordCost(id, repairCost))
 		return false
@@ -175,7 +173,6 @@ async function verifyTileRepair(id, pos) {
 	userstats.useCost(id, repairCost)
 	tile.Health = tile.MaxHealth
 	database.updateTile(pos, tile)
-	units.recomputeCiv(id)
 }
 
 async function processActionQueue(id) {
@@ -219,23 +216,27 @@ async function computeRequest(roundStart, id) {
 	if (roundStart != lastRoundTime) {
 		lastRoundTime = roundStart
 		tiles.clearCaches()
-		console.log("-----Cleared caches-----")
+		database.clearCaches()
+		//console.log("-----Cleared caches-----")
 	}
 
-	console.log("Handling compute request:", id)
+	//console.log(id, ": handling compute request")
 
     let start = performance.now()
     let processing = []
 
     await processActionQueue(id)
     await units.processSpawns(id)
-    await userstats.processMaintenance(id)
 
-	let shouldSimulate = await database.wasIdRequested(id)
+	let shouldSimulate = await database.getRemainingFullSimQuota(id)
 	
-	if (!shouldSimulate) {
+	if (shouldSimulate <= 0) {
+		//console.log(id, ": lightweight round sim")
 		await userstats.processRoundSim(id)
 	} else {
+		//console.log(id, ": fullweight round sim, quota", shouldSimulate)
+		await userstats.processMaintenance(id)
+
 		let req = {}
 		req[id] = await database.getUnitCollection(id)
 		let unitList = await database.getUnits(req)
@@ -249,7 +250,7 @@ async function computeRequest(roundStart, id) {
 	}
 
     let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
-    console.log("Compute request took: " + timeTaken + "ms")
+    //console.log(id, ": compute request took: " + timeTaken + "ms")
     
     return {}
 }

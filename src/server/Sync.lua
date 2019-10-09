@@ -64,7 +64,7 @@ local function syncUpdates()
             chats = Replication.getChats(),
             feedback = Replication.getFeedback(),
         })
-    
+        
         local rawres = Http:PostAsync(API_URL.."syncupdates", payload)
         local res = Http:JSONDecode(rawres)
         syncTime = tonumber(res.lastProcess)

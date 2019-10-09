@@ -119,33 +119,33 @@ function ChatBox:didMount()
 
     spawn(function()
         while self.running do
-            local ysize = 0
-            local frame = self.frameRef.current
-
-            for _, child in pairs(frame:GetChildren()) do
-                if child:IsA("TextLabel") then
-                    ysize = ysize + child.Size.Y.Offset + 10 --10 is padding
-                end
-            end
-
-            local transparency
-
-            if istyping then
-                transparency = 0.2
-            elseif interacting then
-                transparency = 0.4
-            else
-                transparency = math.clamp((tick() - lastInteraction), self.state.transparency, 1)
-            end 
-
-            
-            local heightDelta = frame.CanvasSize.Y.Offset - frame.AbsoluteSize.Y
-            local stayBottom = self.state.stayBottom
-            if frame.CanvasPosition.Y == heightDelta then
-                stayBottom = ysize
-            end
-
             self:setState(function(state)
+                local ysize = 0
+                local frame = self.frameRef.current
+
+                for _, child in pairs(frame:GetChildren()) do
+                    if child:IsA("TextLabel") then
+                        ysize = ysize + child.Size.Y.Offset + 10 --10 is padding
+                    end
+                end
+
+                local transparency
+
+                if istyping then
+                    transparency = 0.2
+                elseif interacting then
+                    transparency = 0.4
+                else
+                    transparency = math.clamp((tick() - lastInteraction), state.transparency, 1)
+                end 
+
+                
+                local heightDelta = frame.CanvasSize.Y.Offset - frame.AbsoluteSize.Y
+                local stayBottom = state.stayBottom
+                if frame.CanvasPosition.Y == heightDelta then
+                    stayBottom = ysize
+                end
+
                 return {
                     chatHeight = ysize,
                     transparency = transparency,
@@ -153,7 +153,7 @@ function ChatBox:didMount()
                 }
             end)
 
-            RunService.Heartbeat:Wait()
+            RunService.Stepped:Wait()
         end
     end)
 end

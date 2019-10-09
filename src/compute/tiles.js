@@ -79,16 +79,18 @@ tiles.fastPathCache = {}
 tiles.adjacencyCache = {}
 tiles.fastUnitCollisionCache = {}
 
-function Tile(type, id, pos, unitlist) {
-    this.Type = type
-    this.OwnerId = id
-    this.Health = defaults[type].Health
-    this.MaxHealth = defaults[type].Health
-    this.UnitList = unitlist || []
-    this.Position = pos
-    this.CyclicVersion = "0"
+tiles.newTile = async (type, id, pos, unitlist) => {
+    let tile = {
+        Type: type,
+        OwnerId: id,
+        Health: defaults[type].Health,
+        MaxHealth: defaults[type].Health,
+        UnitList: unitlist || [],
+        Position: pos,
+        CyclicVersion: "0",
+    }
 
-    if (type == TileType.HOUSE && this.UnitList.length < common.HOUSE_UNIT_NUMBER) {
+    if (type == TileType.HOUSE && tile.UnitList.length < common.HOUSE_UNIT_NUMBER) {
         units.setSpawn(id, pos)
     }
 
@@ -96,13 +98,13 @@ function Tile(type, id, pos, unitlist) {
         let neighbours = tiles.getNeighbourPositions(pos)
 
         for (let p of neighbours)
-            database.updateTile(p, new Tile(TileType.PATH, id, p))
+            database.updateTile(p, await tiles.newTile(TileType.PATH, id, p))
 
-        userstats.assignKeep(id, pos)
+        await userstats.assignKeep(id, pos)
     }
-}
 
-tiles.Tile = Tile
+    return tile
+}
 
 tiles.sanitise = (tile) => {
     tile.UnitList = tile.UnitList ? JSON.parse(tile.UnitList) : []
@@ -117,9 +119,9 @@ tiles.storePrep = (tile) => {
     return preppedTile
 }
 
-tiles.deleteTile = (tile) => {
+tiles.deleteTile = async (tile) => {
     units.removeSpawn(tile.OwnerId, tile.Position)
-    database.deleteTile(tile.Position)
+    await database.deleteTile(tile.Position)
 }
 
 tiles.load = async () => {
@@ -143,6 +145,7 @@ tiles.dbFromCoords = async (posx, posy) => {
 }
 
 tiles.getSafeType = (tile) => {
+    if (!tile) return TileType.GRASS
     return tile.Type || TileType.GRASS
 }
 
@@ -181,6 +184,17 @@ tiles.getNeighbourPositions = (pos) => {
 
 tiles.isWallGap = async (pos) => {
     let neighbours = await tiles.getNeighbours(pos)
+    let neighbourPositions = tiles.getNeighbourPositions(pos)
+
+    for (let index in neighbourPositions) {
+        let position = neighbourPositions[index]
+        let neighbour = neighbours[index]
+
+        if (!neighbour || position != neighbour.Position)
+            neighbours.splice(index, 0, undefined)
+    }
+
+    console.log(neighbourPositions, neighbours)
 
     if (tiles.getSafeType(neighbours[0]) == TileType.WALL && tiles.getSafeType(neighbours[1]) == TileType.WALL)
         return true
@@ -323,10 +337,11 @@ tiles.closestTileToResolveCollision = async (position, targetPosition) => {
     }
 }
 
-tiles.fastClosestHostileUnitToPosition = async (playerId, position, unitId) => {
-    let partitionId = database.findPartitionId(position)
+tiles.fastClosestHostileUnitToPosition = async (playerId, position, unitId, ignoreKey) => {  
     
+    let cache  = {}
     let [x, y] = common.strToPosition(position)
+
     let partitions = [
         database.findPartitionId(position),
         database.findPartitionId((x + 20) + ":" + (y + 20)), //TODO: dont use hardcoded partition size
@@ -336,10 +351,7 @@ tiles.fastClosestHostileUnitToPosition = async (playerId, position, unitId) => {
         database.findPartitionId((x     ) + ":" + (y - 20)),
         database.findPartitionId((x - 20) + ":" + (y + 20)),
         database.findPartitionId((x - 20) + ":" + (y     )),
-        database.findPartitionId((x - 20) + ":" + (y - 20)),
-    ]
-
-    let cache = {}
+        database.findPartitionId((x - 20) + ":" + (y - 20))]
 
     for (let partitionId of partitions) {
         if (!tiles.fastUnitCollisionCache[partitionId]) 
@@ -358,7 +370,7 @@ tiles.fastClosestHostileUnitToPosition = async (playerId, position, unitId) => {
             for (let unitKey of cache[unitPosition]) {
                 let [ownerId, otherUnitId] = unitKey.split(":")
                 
-                if (ownerId != playerId) {
+                if (ownerId != playerId && unitKey != ignoreKey) {
                     if (dist != 0 || unitId < otherUnitId) {
                         closestDist = dist
                         closestUnit = unitKey
@@ -369,7 +381,7 @@ tiles.fastClosestHostileUnitToPosition = async (playerId, position, unitId) => {
         }
     }
 
-    if (closestDist < 10)
+    if (closestDist < 5)
         return closestUnit
 }
 

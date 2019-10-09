@@ -210,6 +210,8 @@ app.post("/pion/syncupdates", async (req, res) => {
         updates.chats       = values[5];
         res.json(updates)
     })
+
+    database.clearCaches()
 })
 
 app.post("/pion/getusersettings", (req, res) => {
@@ -285,12 +287,6 @@ process.on("uncaughtException", (error) => {
 process.on('unhandledRejection', (error, promise) => {
     console.log("!!Encountered a rejection: " + error)
     console.log(promise)
-    console.log("Pedantic database reconnect...")
-
-    //if (cluster)
-    //    cluster.quit().catch(e => {})
-
-    setTimeout(connectoToRedis, 1000)
 })
 
 connectoToRedis()

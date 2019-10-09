@@ -1,4 +1,4 @@
-*.rbxl
+*.rbxl*
 site/*
 *.mtl
 *.obj
@@ -9,3 +9,6 @@ TestEZ/*
 assets/sounds/*
 commands.bat
 *PRIVATE*
+assets/artisticmotivation/*
+assets/anims/*
+assets/BlendFiles/*

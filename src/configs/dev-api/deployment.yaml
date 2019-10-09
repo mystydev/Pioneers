@@ -14,7 +14,7 @@ spec:
         run: pioneers-dev-api
     spec:
       containers:
-      - image: gcr.io/pioneers-237219/devpionapi:latest
+      - image: gcr.io/pioneers-roblox/devpionapi:latest
         imagePullPolicy: Always
         name: pioneers-dev-api
         ports:
@@ -28,6 +28,4 @@ spec:
           timeoutSeconds: 2
           successThreshold: 2
           failureThreshold: 2
-      nodeSelector:
-        static: "false"
         

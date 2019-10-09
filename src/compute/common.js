@@ -9,7 +9,8 @@ common.Actions = {
     REPAIR_TILE:5,
 };
 
-common.GEO_REDUCTION_RATE = 125000 //world axis position division to confine to 80 degree long/lat at x/y 10,000,000
+common.FULL_SIM_QUOTA = 60 //how many full simulation rounds are required to proceed to lightweight simulation
+
 common.SPAWN_REQUIRED_FOOD = 100
 common.SPAWN_ATTEMPTS_REQUIRED = 10
 common.HOUSE_UNIT_NUMBER = 2

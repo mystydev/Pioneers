@@ -145,8 +145,32 @@ local function unitRequest(player, unitList)
     return units
 end
 
-local function playerPositionUpdate(player, position)
+local function updatePlayerPosition(player, position)
     playerPositions[player] = position
+
+    local axialPosition = Util.worldVectorToAxialPositionString(position)
+    local partitions = Util.findOverlappedPartitions(axialPosition)
+
+    requiredPartitions = {}
+
+    for _, partitionId in pairs(partitions) do
+        requiredPartitions[partitionId] = partitionHashes[partitionId] or "0"
+    end
+
+    return requiredPartitions
+end
+
+local function partitionRequest(player, partitionId)
+    local x, y = Util.partitionIdToCoordinates(partitionId)
+    local tileCollection = {}
+
+    for dx = 0, Util.PARTITIONSIZE do
+        for dy = 0, Util.PARTITIONSIZE do
+            table.insert(tileCollection, World.getTileXY(currentWorld.Tiles, x + dx, y + dy))
+        end
+    end
+
+    return tileCollection
 end
 
 local function getTesterStatus(player)
@@ -206,10 +230,11 @@ function Replication.assignWorld(w)
     Network.RequestUnits.OnServerInvoke         = unitRequest
     Network.GetCircularTiles.OnServerInvoke     = getCircularTiles
     Network.Ready.OnServerInvoke                = getTesterStatus
+    Network.UpdatePlayerPosition.OnServerInvoke = updatePlayerPosition
+    Network.RequestPartition.OnServerInvoke     = partitionRequest
     Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
     Network.Chatted.OnServerEvent:Connect(chatRequest)
     Network.FeedbackRequest.OnServerEvent:Connect(feedbackRequest)
-    Network.PlayerPositionUpdate.OnServerEvent:Connect(playerPositionUpdate)
 end
 
 function Replication.pushStatsChange(stats)
@@ -285,21 +310,13 @@ end
 function Replication.handleTileInfo(tileList)
     for _, tile in pairs(tileList) do
         local pos = tile.Position
-        local stile = currentWorld.Tiles[pos]
 
+        if not pos then return end
+
+        local stile = currentWorld.Tiles[pos]
+        
         currentWorld.Tiles[pos] = Tile.deserialise(pos, tile)
 
-        if not stile or Tile.isDifferent(stile, currentWorld.Tiles[pos]) then
-            Replication.pushTileChange(pos)
-        end
-    end
-
-    for pos, tile in pairs(currentWorld.Tiles) do
-        if not tileList[pos] and tile.Type ~= Tile.GRASS then
-            --print("Removing deleted tile")
-            --currentWorld.Tiles[pos] = nil
-            --Replication.pushTileChange(pos)
-        end
     end
 end
 

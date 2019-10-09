@@ -74,13 +74,12 @@ local gptLookup = {
 gptLookup[0] = {0, 0}
 
 local currentTiles = {}
+
 function ViewTile.init(tiles)
     currentTiles = tiles
 end
 
 function ViewTile.displayTile(tile, displaySize)
-
-
 
     if TileToInstMap[tile] then
         ViewTile.updateDisplay(tile, displaySize)

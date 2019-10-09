@@ -15,7 +15,7 @@ function PID.getValue(info, input, dt)
     end
 
     local error = info.SetPoint - input
-    local integral = info.I + error * dt
+    local integral = (info.I + error * dt) / info.integral_limiter
     local derivative = (error - info.PreviousError) / dt
     local output = info.Kp * error + info.Ki * integral + info.Kd * derivative
     
@@ -25,8 +25,8 @@ function PID.getValue(info, input, dt)
     return output, info
 end
 
-function PID.newController()
-    return Util.tableCopy(defaultPIDInfo)
+function PID.newController(info)
+    return Util.tableCopy(info or defaultPIDInfo)
 end
 
 return PID

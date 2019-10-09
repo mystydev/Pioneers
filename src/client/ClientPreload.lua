@@ -164,8 +164,10 @@ function preload.tellReady()
             TweenService:Create(loadingGui.Background, tweenInfo, {BackgroundTransparency = 1}):Play()
             TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
             TweenService:Create(game.Lighting.LoadingBlur, tweenInfo, {Size = 0}):Play()
+           
+            wait(1)
 
-            --wait(2)
+            loadingGui.Info.Text = ""
             
             --loadingGui:Destroy()
             --game.Lighting.LoadingBlur.Size = 0

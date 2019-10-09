@@ -6,6 +6,9 @@ let units = require("./units")
 let Redis = require("ioredis")
 let redis
 
+//Prevents unnecessary writes during the same round to full simulation quotas
+let fullSimCache = new Set()
+
 //The world is split into many squares with width/height of partitionSize
 //These partitions allow for efficient caching of a large number of tiles
 let partitionSize = 20
@@ -36,8 +39,8 @@ function findXYFromPartitionId(id) {
 
 database.partitionIndex = (position) => {
     let [x, y] = common.strToPosition(position)
-    x = x >= 0 ? x % partitionSize : partitionSize + (x % partitionSize)
-    y = y >= 0 ? y % partitionSize : partitionSize + (y % partitionSize)
+    x = (partitionSize + (x % partitionSize))%partitionSize
+    y = (partitionSize + (y % partitionSize))%partitionSize
     return x * partitionSize + y
 }
 
@@ -85,8 +88,10 @@ database.connect = () => {
         port: 6379,
         host: "redis.dev"
     }], {
-        scaleReads: "slave"
+        //scaleReads: "slave"
     })
+
+    redis.on('ready', () => console.log("Database connected and ready."))
 
     return redis
 }
@@ -142,8 +147,10 @@ database.getStaleTilesFromVersionCache = async (partitionId, versionCache) => {
             x += xoffset
             y += yoffset
             
+            let grassTile = await tiles.newTile(tiles.TileType.GRASS, undefined, x+":"+y)
+
             pipeline.hgetall("tile{"+partitionId+"}"+x+":"+y, 
-                (e, tile) => tile.Position && tileList.push(tiles.sanitise(tile)))
+                (e, tile) => tile.Position ? tileList.push(tiles.sanitise(tile)) : tileList.push(grassTile))
         }
     }
 
@@ -191,7 +198,7 @@ database.getUnits = async (idDict) => {
     return unitList
 }
 
-database.updateUnits = async (unitList) => {
+database.updateUnits = async (unitList, includeHealth = false) => {
     if (unitList.length == 0) return
 
     //Get unit batches by owner id
@@ -203,7 +210,10 @@ database.updateUnits = async (unitList) => {
 
         for (let unit of batches[owner]) {
             let health = unit.Health
-            delete unit.Health
+
+            if (!includeHealth)
+                delete unit.Health
+
             pipeline.hmset("unit{"+owner+"}"+unit.Id, unit)
             unit.Health = health
         }
@@ -238,7 +248,7 @@ database.updateUnits = async (unitList) => {
             }
 
             if (units.isMilitary(unit) && unit.State == units.UnitState.DEAD) {
-                pipelines[partitionId].hdel("militaryUnitCache{"+unit.PartitionId+"}", owner+":"+unit.Id)
+                pipelines[partitionId].hdel("militaryUnitCache{"+partitionId+"}", owner+":"+unit.Id)
             }
         }
     }
@@ -247,10 +257,13 @@ database.updateUnits = async (unitList) => {
         pipelines[partitionId].exec()
 }
 
-database.updateUnit = async (unit) => {
-    let partitionId = database.findPartitionId(unit.Position)
+database.updateUnit = async (unit, includeHealth = false) => {
+    /*let partitionId = database.findPartitionId(unit.Position)
     let health = unit.Health
     delete unit.Health
+
+    if (includeHealth)
+        unit.Health = health
 
     if (partitionId != unit.PartitionId)
         redis.hdel("unitCache{"+unit.PartitionId+"}", unit.OwnerId+":"+unit.Id)
@@ -262,16 +275,29 @@ database.updateUnit = async (unit) => {
     
     unit.Health = health
     
-    await Promise.all(commands)
+    await Promise.all(commands)*/
+    database.updateUnits([unit], includeHealth)
 }
 
 database.damageUnit = async (unit, damage) => {
-    return redis.hincrby("unit{"+ unit.OwnerId+"}"+unit.Id, "Health", -damage)
+    let health = await redis.hincrby("unit{"+ unit.OwnerId+"}"+unit.Id, "Health", -damage)
+
+    if (health <= 0)
+        redis.hdel("militaryUnitCache{"+unit.PartitionId+"}", unit.OwnerId+":"+unit.Id)
+
+    return health
 }
 
-database.damageUnitByKey = async (key, damage) => {
+//DO NOT USE YET
+database.damageUnitByKey = async (key, damage, unitPosition) => {
     let [ownerId, unitId] = key.split(":")
-    return redis.hincrby("unit{"+ ownerId+"}"+unitId, "Health", -damage)
+    let health = await redis.hincrby("unit{"+ ownerId+"}"+unitId, "Health", -damage)
+    let partition = database.findPartitionId(unitPosition)
+
+    if (health <= 0)
+        redis.hdel("militaryUnitCache{"+unit.PartitionId+"}", ownerId+":"+unitId)
+
+    return health
 }
 
 database.getUnitIdsAtPosition = async (pos) => {
@@ -324,8 +350,7 @@ database.getUnitsAtPartitions = async (partitions) => {
         if (!pipelines[ownerId])
             pipelines[ownerId] = redis.pipeline()
         
-        pipelines[ownerId].set("requested{"+ownerId+"}", true)
-        pipelines[ownerId].expire("requested{"+ownerId+"}", 30)
+        database.resetFullSimQuota(ownerId)
         pipelines[ownerId].hgetall("unit{"+ownerId+"}"+unitId, 
             (e, unit) => unit.Id && unitList.push(unit))
     }
@@ -335,10 +360,6 @@ database.getUnitsAtPartitions = async (partitions) => {
 
     await Promise.all(fetching)
     return unitList
-}
-
-database.wasIdRequested = async (id) => {
-    return await redis.get("requested{"+id+"}")
 }
 
 database.getAllStats = async () => {
@@ -374,6 +395,22 @@ database.setStats = (id, stats) => {
 
 database.getStats = async (id) => {
     return redis.hgetall("stats:"+id)
+}
+
+database.resetFullSimQuota = async (id) => {
+    if (!fullSimCache.has(id)) {
+        console.log(id, ": full sim quota reset")
+        database.setStat(id, "RequiredFullSims", common.FULL_SIM_QUOTA)
+        fullSimCache.add(id)
+    }
+}
+
+database.getRemainingFullSimQuota = async (id) => {
+    return await redis.hincrby("stats:"+id, "RequiredFullSims", -1)
+}
+
+database.clearCaches = () => {
+    fullSimCache.clear()
 }
 
 database.getAllSettings = async () => {
@@ -438,8 +475,26 @@ database.incrementUnitCount = () => {
     return redis.incr("unitcount")
 }
 
-database.pushUnitToCollection = (id, data) => {
-    redis.rpush("unitcollection:"+id, data)
+database.pushUnitToCollection = (ownerId, unitId) => {
+    redis.rpush("unitcollection:"+ownerId, unitId)
+}
+
+database.removeUnitFromCollection = (ownerId, unitId) => {
+    redis.lrem("unitcollection:"+ownerId, 0, unitId)
+}
+
+database.setDeadUnitExpiration = (unit) => {
+    redis.hdel("unitCache{"+unit.PartitionId+"}", unit.OwnerId+":"+unit.Id)
+    redis.expire("unit{"+unit.OwnerId+"}"+unit.Id, 120)
+}
+
+database.removeUnitFromHome = async (unit) => {
+    let tile = await database.getTile(unit.Home)
+    tiles.sanitise(tile)
+    tile.UnitList = tile.UnitList.filter(id => {
+        console.log(id, unit.Id, id != unit.Id)
+        id != unit.Id})
+    await database.updateTile(unit.Home, tile)
 }
 
 database.updateTile = async (position, tile) => {
@@ -526,9 +581,27 @@ database.incrementTileProp = async (position, prop, value) => {
     return health
 }
 
-database.deleteTile = (position) => {
+database.deleteTile = async (position) => {
+    let pipeline = redis.pipeline()
+
+    //Delete tile definition
     let partitionId = database.findPartitionId(position)
-    redis.del("tile{"+partitionId+"}"+position)
+    pipeline.del("tile{"+partitionId+"}"+position)
+    
+    //Calculate location of tile in partition hash
+    let cacheIndex = database.partitionIndex(position)
+    let neighbours = await tiles.getNeighbours(position) 
+
+    //Update fast lookup partition caches
+    pipeline.setnx("versionCache{"+partitionId+"}", "0".repeat(partitionSize**2))
+    pipeline.setnx("fastPathCache{"+partitionId+"}", "0".repeat(partitionSize**2))
+    pipeline.setnx("adjacencyCache{"+partitionId+"}", "0".repeat(partitionSize**2))
+    pipeline.bitfield("versionCache{"+partitionId+"}", "SET", "u8", cacheIndex * 8, 48)
+    pipeline.bitfield("fastPathCache{"+partitionId+"}", "SET", "u8", cacheIndex * 8, 48)
+    pipeline.bitfield("adjacencyCache{"+partitionId+"}", "SET", "u8", cacheIndex * 8, 48, 
+        (e, previousValue) => {if (previousValue[0] != 48) database.updateAdjacencyCaches(neighbours)})
+
+    await pipeline.exec()
 }
 
 database.updateStatus = (time, status) => {

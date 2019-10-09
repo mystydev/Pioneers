@@ -1,6 +1,7 @@
 local Replication = {}
 local Client      = script.Parent
 local Common      = game.ReplicatedStorage.Pioneers.Common
+local Network     = game.ReplicatedStorage.Network
 
 local ViewUnit      = require(Client.ViewUnit)
 local ViewTile      = require(Client.ViewTile)
@@ -10,7 +11,8 @@ local Tile          = require(Common.Tile)
 local Util          = require(Common.Util)
 local UserStats     = require(Common.UserStats)
 local UserSettings  = require(Common.UserSettings)
-local Network       = game.ReplicatedStorage.Network
+
+local RunService = game:GetService("RunService")
 
 local currentWorld
 local currentStats = {}
@@ -20,8 +22,10 @@ local buildCostBuffer = {}
 local unitReferences = {}
 local unrequestedUnits = {}
 local chats = {}
-local syncing = true
+local syncing = 0
 local UIBase = nil
+local viewThrottle = 100
+local partitionHashes = {}
 
 local function handleUnitUpdate(id, changes)
     local localUnit = currentWorld.Units[id]
@@ -112,7 +116,7 @@ local function handleTileUpdate(tile, t)
             localTile[i] = v
         --end
     end
-    
+
     ViewTile.updateDisplay(localTile)
 end
 
@@ -151,6 +155,9 @@ function Replication.worldDied()
         updatealert:Disconnect()
         chatsupdate:Disconnect()
     end
+    syncing = syncing + 1
+    wait(1)
+    partitionHashes = {}
 end
 
 function Replication.getUserStats()
@@ -201,7 +208,6 @@ function Replication.requestTilePlacement(tile, type)
 end
 
 function Replication.requestTileDelete(tile)
-    coroutine.wrap(ViewTile.simulateDeletion)(tile)
     success = Network.RequestTileDelete:InvokeServer(tile)
 
     if not success then
@@ -258,17 +264,55 @@ function Replication.updateTiles(pos, radius)
     end
 end
 
-function Replication.keepViewAreaLoaded()
-    local pos = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
+local function fetchPartitionData(partitionId)
+    local partition = Network.RequestPartition:InvokeServer(partitionId)
 
-    local area = Util.circularPosCollection(pos.x, pos.y, 0, ClientUtil.getCurrentViewDistance())
-    for _, tilePos in pairs(area) do
-        local tile = World.getTile(currentWorld.Tiles, tilePos)
-        ViewTile.updateDisplay(tile)
+    for _, tile in pairs(partition) do
+        local pos = tile.Position
+        local localTile = World.getTileXY(currentWorld.Tiles, pos.x, pos.y)
+        
+        if localTile.CyclicVersion ~= tile.CyclicVersion then
+            for i, v in pairs(tile) do
+                localTile[i] = v
+            end
+        end
     end
-
-    Network.PlayerPositionUpdate:FireServer(ClientUtil.getPlayerPosition())
 end
+
+Replication.keepViewAreaLoaded = coroutine.wrap(function()
+    local syncStart = syncing
+    while syncing == syncStart do
+
+        --Check tile data has been fetched from server
+        local position = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
+        local stringPosition = Util.vectorToPositionString(position)
+        local requiredPartitions = Util.findOverlappedPartitions(stringPosition)
+
+        --Send server position update and get partition hashes
+        local partitionInfo = Network.UpdatePlayerPosition:InvokeServer(ClientUtil.getPlayerPosition())
+
+        --Check partition hashes are correct (equal and therefore synchronised)
+        for partitionId, partitionHash in pairs(partitionInfo) do
+            if partitionHashes[partitionId] ~= partitionHash and partitionHash ~= "0" then
+                partitionHashes[partitionId] = partitionHash
+                fetchPartitionData(partitionId)
+            end
+        end
+
+        --Find view area
+        local area = Util.circularPosCollection(position.x, position.y, 0, ClientUtil.getCurrentViewDistance())
+
+        --Update tiles in the view area
+        for iteration, tilePos in pairs(area) do
+            local tile = World.getTile(currentWorld.Tiles, tilePos)
+            ViewTile.updateDisplay(tile)
+
+            if iteration % viewThrottle == 0 then
+                RunService.Stepped:Wait()
+            end
+        end
+    end
+end)
 
 function Replication.requestTile(position)
     return Network.RequestTile:InvokeServer(position)

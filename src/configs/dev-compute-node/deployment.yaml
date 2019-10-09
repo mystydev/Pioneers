@@ -14,8 +14,6 @@ spec:
         run: pioneers-dev-compute-node
     spec:
       containers:
-      - image: gcr.io/pioneers-237219/devpioncomputenode:latest
+      - image: gcr.io/pioneers-roblox/devpioncomputenode:latest
         imagePullPolicy: Always
-        name: pioneers-dev-compute-node
-      nodeSelector:
-        static: "false"        
+        name: pioneers-dev-compute-node      

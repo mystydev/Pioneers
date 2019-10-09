@@ -63,8 +63,8 @@ userstats.canBuild = async (id, type) => {
     return true
 }
 
-userstats.assignKeep = (id, pos) => {
-    database.setStat(id, "Keep", pos)
+userstats.assignKeep = async (id, pos) => {
+    await database.setStat(id, "Keep", pos)
 }
 
 userstats.hasKeep = async (id) => {
@@ -100,18 +100,19 @@ userstats.addTileMaintenance = (id, cost) => {
 }
 
 userstats.removeTileMaintenance = (id, cost) => {
-    userstats.addTileMaintenance(id, -cost)
+    database.addStat(id, "WoodCost", -cost.Wood)
+    database.addStat(id, "StoneCost", -cost.Stone)
 }
 
 userstats.processMaintenance = async (id) => {
     database.getStat(id, "WoodCost").then(cost => {
         if (cost)
-            database.addStat(id, "Wood", cost)
+            database.addStat(id, "Wood", -cost)
     })
 
     database.getStat(id, "StoneCost").then(cost => {
         if (cost)
-            database.addStat(id, "Stone", cost)
+            database.addStat(id, "Stone", -cost)
     })
 }
 

@@ -79,7 +79,7 @@ local updatingBinding, setUpdating = Roact.createBinding(false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
 player.PlayerGui:SetTopbarTransparency(1)
 
-local adminEditorEnabled = true
+local adminEditorEnabled = false
 
 function UIBase.init(world, displaystats)
     stats = displaystats 
@@ -354,6 +354,10 @@ end
 
 function UIBase.highlightType(type, showBuildable)
     UIBase.unHighlightAllInsts()
+
+    if UIState == UIBase.State.MAIN then
+        return end
+        
     local tiles = ViewTile.getPlayerTiles()
     
     for inst, tile in pairs(tiles) do
