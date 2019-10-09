@@ -45,13 +45,14 @@ function attemptRound() {
 async function processRound() {
 	console.log("Processing")
 	database.setRoundStart()
+	let roundNumber = await database.getRoundCount()
 
 	let start = performance.now()
-	let playerList = await database.getPlayerList()
+	let playerList = await database.getLoadedKingdoms()
 	let processing = []
 
 	for (let userId of playerList)
-		processing.push(sendComputeRequest({time: start, id: userId}))
+		processing.push(sendComputeRequest({time: start, id: userId, round: roundNumber}))
 
 	await Promise.all(processing)
 
@@ -60,6 +61,7 @@ async function processRound() {
 	console.log(outInfo)
 
 	database.updateStatus(Date.now(), "ok: " + outInfo)
+	database.incrementRoundCount()
 }
 
 async function sendComputeRequest(data) {

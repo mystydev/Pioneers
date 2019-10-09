@@ -117,12 +117,12 @@ userstats.processMaintenance = async (id) => {
 }
 
 //Simulated round with no actual unit calculations
-userstats.processRoundSim = async (id) => {
+userstats.processFastRoundSim = async (id, rounds) => {
     let stats = await database.getStats(id)
     if (stats.Keep) {
-        database.addStat(id, "Food", stats.FoodProduced)
-        database.addStat(id, "Wood", stats.WoodProduced - stats.WoodCost)
-        database.addStat(id, "Stone", stats.StoneProduced - stats.StoneCost)
+        database.addStat(id, "Food", stats.FoodProduced * rounds)
+        database.addStat(id, "Wood", (stats.WoodProduced - stats.WoodCost) * rounds)
+        database.addStat(id, "Stone", (stats.StoneProduced - stats.StoneCost) * rounds)
     }
 }
 

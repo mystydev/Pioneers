@@ -211,7 +211,7 @@ async function processActionQueue(id) {
 
 let lastRoundTime = 0
 
-async function computeRequest(roundStart, id) {
+async function computeRequest(roundStart, id, round) {
 
 	if (roundStart != lastRoundTime) {
 		lastRoundTime = roundStart
@@ -230,11 +230,17 @@ async function computeRequest(roundStart, id) {
 
 	let shouldSimulate = await database.getRemainingFullSimQuota(id)
 	
-	if (shouldSimulate <= 0) {
-		//console.log(id, ": lightweight round sim")
-		await userstats.processRoundSim(id)
-	} else {
-		//console.log(id, ": fullweight round sim, quota", shouldSimulate)
+	if (shouldSimulate > 0) {
+		
+		let lastRound = await database.getLastSimRoundNumber(id)
+		let roundDelta = round - lastRound
+
+		//If there have been non sim rounds we need to retroactively fast simulate them
+		if (roundDelta > 1) {
+			console.log(id, ": is now loaded! Fast simulating", roundDelta, "rounds.")
+			await userstats.processFastRoundSim(id, roundDelta)
+		}
+
 		await userstats.processMaintenance(id)
 
 		let req = {}
@@ -247,9 +253,13 @@ async function computeRequest(roundStart, id) {
 
 		await Promise.all(processing)
 		database.updateUnits(unitList)
+		database.setLastSimRoundNumber(id, round)
+	} else {
+		database.setKingdomUnloaded(id)
+		console.log(id, ": is now unloaded.")
 	}
 
-    let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
+    //let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
     //console.log(id, ": compute request took: " + timeTaken + "ms")
     
     return {}
@@ -268,7 +278,7 @@ function init() {
 }
 
 httpserver.post("/", (req, res) => {
-    computeRequest(req.body.time, req.body.id).then(response => {
+    computeRequest(req.body.time, req.body.id, req.body.round).then(response => {
         res.json(response)
     })
 })

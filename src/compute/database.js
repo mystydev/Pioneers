@@ -399,14 +399,26 @@ database.getStats = async (id) => {
 
 database.resetFullSimQuota = async (id) => {
     if (!fullSimCache.has(id)) {
-        console.log(id, ": full sim quota reset")
-        database.setStat(id, "RequiredFullSims", common.FULL_SIM_QUOTA)
         fullSimCache.add(id)
+        database.setStat(id, "RequiredFullSims", common.FULL_SIM_QUOTA)
+        database.setKingdomLoaded(id)
     }
 }
 
 database.getRemainingFullSimQuota = async (id) => {
     return await redis.hincrby("stats:"+id, "RequiredFullSims", -1)
+}
+
+database.setKingdomLoaded = (userId) => {
+    redis.sadd("loadedKingdoms", userId)
+}
+
+database.setKingdomUnloaded = (userId) => {
+    redis.srem("loadedKingdoms", userId)
+}
+
+database.getLoadedKingdoms = async () => {
+    return await redis.smembers("loadedKingdoms")
 }
 
 database.clearCaches = () => {
@@ -615,4 +627,20 @@ database.waitForRedis = async () => {
 
 database.setRoundStart = () => {
     redis.set("roundStart", new Date().getTime())
+}
+
+database.incrementRoundCount = () => {
+    redis.incr("roundCount")
+}
+
+database.getRoundCount = async () => {
+    return await redis.get("roundCount")
+}  
+
+database.setLastSimRoundNumber = (userId, roundNumber) => {
+    database.setStat(userId, "lastSimRound", roundNumber)
+}
+
+database.getLastSimRoundNumber = async (userId) => {
+    return database.getStat(userId, "lastSimRound")
 }
