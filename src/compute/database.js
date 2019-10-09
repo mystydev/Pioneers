@@ -253,8 +253,12 @@ database.updateUnits = async (unitList, includeHealth = false) => {
         }
     }
 
+    let processing = []
+
     for (let partitionId in pipelines)
-        pipelines[partitionId].exec()
+        processing.push(pipelines[partitionId].exec())
+
+    await Promise.all(processing)
 }
 
 database.updateUnit = async (unit, includeHealth = false) => {

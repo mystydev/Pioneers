@@ -9,7 +9,7 @@ common.Actions = {
     REPAIR_TILE:5,
 };
 
-common.FULL_SIM_QUOTA = 60 //how many full simulation rounds are required to proceed to lightweight simulation
+common.FULL_SIM_QUOTA = 10 //how many full simulation rounds are required to proceed to lightweight simulation
 
 common.SPAWN_REQUIRED_FOOD = 100
 common.SPAWN_ATTEMPTS_REQUIRED = 10

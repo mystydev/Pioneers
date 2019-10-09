@@ -239,6 +239,7 @@ async function computeRequest(roundStart, id, round) {
 		if (roundDelta > 1) {
 			console.log(id, ": is now loaded! Fast simulating", roundDelta, "rounds.")
 			await userstats.processFastRoundSim(id, roundDelta)
+			await units.processFastRoundSim(id, roundDelta)
 		}
 
 		await userstats.processMaintenance(id)

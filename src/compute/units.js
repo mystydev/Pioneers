@@ -359,7 +359,7 @@ units.processMilitaryUnit = async (unit, inCombat) => {
         case UnitState.TRAINING:
             unit.Training++
 
-            if (unit.Training >= common.TRAINING_FOR_SOLDIER){
+            if (unit.Type == UnitType.APPRENTICE && unit.Training >= common.TRAINING_FOR_SOLDIER){
                 unit.Type = UnitType.SOLDIER
                 unit.Training = 0
                 unit.MaxTraining = 10000
@@ -544,4 +544,26 @@ units.handleDeath = (unit) => {
     database.setDeadUnitExpiration(unit)
     database.updateUnitSpawn(unit.OwnerId, unit.Home, 0)
     database.removeUnitFromHome(unit)
+}
+
+units.processFastRoundSim = async (id, roundDelta) => {
+    let req = {}
+    req[id] = await database.getUnitCollection(id)
+    let unitList = await database.getUnits(req)
+
+    for (let unit of unitList) {
+        if (unit.State == UnitState.TRAINING) {
+            console.log("unit", unit.Id, " skipped", roundDelta, "rounds of training")
+            unit.Training = parseInt(unit.Training)
+            unit.Training += roundDelta
+
+            if (unit.Type == UnitType.APPRENTICE && unit.Training >= common.TRAINING_FOR_SOLDIER){
+                unit.Type = UnitType.SOLDIER
+                unit.Training = unit.Training - common.TRAINING_FOR_SOLDIER
+                unit.MaxTraining = 10000
+            }
+        }
+    }
+
+    await database.updateUnits(unitList)
 }
