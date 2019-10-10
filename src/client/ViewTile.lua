@@ -217,6 +217,21 @@ function ViewTile.updateDisplay(tile, displaySize)
         end
     end
 
+    if tile.Type == Tile.GRASS then
+        local playerPosition = ClientUtil.getPlayerPosition()
+        local emitter = model.ParticleEmitter
+        local distance = (model.Position - playerPosition).magnitude
+
+        if distance > 400 then
+            emitter.Enabled = false
+        else
+            emitter.Enabled = true
+            distance = math.clamp(distance, 100, 1000) / 100
+            emitter.Rate = 10 / distance^3
+            --emitter.Size = NumberSequence.new(distance*1.5)
+        end
+    end
+
     if tile.Health then
         if tile.Health <= 0 then
             model.TextureID = ruinTexture

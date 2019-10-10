@@ -315,6 +315,7 @@ Replication.keepViewAreaLoaded = coroutine.wrap(function()
                 RunService.Stepped:Wait()
             end
         end
+
     end
 end)
 
