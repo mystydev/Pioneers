@@ -35,6 +35,10 @@ local function handleUnitUpdate(id, changes)
     else
         if localUnit then
 
+            if localUnit.Type ~= changes.Type then
+               ViewUnit.transitionUnitType(localUnit, changes.Type) 
+            end
+
             for i, v in pairs(changes) do
                 localUnit[i] = v
             end

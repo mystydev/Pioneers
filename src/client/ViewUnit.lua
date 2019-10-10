@@ -425,6 +425,53 @@ function ViewUnit.init(world)
     RunService.Stepped:Connect(displayUpdateLoop)
 end
 
+function ViewUnit.transitionUnitType(unit, type)
+    local instance = unitToInstanceMap[unit]
+    local model = instance.model
+    local newModel = instanceModels[type].unit
+    local emitter = Assets.TypeChangeEffectEmitter:Clone()
+
+    if model.Name == newModel.Name then
+        return end
+
+    model.Name = newModel.Name
+    emitter.Parent = model.HumanoidRootPart
+    wait(2)
+
+    model.Humanoid:RemoveAccessories()
+
+    for _, part in pairs(newModel:GetChildren()) do
+        local newPart = part:Clone()
+        local partType = newModel.Humanoid:GetBodyPartR15(part)
+
+        if partType.Value < 15 then
+            model.Humanoid:ReplaceBodyPartR15(partType, newPart)
+        end
+    end
+
+    for _, accessory in pairs(newModel.Humanoid:GetAccessories()) do
+        local newAccessory = accessory:Clone()
+        newAccessory.Parent = model
+        newAccessory.Handle.AccessoryWeld.Part1 = model.Head
+    end
+
+    unit.Type = type
+
+    checkToolAssignment(instance, unit)
+
+    if unit.State == Unit.UnitState.WORKING or unit.State == Unit.UnitState.TRAINING
+    or unit.State == Unit.UnitState.GUARDING or unit.State == Unit.UnitState.COMBAT then
+        equipTool(instance, unit)
+    end
+
+    emitter.Enabled = false
+    ViewUnit.updateDisplay(unit)
+
+    wait(3)
+
+    emitter:Destroy()
+end
+
 function ViewUnit.transitionIdleToIdle(instance, unit)
     displayIdlePopup(instance, unit)
 end
