@@ -553,7 +553,6 @@ units.processFastRoundSim = async (id, roundDelta) => {
 
     for (let unit of unitList) {
         if (unit.State == UnitState.TRAINING) {
-            console.log("unit", unit.Id, " skipped", roundDelta, "rounds of training")
             unit.Training = parseInt(unit.Training)
             unit.Training += roundDelta
 

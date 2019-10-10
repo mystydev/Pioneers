@@ -71,6 +71,9 @@ app.post("/pion/actionRequest", (req, res) => {
     let action = req.body.action;
     let tileLoc, tileType, unit;
 
+    
+    database.resetFullSimQuota(id)
+
     switch(action){
         case Actions.PLACE_TILE:
             tileType = req.body.type;

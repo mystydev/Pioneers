@@ -228,7 +228,7 @@ end
 
 local function headingDifference(heading, targetHeading)
     assert(heading <= math.pi and heading >= -math.pi, "invalid heading: " .. heading)
-    assert(targetHeading <= math.pi and targetHeading >= -math.pi, "invalid target heading: " .. targetHeading)
+    assert(math.pi - math.abs(targetHeading) >= -0.01, "invalid target heading: " .. targetHeading)
 
     local difference = targetHeading - heading
     local absDifference = math.abs(difference)
@@ -330,11 +330,11 @@ function ViewUnit.stepDisplay(unit, instance, frameDelta, viewPosition)
     local model = instance.model
 
     if (unit.Position - viewPosition).magnitude > ClientUtil.getCurrentViewDistance() then
-        model.Parent = nil
+        --model.Parent = nil
         instance.unloaded = true
         return
-    else
-        model.Parent = workspace
+    elseif instance.unloaded then
+        --model.Parent = workspace
         instance.unloaded = nil
     end
 
