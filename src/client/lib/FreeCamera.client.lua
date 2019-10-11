@@ -254,4 +254,4 @@ local function EnterFreecam()
 	freeCamEnabled = true
 end
 
-EnterFreecam()
+--EnterFreecam()

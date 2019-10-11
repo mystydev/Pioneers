@@ -1,6 +1,7 @@
 local UIBase = {}
 local Client = script.Parent
 local Common = game.ReplicatedStorage.Pioneers.Common
+local Assets = game.ReplicatedStorage.Pioneers.Assets
 local ui     = Client.ui
 local Roact  = require(game.ReplicatedStorage.Roact)
 
@@ -101,24 +102,27 @@ function UIBase.init(world, displaystats)
     viewport.Ambient = Color3.new(1, 1, 1)
     viewport.LightColor = Color3.new(1, 1, 1)
     viewport.LightDirection = Vector3.new(0, -1, 0)
+end
 
-    if stats.Keep then
-        local keepPosition = Util.positionStringToVector(stats.Keep)
-        local worldPosition = Util.axialCoordToWorldCoord(keepPosition)
-        workspace.CurrentCamera.CFrame = CFrame.new(worldPosition + Vector3.new(20, 50, 20))
-    end
+function UIBase.highlightCharacter()
+    player.Character.Archivable = true
+    player.Character.Sound.LocalSound.Disabled = true
+    player.Character.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+    UIBase.highlightModel(player.Character)
 end
 
 function UIBase.unfocusBackground()
     SoundManager.pullFocus()
     TweenService:Create(blur, tweenSlow, {Size = 20}):Play()
     TweenService:Create(desaturate, tweenSlow, {Saturation = -0.5}):Play()
+    UIBase.highlightCharacter()
 end
 
 function UIBase.refocusBackground()
     SoundManager.endFocus()
     TweenService:Create(blur, tweenSlow, {Size = 0}):Play()
     TweenService:Create(desaturate, tweenFast, {Saturation = 0}):Play()
+    UIBase.unHighlightAllInsts()
 end
 
 function UIBase.highlightModel(model, transparency)
@@ -237,7 +241,6 @@ function UIBase.exitBuildView()
     if UIState == UIBase.State.BUILD or UIState == UIBase.State.TILEBUILD then
         UIState = UIBase.State.MAIN
         UIBase.hideBuildList()
-        UIBase.unHighlightAllInsts()
         UIBase.refocusBackground()
     end
 end
@@ -279,7 +282,6 @@ end
 
 function UIBase.exitInfoView()
     if UIState == UIBase.State.INFO then
-        UIBase.unHighlightAllInsts()
         UIState = UIBase.State.MAIN
         if infoHandle then Roact.unmount(infoHandle) end
         if adminHandle then Roact.unmount(adminHandle) end
@@ -293,6 +295,7 @@ function UIBase.promptSelectWork(workType, unitpos) --unitpos is a military unit
     end
 
     UIBase.unHighlightAllInsts()
+    UIBase.highlightModel(player.Character)
 
     if workType == Tile.OTHERPLAYER then
         return UIBase.promptSelectAttack()
@@ -354,6 +357,7 @@ end
 
 function UIBase.highlightType(type, showBuildable)
     UIBase.unHighlightAllInsts()
+    UIBase.highlightModel(player.Character)
 
     if UIState == UIBase.State.MAIN then
         return end

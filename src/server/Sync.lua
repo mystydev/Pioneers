@@ -114,6 +114,16 @@ local function playerJoined(player)
         UserStats.Store[player.UserId] = stats
     end
 
+    if stats.Keep then
+        local keepPosition = Util.positionStringToVector(stats.Keep)
+        local worldPosition = Util.axialCoordToWorldCoord(keepPosition)
+
+        player:LoadCharacter()
+        player.CharacterAdded:Connect(function(character)
+            character:MoveTo(worldPosition + Vector3.new(20, 50, 20))
+        end)
+    end
+
     delay(2, function() protectedCall(syncStats, player, currentWorld) end)
 end
 

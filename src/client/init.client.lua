@@ -52,6 +52,7 @@ local function start()
     UIBase.showFeedbackButton()
     --UIBase.showFindKingdomButton()
     UIBase.showBuildButton()
+
 end
 
 local LogService = game:GetService("LogService")

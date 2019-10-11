@@ -1,6 +1,7 @@
 local preload = {}
 local Client  = script.Parent
 local Common  = game.ReplicatedStorage.Pioneers.Common
+local Assets  = game.ReplicatedStorage.Pioneers.Assets
 local Roact   = require(game.ReplicatedStorage.Roact)
 
 local UserSettings = require(Common.UserSettings)
@@ -95,7 +96,7 @@ end
 _G.updateLoadStatus = updateInfo --Yes this will be changed
 
 local function load()
-    loadingGui = game.StarterGui.LoadingGui:Clone()
+    loadingGui = Assets.LoadingGui:Clone()
     loadingGui.Parent = game.Players.LocalPlayer.PlayerGui
     game.Lighting.LoadingBlur.Size = 56
     loadingGui.Info.TextColor3 = Color3.fromRGB(255, 255, 255)
