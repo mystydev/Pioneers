@@ -64,6 +64,8 @@ userstats.canBuild = async (id, type) => {
 }
 
 userstats.assignKeep = async (id, pos) => {
+    let partitionId = database.findPartitionId(pos)
+    database.setPartitionOwner(id, partitionId)
     await database.setStat(id, "Keep", pos)
 }
 

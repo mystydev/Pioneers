@@ -115,7 +115,7 @@ function UIBase.unfocusBackground()
     SoundManager.pullFocus()
     TweenService:Create(blur, tweenSlow, {Size = 20}):Play()
     TweenService:Create(desaturate, tweenSlow, {Saturation = -0.5}):Play()
-    UIBase.highlightCharacter()
+    --UIBase.highlightCharacter()
 end
 
 function UIBase.refocusBackground()
@@ -264,7 +264,7 @@ function UIBase.showObjectInfo(object)
     UIBase.highlightInst(ViewWorld.convertObjectToInst(object.Home))
     UIBase.highlightInst(ViewWorld.convertObjectToInst(object.Work))
     UIBase.highlightInsts(ViewUnit.convertIdListToInsts(object.UnitList))
-
+    
     setInfoObject(object)
     SoundManager.softSelect()
     ActionHandler.provideUnitChangeHook(function() UIBase.showObjectInfo(object) end)
@@ -295,7 +295,7 @@ function UIBase.promptSelectWork(workType, unitpos) --unitpos is a military unit
     end
 
     UIBase.unHighlightAllInsts()
-    UIBase.highlightModel(player.Character)
+    --UIBase.highlightModel(player.Character)
 
     if workType == Tile.OTHERPLAYER then
         return UIBase.promptSelectAttack()
@@ -357,7 +357,7 @@ end
 
 function UIBase.highlightType(type, showBuildable)
     UIBase.unHighlightAllInsts()
-    UIBase.highlightModel(player.Character)
+    --UIBase.highlightModel(player.Character)
 
     if UIState == UIBase.State.MAIN then
         return end

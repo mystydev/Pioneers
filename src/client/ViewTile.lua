@@ -28,7 +28,7 @@ meshes[Tile.KEEP]     = {mesh = Assets.Keep,     offset = Vector3.new(0, 11.007,
 meshes[Tile.HOUSE]    = {mesh = Assets.House,    offset = Vector3.new(0, 5.479, 0)}
 meshes[Tile.PATH]     = {mesh = Assets.Path,     offset = Vector3.new(0,     0 + 0.5,    0)}
 meshes[Tile.FARM]     = {mesh = Assets.Farm,     offset = Vector3.new(-0.015, 1.594, 0.059)}
-meshes[Tile.FORESTRY] = {mesh = Assets.Forestry, offset = Vector3.new(0, 7.682, 0.131)}
+meshes[Tile.FORESTRY] = {mesh = Assets.Forestry, offset = Vector3.new(0,     0 + 0.5,    0)}--Vector3.new(0, 7.682, 0.131)}
 meshes[Tile.MINE]     = {mesh = Assets.Mine,     offset = Vector3.new(0, 1.795,    0)}
 meshes[Tile.STORAGE]  = {mesh = Assets.Storage,  offset = Vector3.new(0, 16.842, -0.459)}
 meshes[Tile.BARRACKS] = {mesh = Assets.Barracks, offset = Vector3.new(0, 5.407, -0)}
@@ -217,7 +217,7 @@ function ViewTile.updateDisplay(tile, displaySize)
         end
     end
 
-    if tile.Type == Tile.GRASS then
+    if model:FindFirstChild("ParticleEmitter") then
         local playerPosition = ClientUtil.getPlayerPosition()
         local emitter = model.ParticleEmitter
         local distance = (model.Position - playerPosition).magnitude
@@ -226,8 +226,8 @@ function ViewTile.updateDisplay(tile, displaySize)
             emitter.Enabled = false
         else
             emitter.Enabled = true
-            distance = math.clamp(distance, 80, 1000) / 100
-            emitter.Rate = 10 / distance^3
+            distance = math.clamp(distance, 100, 1000) / 100
+            emitter.Rate = 10 / distance^5
         end
     end
 

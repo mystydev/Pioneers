@@ -27,19 +27,12 @@ function handleNewPlayer(id) {
 async function canBuild(id, pos, type) {
 	//Start fetching data from db early to minimise waiting
 	let tile = tiles.fromPosString(pos)
-	let area = tiles.getCircularCollection(pos, common.LAND_CLAIM_RADIUS)
 	let neighbours = tiles.getNeighbours(pos)
 
 	//Tile is currently empty with no units assigned
 	tile = await tile
 	if (!tiles.isEmpty(tile) || !tiles.isVacant(tile))
 		return false
-
-	//Tile is not within the land claim range of another civ
-    area = await area
-	for (let tile of area) 
-		if (tile.OwnerId && tile.OwnerId != id)
-			return false
 
 	//User can afford to build
 	let cost = tiles.TileConstructionCosts[type]
@@ -52,6 +45,13 @@ async function canBuild(id, pos, type) {
 			return false
 		else
 			return true
+	
+	//Does the user own this partition
+	let partitionIndex = database.findPartitionId(pos)
+	let owner = await database.getPartitionOwner(partitionIndex)
+
+	if (owner != id)
+			return false
 
 	//Special case for gates
 	if (type == tiles.TileType.GATE)
