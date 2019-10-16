@@ -650,28 +650,40 @@ database.getLastSimRoundNumber = async (userId) => {
 }
 
 database.setPartitionOwner = async (userId, partitionId) => {
-    let owner = redis.set("PartitionOwner:"+partitionId, userId)
-    redis.sadd("PartitionOwnership{"+userId+"}", partitionId)
+    let assigned = await redis.setnx("{PartitionOwner}:"+partitionId, userId)
 
-    if (await owner) { //Just incase partition was already owned
-        console.log("Assigning new owner to already owned partition:", partitionId, owner, userId)
-        redis.srem("PartitionOwnership{"+owner+"}", partitionId)
-    }
+    if (!assigned)
+        redis.sadd("PartitionOwnership{"+userId+"}", partitionId)
 }
 
 database.deletePartitionOwner = async (partitionId) => {
     let owner = await redis.get("PartitionOwner:"+partitionId)
 
     if (owner) {
-        redis.del("PartitionOwner:"+partitionId)
+        redis.del("{PartitionOwner}:"+partitionId)
         redis.srem("PartitionOwnership{"+owner+"}", partitionId)
     }
 }
 
 database.getPartitionOwner = async (partitionId) => {
-    return await redis.get("PartitionOwner:"+partitionId)
+    return await redis.get("{PartitionOwner}:"+partitionId)
 }
 
 database.getPartitionsOwned = async (userId) => {
     return await redis.smembers("PartitionOwnership{"+userId+"}")
+}
+
+database.getOwnersOfPartitions = async (partitionList) => {
+    let ownerMap = {}
+    let pipeline = redis.pipeline()
+
+    for (let partitionId of partitionList) {
+        pipeline.get("{PartitionOwner}:"+partitionId, (e, owner) => {
+            if (owner) 
+                ownerMap[partitionId] = owner
+        })
+    }
+
+    await pipeline.exec()
+    return ownerMap
 }

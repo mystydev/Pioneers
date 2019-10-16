@@ -33,6 +33,7 @@ local FeedbackForm        = require(ui.feedback.FeedbackForm)
 local FeedbackSubmitted   = require(ui.feedback.FeedbackSubmitted)
 local FindKingdomButton   = require(ui.teleport.FindKingdomButton)
 local FindKingdom         = require(ui.teleport.FindKingdom)
+local PartitionView       = require(ui.partitionOverview.PartitionView)
 
 local Players             = game:GetService("Players")
 local TweenService        = game:GetService("TweenService")
@@ -677,6 +678,10 @@ function UIBase.disableManagedInput()
         endedConnection:Disconnect()
         changedConnection:Disconnect()
     end
+end
+
+function UIBase.displayPartitionOverview()
+    Roact.mount(Roact.createElement(PartitionView), screengui)
 end
 
 ViewTile.provideUIBase(UIBase)

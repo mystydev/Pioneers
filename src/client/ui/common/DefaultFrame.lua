@@ -10,7 +10,8 @@ function DefaultFrame(props)
         ImageTransparency      = props.ImageTransparency or 0.8,
         ScaleType              = "Slice",
         SliceCenter            = Rect.new(30, 30, 50, 50),
-    })
+        Image                  = "rbxassetid://4123559260",
+    }, props[Roact.Children])
 end
 
 return DefaultFrame

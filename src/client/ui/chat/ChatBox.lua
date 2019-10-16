@@ -134,7 +134,7 @@ function ChatBox:didMount()
                 if istyping then
                     transparency = 0.2
                 elseif interacting then
-                    transparency = 0.4
+                    transparency = 0.8
                 else
                     transparency = math.clamp((tick() - lastInteraction), state.transparency, 1)
                 end 

@@ -346,4 +346,8 @@ function Replication.ready()
     return status
 end
 
+function Replication.getPartitionOwnership(x, y)
+    return Network.GetPartitionOwnership:InvokeServer(x, y)
+end
+
 return Replication

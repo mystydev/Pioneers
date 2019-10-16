@@ -103,6 +103,11 @@ tiles.newTile = async (type, id, pos, unitlist) => {
         await userstats.assignKeep(id, pos)
     }
 
+    if (type != TileType.GRASS) {
+        let partitionId = database.findPartitionId(pos)
+        database.setPartitionOwner(id, partitionId)
+    }
+
     return tile
 }
 

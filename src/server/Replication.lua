@@ -215,23 +215,30 @@ local function feedbackRequest(player, react, text)
     table.insert(feedbackBuffer, Http:JSONEncode(feedback))
 end
 
+local function partitionOwnerRequest(player, x, y)
+    local payload = Http:JSONEncode({apikey = API_KEY, x = 0, y = 0})
+    local res = Http:PostAsync(API_URL.."getPartitionOwners", payload)
+    return Http:JSONDecode(res)
+end
+
 function Replication.assignWorld(w)
     currentWorld = w
 
-    Network.RequestWorldState.OnServerInvoke    = worldStateRequest
-    Network.RequestStats.OnServerInvoke         = statsRequest
-    Network.RequestSettings.OnServerInvoke      = settingsRequest
-    Network.RequestTilePlacement.OnServerInvoke = tilePlacementRequest
-    Network.RequestTileDelete.OnServerInvoke    = tileDeleteRequest
-    Network.RequestTileRepair.OnServerInvoke    = tileRepairRequest
-    Network.RequestUnitWork.OnServerInvoke      = unitWorkRequest
-    Network.RequestUnitAttack.OnServerInvoke    = unitAttackRequest
-    Network.RequestTile.OnServerInvoke          = tileRequest
-    Network.RequestUnits.OnServerInvoke         = unitRequest
-    Network.GetCircularTiles.OnServerInvoke     = getCircularTiles
-    Network.Ready.OnServerInvoke                = getTesterStatus
-    Network.UpdatePlayerPosition.OnServerInvoke = updatePlayerPosition
-    Network.RequestPartition.OnServerInvoke     = partitionRequest
+    Network.RequestWorldState.OnServerInvoke     = worldStateRequest
+    Network.RequestStats.OnServerInvoke          = statsRequest
+    Network.RequestSettings.OnServerInvoke       = settingsRequest
+    Network.RequestTilePlacement.OnServerInvoke  = tilePlacementRequest
+    Network.RequestTileDelete.OnServerInvoke     = tileDeleteRequest
+    Network.RequestTileRepair.OnServerInvoke     = tileRepairRequest
+    Network.RequestUnitWork.OnServerInvoke       = unitWorkRequest
+    Network.RequestUnitAttack.OnServerInvoke     = unitAttackRequest
+    Network.RequestTile.OnServerInvoke           = tileRequest
+    Network.RequestUnits.OnServerInvoke          = unitRequest
+    Network.GetCircularTiles.OnServerInvoke      = getCircularTiles
+    Network.Ready.OnServerInvoke                 = getTesterStatus
+    Network.UpdatePlayerPosition.OnServerInvoke  = updatePlayerPosition
+    Network.RequestPartition.OnServerInvoke      = partitionRequest
+    Network.GetPartitionOwnership.OnServerInvoke = partitionOwnerRequest
     Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
     Network.Chatted.OnServerEvent:Connect(chatRequest)
     Network.FeedbackRequest.OnServerEvent:Connect(feedbackRequest)

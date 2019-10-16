@@ -39,6 +39,13 @@ async function canBuild(id, pos, type) {
 	if (!await userstats.canAffordCost(id, cost))
 		return false
 
+	//Does the user own this partition/is this partition free
+	let partitionIndex = database.findPartitionId(pos)
+	let owner = await database.getPartitionOwner(partitionIndex)
+
+	if (owner != null && owner != id)
+			return false
+
 	//Special case for keep
 	if (type == tiles.TileType.KEEP)
 		if (await userstats.hasKeep(id))
@@ -46,13 +53,6 @@ async function canBuild(id, pos, type) {
 		else
 			return true
 	
-	//Does the user own this partition
-	let partitionIndex = database.findPartitionId(pos)
-	let owner = await database.getPartitionOwner(partitionIndex)
-
-	if (owner != id)
-			return false
-
 	//Special case for gates
 	if (type == tiles.TileType.GATE)
 		if (await tiles.isWallGap(pos))

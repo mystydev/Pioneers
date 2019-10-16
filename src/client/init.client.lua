@@ -29,7 +29,7 @@ local function start()
     world = World.new()
 
     Replication.init(world, UIBase)
-    ViewWorld.displayWorld(world)
+    
 
     local stats = Replication.getUserStats()
     Replication.getUserSettings()
@@ -41,6 +41,10 @@ local function start()
 
     UIBase.showInDevelopmentWarning(status)
 
+    UIBase.displayPartitionOverview()
+
+    --[[ViewWorld.displayWorld(world)
+
     if not UserSettings.hasDoneTutorial() then
         UIBase.showTutorialPrompt()
     end
@@ -51,7 +55,7 @@ local function start()
     UIBase.showChatBox()
     UIBase.showFeedbackButton()
     --UIBase.showFindKingdomButton()
-    UIBase.showBuildButton()
+    UIBase.showBuildButton()]]--
 
 end
 
