@@ -74,7 +74,6 @@ function FindKingdom:render()
         Position               = UDim2.new(0.5, 0, 0.5, 0),
         Size                   = UDim2.new(0, 583, 0, 521),
         --ImageTransparency      = self.state.transparency,
-        AnchorPoint            = Vector2.new(0.5, 0.5),
     }, elements)
 end
 

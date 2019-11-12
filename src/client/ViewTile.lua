@@ -4,6 +4,7 @@ local Common   = game.ReplicatedStorage.Pioneers.Common
 local Assets   = game.ReplicatedStorage.Pioneers.Assets
 
 local ClientUtil = require(Client.ClientUtil)
+local UIBase     = require(Client.UIBase)
 local World      = require(Common.World)
 local Tile       = require(Common.Tile)
 local Util       = require(Common.Util)
@@ -295,10 +296,6 @@ function ViewTile.simulateRepair(tile)
     tile.Health = tile.MHealth
     ViewTile.updateDisplay(tile)
     tile.lastChange = tick()
-end
-
-function ViewTile.provideUIBase(base)
-    UIBase = base
 end
 
 return ViewTile

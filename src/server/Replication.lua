@@ -221,6 +221,13 @@ local function partitionOwnerRequest(player, x, y)
     return Http:JSONDecode(res)
 end
 
+local function playerSpawnRequest(player, position)
+    local worldPosition = Util.axialCoordToWorldCoord(position)
+    player:LoadCharacter()
+    repeat wait() until player.Character
+    player.Character:MoveTo(worldPosition + Vector3.new(15, 50, 0))
+end
+
 function Replication.assignWorld(w)
     currentWorld = w
 
@@ -242,6 +249,7 @@ function Replication.assignWorld(w)
     Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
     Network.Chatted.OnServerEvent:Connect(chatRequest)
     Network.FeedbackRequest.OnServerEvent:Connect(feedbackRequest)
+    Network.PlayerSpawnRequest.OnServerEvent:Connect(playerSpawnRequest)
 end
 
 function Replication.pushStatsChange(stats)

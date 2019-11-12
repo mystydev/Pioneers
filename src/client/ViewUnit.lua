@@ -405,6 +405,7 @@ function ViewUnit.updateDisplay(unit, frameDelta)
     if transition and not instance.unloaded then
         transition(instance, unit)
     elseif instance.unloaded then
+        print("!")
         local newPosition = Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET
         instance.model.PrimaryPart.CFrame = CFrame.new(newPosition)
 
@@ -817,10 +818,6 @@ function ViewUnit.convertIdListToInsts(list)
     end
 
     return insts
-end
-
-function ViewUnit.provideUIBase(base)
-
 end
 
 return ViewUnit

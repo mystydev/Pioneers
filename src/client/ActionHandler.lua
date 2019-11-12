@@ -5,6 +5,7 @@ local Common = game.ReplicatedStorage.Pioneers.Common
 local Util        = require(Common.Util)
 local Unit        = require(Common.Unit)
 local Tile        = require(Common.Tile)
+local World       = require(Common.World)
 local ViewTile    = require(Client.ViewTile)
 local Replication = require(Client.Replication)
 local Players = game:GetService("Players")
@@ -31,6 +32,7 @@ local function tempChangeTileType(tile, type, newId)
     tile.OwnerId = newId
 
     --Update display
+    World.setTile(currentWorld.Tiles, tile, tile.Position)
     ViewTile.updateDisplay(tile)
     tile.lastChange = tick()
 
@@ -57,9 +59,11 @@ local function tempChangeTileType(tile, type, newId)
 end
 
 function ActionHandler.attemptBuild(tile, type)
+    local worldTile = World.getTileXY(currentWorld.Tiles, tile.Position.X, tile.Position.Y)
     --Update tile then send request to place the tile
     tempChangeTileType(tile, type, Players.LocalPlayer.UserId)
     Replication.requestTilePlacement(tile, type, Players.LocalPlayer.UserId)
+    return worldTile
 end
 
 function ActionHandler.attemptDelete(tile)

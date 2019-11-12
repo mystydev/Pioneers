@@ -1,11 +1,16 @@
 local Client = script.Parent.Parent.Parent
 local Common = game.ReplicatedStorage.Pioneers.Common
-local ui = Client.ui
-local Roact = require(game.ReplicatedStorage.Roact)
+local ui     = Client.ui
+local Roact  = require(game.ReplicatedStorage.Roact)
 
-local Util = require(Common.Util)
+local Tile          = require(Common.Tile)
+local Util          = require(Common.Util)
+local UIBase        = require(Client.UIBase)
+local ActionHandler = require(Client.ActionHandler)
+local Replication   = require(Client.Replication)
+
 local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
+local UIS     = game:GetService("UserInputService")
 
 local PartitionVisualistion = Roact.Component:extend("PartitionVisualistion")
 
@@ -110,9 +115,19 @@ end
 function PartitionVisualistion:didMount()
     local mouse = Players.LocalPlayer:GetMouse()
     local lastPosition = UIS:GetMouseLocation()
+    local partitionMap = self.props.PartitionMap
+    local placing = false
+    local keepIndicator = Instance.new("ImageLabel")
+    keepIndicator.Image = keepImageId
+    keepIndicator.BackgroundTransparency = 1
+    keepIndicator.AnchorPoint = Vector2.new(0.5, 0.5)
+    keepIndicator.Size = UDim2.new(0, 60, 0, 60)
 
     self.wheelForward = mouse.WheelForward:Connect(function()
         local frame = self.frameRef:getValue()
+
+        if not frame then return end
+
         local size = frame.Size.X.Offset
         local difference = (size+1) / size
 
@@ -122,6 +137,9 @@ function PartitionVisualistion:didMount()
 
     self.wheelBackward = mouse.WheelBackward:Connect(function()
         local frame = self.frameRef:getValue()
+
+        if not frame then return end
+
         local size = frame.Size.X.Offset
         local difference = (size-1) / size
 
@@ -138,12 +156,20 @@ function PartitionVisualistion:didMount()
 
         local movementDelta = UIS:GetMouseLocation() - lastPosition
         lastPosition = UIS:GetMouseLocation()
+
+        if not placing then
+            keepIndicator.Parent = self.frameRef:getValue().Parent
+            keepIndicator.Position = UDim2.new(0, lastPosition.x, 0, lastPosition.y)
+        end
         
         if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
             local frame = self.frameRef:getValue()
+
+            if not frame then return end
+
             local size = frame.Size.X.Offset
             frame.Position = frame.Position + UDim2.new(0, movementDelta.x, 0, movementDelta.y)
-        end    
+        end
     end)
 
     local lastClick = 0
@@ -156,8 +182,50 @@ function PartitionVisualistion:didMount()
                 local size = frame.Size.X.Offset
                 local mousePosition = UIS:GetMouseLocation() - Vector2.new(0, 30)
                 local deltaPosition = ((mousePosition - frame.AbsolutePosition) / size) / 0.2
-                local correctedPosition = Vector2.new(deltaPosition.x, -deltaPosition.y)
-                print(correctedPosition)
+                local partitionId = Util.findPartitionId(deltaPosition.x, -deltaPosition.y)
+                placing = true
+
+                --Check if partition is free
+                if partitionMap[partitionId] then
+                    placing = false
+                    return end
+
+                --Check if this is what player wants
+                local yes = UIBase.yesNoPrompt("Hold On!", "You are about to build your keep.\n\n Are you sure this is where you want to start building your kingdom?")
+                UIBase.disableManagedInput()
+                if not yes then
+                    placing = false
+                    return end
+
+                --Request keep placement
+                local x, y = Util.partitionIdToCoordinates(partitionId)
+                x = x + PARTITION_SIZE / 2
+                y = y + PARTITION_SIZE / 2
+                
+                print("building")
+                Replication.requestSpawn(Vector2.new(x, y))
+                local targetTile = {Type = Tile.GRASS, Position = Vector2.new(x, y), CyclicVersion = "0"}
+                targetTile = ActionHandler.attemptBuild(targetTile, Tile.KEEP)
+
+                --Await confirmation
+                local checks = 0
+                while checks < 45 do
+
+                    checks = checks + 1
+                    wait(0.25)
+                    if targetTile.CyclicVersion and targetTile.CyclicVersion ~= "0" then
+                        break
+                    end
+                end
+                
+                if checks == 45 then
+                    print("Failed")
+                    self.props.UIBase.hidePartitionOverview()
+                else
+                    print("success")
+                    self.props.UIBase.hidePartitionOverview()
+                end
+                
             end
     
             lastClick = tick()

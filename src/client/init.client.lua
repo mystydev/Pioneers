@@ -14,6 +14,7 @@ local function start()
     local NightCycle      = require(Client.Nightcycle)
     local World           = require(Common.World)
     local UserSettings    = require(Common.UserSettings)
+    local Util            = require(Common.Util)
 
     print("Pioneers client waiting for server to be ready")
     local status
@@ -40,10 +41,16 @@ local function start()
     UIBase.init(world, stats)
 
     UIBase.showInDevelopmentWarning(status)
+    UIBase.waitForPromptDismissal()
 
-    UIBase.displayPartitionOverview()
+    ViewWorld.displayWorld(world)
 
-    --[[ViewWorld.displayWorld(world)
+    if not stats.Keep or stats.Keep == "" then
+        UIBase.displayPartitionOverview()
+        UIBase.waitForPartitionOverviewDismissal()
+    else
+        Replication.requestSpawn(Util.positionStringToVector(stats.Keep))
+    end
 
     if not UserSettings.hasDoneTutorial() then
         UIBase.showTutorialPrompt()
@@ -55,7 +62,7 @@ local function start()
     UIBase.showChatBox()
     UIBase.showFeedbackButton()
     --UIBase.showFindKingdomButton()
-    UIBase.showBuildButton()]]--
+    UIBase.showBuildButton()
 
 end
 

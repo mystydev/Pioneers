@@ -5,36 +5,6 @@ local Assets = game.ReplicatedStorage.Pioneers.Assets
 local ui     = Client.ui
 local Roact  = require(game.ReplicatedStorage.Roact)
 
-local Util                = require(Common.Util)
-local Tile                = require(Common.Tile)
-local UserSettings        = require(Common.UserSettings)
-local ViewTile            = require(Client.ViewTile)
-local ViewUnit            = require(Client.ViewUnit)
-local ViewWorld           = require(Client.ViewWorld)
-local ActionHandler       = require(Client.ActionHandler)
-local Replication         = require(Client.Replication)
-local ClientUtil          = require(Client.ClientUtil)
-local SoundManager        = require(Client.SoundManager)
-local StatsPanel          = require(ui.StatsPanel)
-local InitiateBuildButton = require(ui.build.InitiateBuildButton)
-local BuildList           = require(ui.build.BuildList)
-local ObjectInfoPanel     = require(ui.info.ObjectInfoPanel)
-local WorldLocation       = require(ui.info.WorldLocation)
-local AdminEditor         = require(ui.admin.AdminEditor)
-local HealthBar           = require(ui.world.HealthBar)
-local TesterAlert         = require(ui.TesterAlert)
-local NewPlayerPrompt     = require(ui.tutorial.NewPlayerPrompt)
-local TutorialPrompt      = require(ui.tutorial.TutorialPrompt)
-local CombatWarning       = require(ui.common.CombatWarning)
-local UpdateAlert         = require(ui.common.UpdateAlert)
-local ChatBox             = require(ui.chat.ChatBox)
-local FeedbackButton      = require(ui.feedback.FeedbackButton)
-local FeedbackForm        = require(ui.feedback.FeedbackForm)
-local FeedbackSubmitted   = require(ui.feedback.FeedbackSubmitted)
-local FindKingdomButton   = require(ui.teleport.FindKingdomButton)
-local FindKingdom         = require(ui.teleport.FindKingdom)
-local PartitionView       = require(ui.partitionOverview.PartitionView)
-
 local Players             = game:GetService("Players")
 local TweenService        = game:GetService("TweenService")
 local UIS                 = game:GetService("UserInputService")
@@ -59,6 +29,7 @@ local combatHandle
 local updateHandle
 local feedbackHandle
 local findKingdomHandle
+local partitionViewHandle
 local stats
 local currentWorld = {}
 local highlighted  = {}
@@ -103,6 +74,37 @@ function UIBase.init(world, displaystats)
     viewport.Ambient = Color3.new(1, 1, 1)
     viewport.LightColor = Color3.new(1, 1, 1)
     viewport.LightDirection = Vector3.new(0, -1, 0)
+
+    Util                = require(Common.Util)
+    Tile                = require(Common.Tile)
+    UserSettings        = require(Common.UserSettings)
+    ViewTile            = require(Client.ViewTile)
+    ViewUnit            = require(Client.ViewUnit)
+    ViewWorld           = require(Client.ViewWorld)
+    ActionHandler       = require(Client.ActionHandler)
+    Replication         = require(Client.Replication)
+    ClientUtil          = require(Client.ClientUtil)
+    SoundManager        = require(Client.SoundManager)
+    StatsPanel          = require(ui.StatsPanel)
+    InitiateBuildButton = require(ui.build.InitiateBuildButton)
+    BuildList           = require(ui.build.BuildList)
+    ObjectInfoPanel     = require(ui.info.ObjectInfoPanel)
+    WorldLocation       = require(ui.info.WorldLocation)
+    AdminEditor         = require(ui.admin.AdminEditor)
+    HealthBar           = require(ui.world.HealthBar)
+    TesterAlert         = require(ui.TesterAlert)
+    NewPlayerPrompt     = require(ui.tutorial.NewPlayerPrompt)
+    TutorialPrompt      = require(ui.tutorial.TutorialPrompt)
+    CombatWarning       = require(ui.common.CombatWarning)
+    UpdateAlert         = require(ui.common.UpdateAlert)
+    DefaultPrompt       = require(ui.common.DefaultPrompt)
+    ChatBox             = require(ui.chat.ChatBox)
+    FeedbackButton      = require(ui.feedback.FeedbackButton)
+    FeedbackForm        = require(ui.feedback.FeedbackForm)
+    FeedbackSubmitted   = require(ui.feedback.FeedbackSubmitted)
+    FindKingdomButton   = require(ui.teleport.FindKingdomButton)
+    FindKingdom         = require(ui.teleport.FindKingdom)
+    PartitionView       = require(ui.partitionOverview.PartitionView)
 end
 
 function UIBase.highlightCharacter()
@@ -483,7 +485,7 @@ function UIBase.endTutorial()
 end
 
 function UIBase.dismissPrompt()
-    TweenService:Create(blur, tweenSlow, {Size = 0}):Play()
+    UIBase.refocusBackground()
 
     if promptHandle then
         Roact.unmount(promptHandle)
@@ -681,10 +683,43 @@ function UIBase.disableManagedInput()
 end
 
 function UIBase.displayPartitionOverview()
-    Roact.mount(Roact.createElement(PartitionView), screengui)
+    UIBase.disableManagedInput()
+    partitionViewHandle = Roact.mount(Roact.createElement(PartitionView, {UIBase = UIBase}), screengui)
 end
 
-ViewTile.provideUIBase(UIBase)
-ViewUnit.provideUIBase(UIBase)
+function UIBase.hidePartitionOverview()
+    Roact.unmount(partitionViewHandle)
+    partitionViewHandle = nil
+end
+
+function UIBase.waitForPartitionOverviewDismissal()
+    repeat
+        wait()
+    until partitionViewHandle == nil
+end
+
+function UIBase.yesNoPrompt(title, message)
+
+    UIBase.unfocusBackground()
+    UIBase.disableManagedInput()
+
+    local clickedYes = false
+
+    if not promptHandle then
+
+        promptHandle = Roact.mount(Roact.createElement(DefaultPrompt, {
+            Title = title,
+            Text = message,
+            Buttons = {
+                {Text = "Yes", Color = Color3.fromRGB(124, 179, 66), Event = function() clickedYes = true UIBase.dismissPrompt() end},
+                {Text = "No", Color = Color3.fromRGB(229, 57, 53), Event = function() UIBase.dismissPrompt() end},
+            }
+        }), screengui)
+
+    end
+
+    UIBase.waitForPromptDismissal()
+    return clickedYes
+end
 
 return UIBase

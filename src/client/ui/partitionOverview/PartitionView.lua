@@ -52,6 +52,7 @@ function PartitionView:render()
         visualisation = Roact.createElement(PartitionVisualistion, {
             PartitionMap = ownershipMap,
             KeepMap = keepMap,
+            UIBase = self.props.UIBase,
         })
     })
 end

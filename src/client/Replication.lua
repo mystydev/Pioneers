@@ -350,4 +350,8 @@ function Replication.getPartitionOwnership(x, y)
     return Network.GetPartitionOwnership:InvokeServer(x, y)
 end
 
+function Replication.requestSpawn(axialPosition)
+    Network.PlayerSpawnRequest:FireServer(axialPosition)
+end
+
 return Replication
