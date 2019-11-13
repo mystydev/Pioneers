@@ -195,14 +195,17 @@ function PartitionVisualistion:didMount()
                 UIBase.disableManagedInput()
                 if not yes then
                     placing = false
+                    lastPosition = UIS:GetMouseLocation()
+                    keepIndicator.Position = UDim2.new(0, lastPosition.x, 0, lastPosition.y)
                     return end
+
+                UIBase.blockingLoadingScreen("Building your keep...")
 
                 --Request keep placement
                 local x, y = Util.partitionIdToCoordinates(partitionId)
                 x = x + PARTITION_SIZE / 2
                 y = y + PARTITION_SIZE / 2
                 
-                print("building")
                 Replication.requestSpawn(Vector2.new(x, y))
                 local targetTile = {Type = Tile.GRASS, Position = Vector2.new(x, y), CyclicVersion = "0"}
                 targetTile = ActionHandler.attemptBuild(targetTile, Tile.KEEP)
@@ -219,11 +222,14 @@ function PartitionVisualistion:didMount()
                 end
                 
                 if checks == 45 then
-                    print("Failed")
-                    self.props.UIBase.hidePartitionOverview()
+                    UIBase.removeLoadingScreen()
+                    UIBase.disableManagedInput()
+                    placing = false
+                    lastPosition = UIS:GetMouseLocation()
+                    keepIndicator.Position = UDim2.new(0, lastPosition.x, 0, lastPosition.y)
                 else
-                    print("success")
                     self.props.UIBase.hidePartitionOverview()
+                    UIBase.removeLoadingScreen()
                 end
                 
             end

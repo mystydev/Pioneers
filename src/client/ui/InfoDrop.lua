@@ -18,9 +18,11 @@ local function InfoDrop(props)
             Text = props.Text,
             Color = props.TextColor,
             Position = UDim2.new(0, 0, 0, -5),
+            Size = UDim2.new(1, 0, 1, 0),
             TextTransparency = 0.2,
             Font = "SourceSansBold",
             ZIndex = 2,
+            AnchorPoint = Vector2.new(0, 0),
         })
     }
 

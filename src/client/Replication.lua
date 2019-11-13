@@ -354,4 +354,8 @@ function Replication.requestSpawn(axialPosition)
     Network.PlayerSpawnRequest:FireServer(axialPosition)
 end
 
+function Replication.spawnConfirm()
+    Network.PlayerSpawnConfirm:FireServer()
+end
+
 return Replication

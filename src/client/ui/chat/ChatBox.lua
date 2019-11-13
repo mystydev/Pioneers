@@ -26,7 +26,7 @@ end
 
 function ChatBox:init()
     self:setState({
-        transparency = 0,
+        transparency = 1,
         chatHeight = 0,
         stayBottom = 1000000,
     })

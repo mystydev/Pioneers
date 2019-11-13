@@ -30,6 +30,7 @@ local updateHandle
 local feedbackHandle
 local findKingdomHandle
 local partitionViewHandle
+local loadingHandle
 local stats
 local currentWorld = {}
 local highlighted  = {}
@@ -59,9 +60,11 @@ function UIBase.init(world, displaystats)
     currentWorld = world
     worldgui.Name = "World UI"
     worldgui.IgnoreGuiInset = true
+    worldgui.ResetOnSpawn = false
     screengui.Name = "Screen UI"
     screengui.IgnoreGuiInset = true
     screengui.DisplayOrder = 2
+    screengui.ResetOnSpawn = false
     blur.Size = 0
     blur.Parent = Lighting
     desaturate.Saturation = 0
@@ -98,6 +101,7 @@ function UIBase.init(world, displaystats)
     CombatWarning       = require(ui.common.CombatWarning)
     UpdateAlert         = require(ui.common.UpdateAlert)
     DefaultPrompt       = require(ui.common.DefaultPrompt)
+    LoadingSpinner      = require(ui.common.LoadingSpinner)
     ChatBox             = require(ui.chat.ChatBox)
     FeedbackButton      = require(ui.feedback.FeedbackButton)
     FeedbackForm        = require(ui.feedback.FeedbackForm)
@@ -720,6 +724,25 @@ function UIBase.yesNoPrompt(title, message)
 
     UIBase.waitForPromptDismissal()
     return clickedYes
+end
+
+function UIBase.blockingLoadingScreen(message)
+    UIBase.unfocusBackground()
+    UIBase.disableManagedInput()
+
+    loadingHandle = Roact.mount(Roact.createElement(LoadingSpinner, {
+        vignette = true,
+        message = message,
+    }), screengui)
+end
+
+function UIBase.removeLoadingScreen()
+    if loadingHandle then
+        UIBase.refocusBackground()
+        UIBase.enableManagedInput()
+        Roact.unmount(loadingHandle)
+        loadingHandle = nil
+    end
 end
 
 return UIBase

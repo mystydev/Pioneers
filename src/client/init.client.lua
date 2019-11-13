@@ -16,6 +16,8 @@ local function start()
     local UserSettings    = require(Common.UserSettings)
     local Util            = require(Common.Util)
 
+    local Players = game:GetService("Players")
+
     print("Pioneers client waiting for server to be ready")
     local status
 
@@ -35,34 +37,37 @@ local function start()
     local stats = Replication.getUserStats()
     Replication.getUserSettings()
 
-    ClientPreload.tellReady()
-
     ActionHandler.init(world)
     UIBase.init(world, stats)
-
-    UIBase.showInDevelopmentWarning(status)
-    UIBase.waitForPromptDismissal()
 
     ViewWorld.displayWorld(world)
 
     if not stats.Keep or stats.Keep == "" then
+        ClientPreload.tellReady()
+        UIBase.showInDevelopmentWarning(status)
+        UIBase.waitForPromptDismissal()
         UIBase.displayPartitionOverview()
         UIBase.waitForPartitionOverviewDismissal()
     else
         Replication.requestSpawn(Util.positionStringToVector(stats.Keep))
+        wait(4)
+        ClientPreload.tellReady()
     end
 
-    if not UserSettings.hasDoneTutorial() then
+    Replication.spawnConfirm()
+
+    --[[if not UserSettings.hasDoneTutorial() then
         UIBase.showTutorialPrompt()
-    end
+    end]]--
 
-    UIBase.waitForPromptDismissal()
+    --UIBase.waitForPromptDismissal()
     UIBase.showStats()
     UIBase.showLocation()
     UIBase.showChatBox()
     UIBase.showFeedbackButton()
     --UIBase.showFindKingdomButton()
     UIBase.showBuildButton()
+    UIBase.enableManagedInput()
 
 end
 

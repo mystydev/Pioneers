@@ -30,6 +30,7 @@ local preloadList = {
     "rbxassetid://3237281781","rbxassetid://3470328016","rbxassetid://3464269947","rbxassetid://3137923052","rbxassetid://3144305681",
     "rbxassetid://3080817017","rbxassetid://3242019037","rbxassetid://3144305819","rbxassetid://3077218297",
     "rbxassetid://3064039406","rbxassetid://3064022555","rbxassetid://3077211985","rbxassetid://3470328336", "rbxassetid://3569229445",
+    "rbxassetid://4364737957","rbxassetid://4312670626","rbxassetid://4298535124",
     }
 
 local loading = true
@@ -103,13 +104,7 @@ local function load()
     workspace.CurrentCamera.CFrame = CFrame.new(Vector3.new(30, 60, 120))
 
     spawn(function()
-        local preloadInsts = {}
-        for _, id in pairs(preloadList) do
-            local inst = Instance.new("ImageLabel")
-            table.insert(preloadInsts, inst)
-            inst.Image = id
-        end
-        ContentProvider:PreloadAsync(preloadList)
+        ContentProvider:PreloadAsync({Assets.Preload})
         smallUpdateInfo("Assets loaded", true)
         assetsLoaded = true
     end)

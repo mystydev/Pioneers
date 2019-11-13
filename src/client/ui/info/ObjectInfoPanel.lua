@@ -86,7 +86,13 @@ function ObjectInfoPanel:render()
         })
     end
 
-    elements.Title = Roact.createElement(Title, state)
+    elements.Title = Roact.createElement(Title, {
+        Title = state.Title,
+        TextSize = 36,
+        TextXAlignment = "Left",
+        AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.new(0, 50, 0, 30),
+    })
     elements.Owner = Roact.createElement(OwnerLabel, state)
     elements.CloseButton = Roact.createElement(CloseButton, 
                             {Position = UDim2.new(0.04, 0, 0.865, 0)})
@@ -110,9 +116,11 @@ function ObjectInfoPanel:render()
 
         elements.HealthLabel = Roact.createElement(Label, {
                             Text          = "Health",
-                            Position      = UDim2.new(0.15, 0, 0.23, -3),
+                            Position      = UDim2.new(0.12, 0, 0.23, -3),
                             TextSize      = 22,
-                            Size          = UDim2.new(0, 40, 0, 32)
+                            Size          = UDim2.new(0, 60, 0, 32),
+                            AnchorPoint   = Vector2.new(0, 0),
+                            TextWrapped   = false,
                             })
     end
 
@@ -128,9 +136,11 @@ function ObjectInfoPanel:render()
 
         elements.FatigueLabel = Roact.createElement(Label, {
                             Text          = "Fatigue",
-                            Position      = UDim2.new(0.15, 0, 0.29, -3),
+                            Position      = UDim2.new(0.12, 0, 0.29, -3),
                             TextSize      = 22,
-                            Size          = UDim2.new(0, 40, 0, 32)
+                            Size          = UDim2.new(0, 60, 0, 32),
+                            AnchorPoint   = Vector2.new(0, 0),
+                            TextWrapped   = false,
                             })
     end
 
@@ -146,9 +156,11 @@ function ObjectInfoPanel:render()
 
         elements.TrainingLabel = Roact.createElement(Label, {
                             Text          = "Training",
-                            Position      = UDim2.new(0.15, 0, 0.35, -3),
+                            Position      = UDim2.new(0.12, 0, 0.35, -3),
                             TextSize      = 22,
-                            Size          = UDim2.new(0, 40, 0, 32)
+                            Size          = UDim2.new(0, 65, 0, 32),
+                            AnchorPoint   = Vector2.new(0, 0),
+                            TextWrapped   = false,
                             })
     end
 

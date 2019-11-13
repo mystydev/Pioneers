@@ -226,6 +226,13 @@ local function playerSpawnRequest(player, position)
     player:LoadCharacter()
     repeat wait() until player.Character
     player.Character:MoveTo(worldPosition + Vector3.new(15, 50, 0))
+    player.Character.HumanoidRootPart.Anchored = true
+end
+
+local function playerSpawnConfirm(player)
+    repeat wait() until player.Character
+    wait()
+    player.Character.HumanoidRootPart.Anchored = false
 end
 
 function Replication.assignWorld(w)
@@ -250,6 +257,7 @@ function Replication.assignWorld(w)
     Network.Chatted.OnServerEvent:Connect(chatRequest)
     Network.FeedbackRequest.OnServerEvent:Connect(feedbackRequest)
     Network.PlayerSpawnRequest.OnServerEvent:Connect(playerSpawnRequest)
+    Network.PlayerSpawnConfirm.OnServerEvent:Connect(playerSpawnConfirm)
 end
 
 function Replication.pushStatsChange(stats)

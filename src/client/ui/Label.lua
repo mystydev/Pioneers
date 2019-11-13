@@ -13,9 +13,10 @@ local function Label(props)
         TextXAlignment         = props.XAlign or "Center",
         TextColor3             = props.Color or Color3.fromRGB(112, 112, 112),
         TextTransparency       = props.TextTransparency,
-        TextWrapped            = props.TextWrapped or true,
+        TextWrapped            = props.TextWrapped ~= nil and props.TextWrapped or true,
         ZIndex                 = props.ZIndex or 1,
         AnchorPoint            = props.AnchorPoint or Vector2.new(0.5, 0.5),
+        [Roact.Ref]            = props.Ref,
     })
 end
 

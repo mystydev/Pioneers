@@ -45,6 +45,8 @@ function ResourceLabel:render()
             Text = displayValue, 
             TextSize = textSize, 
             Position = UDim2.new(0, 10, 0, -2),
+            AnchorPoint = Vector2.new(0, 0),
+            Size = UDim2.new(1,0,1,0),
         })
     else
         size = largeSize
@@ -55,6 +57,8 @@ function ResourceLabel:render()
             Text = displayValue, 
             TextSize = textSize, 
             Position = UDim2.new(0, 60, 0, -2),
+            AnchorPoint = Vector2.new(0, 0),
+            Size = UDim2.new(1,0,1,0),
             XAlign = "Left",
         })
 
@@ -62,6 +66,8 @@ function ResourceLabel:render()
             Text = self.state.change, 
             TextSize = textSize, 
             Position = UDim2.new(0, 165, 0, -2),
+            AnchorPoint = Vector2.new(0, 0),
+            Size = UDim2.new(1,0,1,0),
             XAlign = "Left",
             Color = Color3.fromRGB(215,215,215)
         })
