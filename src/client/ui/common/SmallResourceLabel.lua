@@ -26,7 +26,10 @@ function SmallResourceLabel:render()
         Text = self.state.Value, 
         TextSize = 18,
         Position = UDim2.new(0, 10, 0, -2),
+        Size = UDim2.new(1, 0, 1, 0),
         TextTransparency = self.props.Transparency,
+        TextXAlignment = "Left",
+        AnchorPoint = Vector2.new(0, 0),
     })
 
     return Roact.createElement("ImageLabel", {

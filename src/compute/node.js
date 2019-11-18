@@ -217,12 +217,11 @@ async function computeRequest(roundStart, id, round) {
 		lastRoundTime = roundStart
 		tiles.clearCaches()
 		database.clearCaches()
-		//console.log("-----Cleared caches-----")
 	}
 
 	//console.log(id, ": handling compute request")
 
-    let start = performance.now()
+    //let start = performance.now()
     let processing = []
 
     await processActionQueue(id)
@@ -253,10 +252,11 @@ async function computeRequest(roundStart, id, round) {
 			processing.push(units.processUnit(unit, inCombat))
 
 		await Promise.all(processing)
-		database.updateUnits(unitList)
-		database.setLastSimRoundNumber(id, round)
+		await database.updateUnits(unitList)
+		await userstats.updatePopulation(id)
+		await database.setLastSimRoundNumber(id, round)
 	} else {
-		database.setKingdomUnloaded(id)
+		await database.setKingdomUnloaded(id)
 		console.log(id, ": is now unloaded.")
 	}
 

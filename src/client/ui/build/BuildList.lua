@@ -64,16 +64,15 @@ function button(buildList, position, type, imageId)
 end
 
 function BuildList:init()
-    buttons.Keep     = button(self, UDim2.new(0,  1 * 60, 0, 0), Tile.KEEP,     "rbxassetid://3464269762")
-    buttons.Path     = button(self, UDim2.new(0,  2 * 60, 0, 0), Tile.PATH,     "rbxassetid://3480834893")
-    buttons.House    = button(self, UDim2.new(0,  3 * 60, 0, 0), Tile.HOUSE,    "rbxassetid://3464266043")
-    buttons.Farm     = button(self, UDim2.new(0,  4 * 60, 0, 0), Tile.FARM,     "rbxassetid://3464265775")
-    buttons.Forestry = button(self, UDim2.new(0,  5 * 60, 0, 0), Tile.FORESTRY, "rbxassetid://3464265858")
-    buttons.Mine     = button(self, UDim2.new(0,  6 * 60, 0, 0), Tile.MINE,     "rbxassetid://3480834162")
-    buttons.Storage  = button(self, UDim2.new(0,  7 * 60, 0, 0), Tile.STORAGE,  "rbxassetid://3480834300")
-    buttons.Barracks = button(self, UDim2.new(0,  8 * 60, 0, 0), Tile.BARRACKS, "rbxassetid://3464265681")
-    buttons.Wall     = button(self, UDim2.new(0,  9 * 60, 0, 0), Tile.WALL,     "rbxassetid://3480834420")
-    buttons.Gate     = button(self, UDim2.new(0, 10 * 60, 0, 0), Tile.GATE,     "rbxassetid://3480834049")
+    buttons.Path     = button(self, UDim2.new(0,  1 * 60, 0, 0), Tile.PATH,     "rbxassetid://3480834893")
+    buttons.House    = button(self, UDim2.new(0,  2 * 60, 0, 0), Tile.HOUSE,    "rbxassetid://3464266043")
+    buttons.Farm     = button(self, UDim2.new(0,  3 * 60, 0, 0), Tile.FARM,     "rbxassetid://3464265775")
+    buttons.Forestry = button(self, UDim2.new(0,  4 * 60, 0, 0), Tile.FORESTRY, "rbxassetid://3464265858")
+    buttons.Mine     = button(self, UDim2.new(0,  5 * 60, 0, 0), Tile.MINE,     "rbxassetid://3480834162")
+    buttons.Storage  = button(self, UDim2.new(0,  6 * 60, 0, 0), Tile.STORAGE,  "rbxassetid://3480834300")
+    buttons.Barracks = button(self, UDim2.new(0,  7 * 60, 0, 0), Tile.BARRACKS, "rbxassetid://3464265681")
+    buttons.Wall     = button(self, UDim2.new(0,  8 * 60, 0, 0), Tile.WALL,     "rbxassetid://3480834420")
+    buttons.Gate     = button(self, UDim2.new(0,  9 * 60, 0, 0), Tile.GATE,     "rbxassetid://3480834049")
 
     buttons.toolTip = Roact.createElement(BuildToolTip, {
         Position = toolTipPosBinding, 

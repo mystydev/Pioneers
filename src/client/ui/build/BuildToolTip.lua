@@ -39,13 +39,15 @@ function BuildToolTip:render()
         TextTransparency       = self.state.Transparency + 0.1,
         BackgroundTransparency = 1,
         Position               = UDim2.new(0.5, 0, 0.2, 0),
-        Size                   = UDim2.new(0, 250, 0, 32),
+        Size                   = UDim2.new(0, 250, 0, 200),
         Font                   = "SourceSans",
-        TextSize               = 16,
+        TextSize               = 24,
         TextWrap               = true,
         TextColor3             = Color3.fromRGB(61,61,61),
         TextXAlignment         = "Center",
+        TextYAlignment         = "Top",
         AnchorPoint            = Vector2.new(0.5, 0),
+        TextWrapped            = true,
     })
 
     children.CostTitle = Roact.createElement(Title, {
@@ -55,6 +57,7 @@ function BuildToolTip:render()
         Position = UDim2.new(0.5, 0, 0.55, 0),
         Size = UDim2.new(0, 250, 0, 32),
         AnchorPoint = Vector2.new(0.5, 0),
+        TextXAlignment = "Left",
     })
 
     children.WoodCost = Roact.createElement(SmallResourceLabel, {
@@ -78,6 +81,7 @@ function BuildToolTip:render()
         Position = UDim2.new(0.5, 0, 0.7, 0),
         Size = UDim2.new(0, 250, 0, 32),
         AnchorPoint = Vector2.new(0.5, 0),
+        TextXAlignment = "Left",
     })
 
     children.WoodMaintenance = Roact.createElement(SmallResourceLabel, {

@@ -194,6 +194,7 @@ app.post("/pion/syncupdates", async (req, res) => {
         cluster.lpush("feedback", feedback).catch(e => {})
 
     await waitForProcess(req.body.time)
+    await sleep(200)
 
     let updates = {}
     let fetchingTiles = database.getStaleTilesFromPartitions(req.body.partitions)

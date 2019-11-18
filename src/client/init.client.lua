@@ -47,6 +47,21 @@ local function start()
         UIBase.showInDevelopmentWarning(status)
         UIBase.waitForPromptDismissal()
         UIBase.displayPartitionOverview()
+
+        --UIBase.displayInfoPrompt("Hi there", "Welcome to Pioneers. To begin you need to build a keep. Choose a spot ")
+        UIBase.choicePrompt(
+            "Hi there", 
+            "Would you like to choose where you start, or have a good spot picked automatically?", 
+            {
+                {
+                    Text = "Let me choose!", 
+                    Color = Color3.fromRGB(30, 136, 229),
+                },{
+                    Text = "Auto-choice in dev :(",
+                    Disabled = true,
+                }
+            })
+        UIBase.disableManagedInput()
         UIBase.waitForPartitionOverviewDismissal()
     else
         Replication.requestSpawn(Util.positionStringToVector(stats.Keep))

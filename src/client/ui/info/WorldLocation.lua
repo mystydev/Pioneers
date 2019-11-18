@@ -20,7 +20,7 @@ function WorldLocation:render()
         Position               = UDim2.new(1, -10, 0, 5),
         Size                   = UDim2.new(0, 10, 0, 10),
         AnchorPoint            = Vector2.new(1, 0),
-        TextSize               = "24",
+        TextSize               = "18",
         TextColor3             = Color3.new(1,1,1),
         Text                   = self.state.location,
         TextXAlignment         = "Right",

@@ -227,8 +227,8 @@ function ViewTile.updateDisplay(tile, displaySize)
             emitter.Enabled = false
         else
             emitter.Enabled = true
-            distance = math.clamp(distance, 100, 1000) / 100
-            emitter.Rate = 10 / distance^5
+            distance = math.clamp(distance, 60, 1000) / 60
+            emitter.Rate = 5 / distance^1.5
         end
     end
 

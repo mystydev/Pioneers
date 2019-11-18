@@ -1,5 +1,7 @@
 local Roact = require(game.ReplicatedStorage.Roact)
 
+local TextService = game:GetService("TextService")
+
 local Button = Roact.Component:extend("Button")
 
 function Button:init()
@@ -9,6 +11,15 @@ function Button:init()
 end
 
 function Button:render()
+
+    local textSize = TextService:GetTextSize(self.props.Text or "?", 16, "Legacy", Vector2.new(0,0))
+    local buttonWidth
+
+    if textSize.x > 80 then
+        buttonWidth = textSize.x + 50
+    else
+        buttonWidth = 130
+    end
 
     label = Roact.createElement("TextLabel", {
         BackgroundTransparency = 1,
@@ -23,7 +34,7 @@ function Button:render()
     return Roact.createElement("ImageButton", {
         BackgroundTransparency = 1,
         Position                 = self.props.Position or UDim2.new(0.5, 0, 0.8, 0),
-        Size                     = self.props.Size or UDim2.new(0, 130, 0, 48),
+        Size                     = self.props.Size or UDim2.new(0, buttonWidth, 0, 48),
         AnchorPoint              = self.props.AnchorPoint or Vector2.new(0.5, 0.5),
         ImageColor3              = self.props.Color or Color3.fromRGB(33, 33, 33),
         ImageTransparency        = self.props.ImageTransparency or 0,

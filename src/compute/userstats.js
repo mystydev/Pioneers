@@ -137,4 +137,11 @@ userstats.isInCombat = async (id) => {
     return ((Date.now() / 1000) - combatTime) < 10
 }
 
+userstats.updatePopulation = async (id) => {
+    let req = await database.getUnitCollection(id)
+    let unitList = await database.getUnits(req)
+
+    return database.setStat(id, "Population", unitList.length)
+}
+
 module.exports = userstats

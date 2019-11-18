@@ -189,6 +189,7 @@ local function getNewInstanceFromUnitType(type)
     newInstance.fsm = FSM.newMachine(Unit.UnitState, Unit.UnitState.IDLE)
 
     FSM.addTransition(newInstance.fsm, Unit.UnitState.IDLE, Unit.UnitState.IDLE, ViewUnit.transitionIdleToIdle)
+    FSM.addTransition(newInstance.fsm, Unit.UnitState.RESTING, Unit.UnitState.MOVING, ViewUnit.transitionRestingToMoving)
     FSM.addTransition(newInstance.fsm, Unit.UnitState.IDLE, Unit.UnitState.MOVING, ViewUnit.transitionIdleToMoving)
     FSM.addTransition(newInstance.fsm, Unit.UnitState.IDLE, Unit.UnitState.WORKING, ViewUnit.transitionMovingToWork)
     FSM.addTransition(newInstance.fsm, Unit.UnitState.MOVING, Unit.UnitState.MOVING, ViewUnit.transitionMovingToMoving)
@@ -405,7 +406,6 @@ function ViewUnit.updateDisplay(unit, frameDelta)
     if transition and not instance.unloaded then
         transition(instance, unit)
     elseif instance.unloaded then
-        print("!")
         local newPosition = Util.axialCoordToWorldCoord(unit.Position) + POSITION_OFFSET
         instance.model.PrimaryPart.CFrame = CFrame.new(newPosition)
 
@@ -484,6 +484,21 @@ function ViewUnit.transitionIdleToMoving(instance, unit)
     if currentAnimation then
         --currentAnimation:Stop()
         --currentAnimation:Destroy()
+    end
+
+    if instance.model.Parent then
+        local newAnim = instance.model.Humanoid:LoadAnimation(typeSpecificAnims[unit.Type].Walking)
+        newAnim:Play(2)
+        instance.currentAnim = newAnim
+    end
+end
+
+function ViewUnit.transitionRestingToMoving(instance, unit)
+    local anims = instance.model.Humanoid:GetPlayingAnimationTracks()
+
+    for i, v in pairs(anims) do
+        v:Stop()
+        v:Destroy()
     end
 
     if instance.model.Parent then

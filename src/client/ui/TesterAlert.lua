@@ -32,6 +32,7 @@ local function TesterAlert(props)
             Size     = UDim2.new(0, 200, 0, 50),
             TextTransparency = 0.2,
             Text = "Don't show me this again",
+            AnchorPoint = Vector2.new(0, 0),
         })
     end
 

@@ -133,16 +133,17 @@ function UIBase.refocusBackground()
 end
 
 function UIBase.highlightModel(model, transparency)
+    if not modelUpdates[model] then
+        modelUpdates[model] = RunService.Heartbeat:Connect(function()
+            if highlighted[model] then
+                highlighted[model]:Destroy()
+            end
 
-    modelUpdates[model] = RunService.Heartbeat:Connect(function()
-        if highlighted[model] then
-            highlighted[model]:Destroy()
-        end
-
-        local clone = model:Clone()
-        highlighted[model] = clone
-        clone.Parent = viewport
-    end)
+            local clone = model:Clone()
+            highlighted[model] = clone
+            clone.Parent = viewport
+        end)
+    end
 end
 
 function UIBase.highlightInst(inst, transparency)
@@ -704,6 +705,7 @@ end
 
 function UIBase.yesNoPrompt(title, message)
 
+    UIBase.waitForPromptDismissal()
     UIBase.unfocusBackground()
     UIBase.disableManagedInput()
 
@@ -724,6 +726,49 @@ function UIBase.yesNoPrompt(title, message)
 
     UIBase.waitForPromptDismissal()
     return clickedYes
+end
+
+--choices = {{Text = "...", Color = ...}, {Text=....}}
+function UIBase.choicePrompt(title, message, choices)
+
+    UIBase.waitForPromptDismissal()
+    UIBase.unfocusBackground()
+    UIBase.disableManagedInput()
+
+    local clicked = 0
+
+    if not promptHandle then
+
+        local buttons = {}
+
+        for i, v in pairs(choices) do
+            buttons[i] = {
+                Text = v.Text,
+                Color = v.Color,
+                Event = function() clicked = i if not v.Disabled then UIBase.dismissPrompt() end end,
+            }
+        end
+
+        promptHandle = Roact.mount(Roact.createElement(DefaultPrompt, {
+            Title = title,
+            Text = message,
+            Buttons = buttons,
+        }), screengui)
+
+    end
+
+    UIBase.waitForPromptDismissal()
+    return clicked
+end
+
+function UIBase.displayInfoPrompt(title, message)
+
+    infoPrompt = Roact.mount(Roact.createElement(DefaultPrompt, {
+        Title = title,
+        Text = message,
+        Position = UDim2.new(0, 200, 0, 150),
+        Size = UDim2.new(0, 400, 0, 300),
+    }), screengui)
 end
 
 function UIBase.blockingLoadingScreen(message)

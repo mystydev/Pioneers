@@ -150,7 +150,7 @@ function PartitionVisualistion:didMount()
         frame.Position = UDim2.new(0.5, frame.Position.X.Offset * difference, 0.5, frame.Position.Y.Offset * difference)
     end)
 
-    UIS.InputChanged:Connect(function(input, processed) 
+    local changed = UIS.InputChanged:Connect(function(input, processed) 
         
         if processed then return end
 
@@ -174,7 +174,8 @@ function PartitionVisualistion:didMount()
 
     local lastClick = 0
 
-    UIS.InputEnded:Connect(function(input, processed)
+    local ended
+    ended = UIS.InputEnded:Connect(function(input, processed)
 
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             if input.UserInputState == Enum.UserInputState.End and tick() - lastClick < 0.2 then
@@ -230,6 +231,8 @@ function PartitionVisualistion:didMount()
                 else
                     self.props.UIBase.hidePartitionOverview()
                     UIBase.removeLoadingScreen()
+                    changed:Disconnect()
+                    ended:Disconnect()
                 end
                 
             end
