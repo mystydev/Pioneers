@@ -125,6 +125,17 @@ database.getTiles = async (positions) => {
     return tileList
 }
 
+database.getTilesFromPartitions = async (partitionList) => {
+    let tileList = []
+
+    for (let partitionId of partitionList) {
+        let [id, cache, list] = await database.getStaleTilesFromVersionCache(partitionId, "")
+        tileList = tileList.concat(list)
+    }
+
+    return tileList
+}
+
 database.getStaleTilesFromVersionCache = async (partitionId, versionCache) => {
     let freshVersionCache = await redis.get("versionCache{" + partitionId + "}") || "0".repeat(partitionSize**2)
 

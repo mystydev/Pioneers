@@ -84,6 +84,7 @@ async function verifyTilePlacement(id, pos, type) {
     
 	//Create tile and recompute cached values (like unit trips)
 	let tile = await tiles.newTile(type, id, pos)
+	userstats.addBuiltBuilding(id, type)
 	await database.updateTile(pos, tile)
 }
 
@@ -149,6 +150,7 @@ async function verifyTileDeletion(id, pos) {
 
 	//Remove maintenance cost from users stats, delete the tile and update cached unit values
 	userstats.removeTileMaintenance(id, tiles.TileMaintenanceCosts[tile.Type])
+	userstats.removeBuiltBuilding(id, tile.Type)
 	await tiles.deleteTile(tile)
 }
 
@@ -231,6 +233,7 @@ async function computeRequest(roundStart, id, round) {
 	
 	if (shouldSimulate > 0) {
 		
+		await userstats.verifyVersion(id)
 		let lastRound = await database.getLastSimRoundNumber(id)
 		let roundDelta = round - lastRound
 

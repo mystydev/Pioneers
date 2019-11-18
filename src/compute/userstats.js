@@ -1,9 +1,14 @@
+let userstats = {}
+module.exports = userstats
+
 let common = require("./common")
 let database = require("./database")
 let tiles = require("./tiles")
+let units = require("./units")
 let resource = require("./resource")
 let performance = require('perf_hooks').performance
-let userstats = {}
+
+let current_version = "0.25"
 
 userstats.load = async () => {
     console.log("Stats would have loaded!")
@@ -22,6 +27,7 @@ userstats.newPlayer = (id) => {
         FoodProduced: 0,
         WoodProduced: 0,
         StoneProduced: 0,
+        Version: current_version,
     }
 
     database.setStats(id, stats)
@@ -138,10 +144,85 @@ userstats.isInCombat = async (id) => {
 }
 
 userstats.updatePopulation = async (id) => {
-    let req = await database.getUnitCollection(id)
+    let req = {}
+    req[id] = await database.getUnitCollection(id)
     let unitList = await database.getUnits(req)
 
-    return database.setStat(id, "Population", unitList.length)
+    let villagers = 0
+    let farmers = 0
+    let miners = 0
+    let lumberjacks = 0
+    let soldiers = 0
+
+    for (let unit of unitList) {
+        switch (parseInt(unit.Type)) {
+            case units.UnitType.VILLAGER:
+                villagers++
+                break;
+            case units.UnitType.FARMER:
+                farmers++
+                break;
+            case units.UnitType.MINER:
+                miners++
+                break;
+            case units.UnitType.LUMBERJACK:
+                lumberjacks++
+                break;
+            case units.UnitType.SOLDIER:
+                soldiers++
+                break;
+        }
+    }
+
+    database.setStat(id, "VillagerPopulation", villagers)
+    database.setStat(id, "FarmerPopulation", farmers)
+    database.setStat(id, "MinerPopulation", miners)
+    database.setStat(id, "LumberjackPopulation", lumberjacks)
+    database.setStat(id, "SoldierPopulation", soldiers)
+    return database.setStat(id, "TotalPopulation", unitList.length)
+}
+
+userstats.addBuiltBuilding = async (id, buildingType) => {
+    database.addStat(id, "Built:"+buildingType, 1)
+}
+
+userstats.removeBuiltBuilding = async (id, buildingType) => {
+    database.addStat(id, "Built:"+buildingType, -1)
+}
+
+userstats.updateBuildingsBuilt = async (id) => {
+    let partitions = await database.getPartitionsOwned(id)
+    let tiles = await database.getTilesFromPartitions(partitions)
+    let builtTiles = {}
+
+    for (let tile of tiles)
+        builtTiles[tile.Type] = builtTiles[tile.Type] ? ++builtTiles[tile.Type] : 1
+
+    for (let type in builtTiles)
+        database.setStat(id, "Built:"+type, builtTiles[type])
+}
+
+
+//Checks level progression
+userstats.checkTrackedStats = async (id) => {
+
+}
+
+userstats.verifyVersion = async (id) => {
+    let version = await database.getStat(id, "Version")
+
+    if (version != current_version) {
+        console.log(id, ": outdated stats version("+version+") detected... updating")
+        await userstats.recalculate(id)
+    }
+}
+
+//Used to return stats to a safe state due to a version update or corruption
+userstats.recalculate = async (id) => {
+    await userstats.updatePopulation(id)
+    await userstats.updateBuildingsBuilt(id)
+    await database.setStat(id, "Version", current_version)
+    console.log(id, ": updated stats to version", current_version)
 }
 
 module.exports = userstats
