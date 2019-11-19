@@ -8,7 +8,7 @@ let units = require("./units")
 let resource = require("./resource")
 let performance = require('perf_hooks').performance
 
-let current_version = "0.25"
+let current_version = "0.27"
 
 userstats.load = async () => {
     console.log("Stats would have loaded!")
@@ -21,6 +21,7 @@ userstats.newPlayer = (id) => {
         Stone: 2500,
         PlayerId: id,
         Keep: undefined,
+        Level: 1,
         FoodCost: 0,
         WoodCost: 0,
         StoneCost: 0,
@@ -205,7 +206,26 @@ userstats.updateBuildingsBuilt = async (id) => {
 
 //Checks level progression
 userstats.checkTrackedStats = async (id) => {
+    let level = await database.getStat(id, "Level") || 1
+    let requirements = common.level_requirements[level]
+    let unfulfilled = false
 
+    for (let requirement in requirements) {
+        if (requirement != "Unlocks"){
+
+            let stat = parseInt(await database.getStat(id, requirement))
+
+            if (stat <= requirements[requirement]) {
+                unfulfilled = true
+                break
+            }
+        }
+    }
+
+    if (!unfulfilled) {
+        await database.addStat(id, "Level", 1)
+        return await userstats.checkTrackedStats(id)
+    }
 }
 
 userstats.verifyVersion = async (id) => {
@@ -221,6 +241,7 @@ userstats.verifyVersion = async (id) => {
 userstats.recalculate = async (id) => {
     await userstats.updatePopulation(id)
     await userstats.updateBuildingsBuilt(id)
+    await userstats.checkTrackedStats(id)
     await database.setStat(id, "Version", current_version)
     console.log(id, ": updated stats to version", current_version)
 }

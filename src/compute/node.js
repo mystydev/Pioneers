@@ -7,7 +7,7 @@ let userstats = require("./userstats")
 let performance = require('perf_hooks').performance
 let express = require("express")
 let bodyParser = require("body-parser")
-let PORT = 6420;
+let PORT = 80;
 
 let httpserver = express()
 httpserver.use(bodyParser.json({ limit: '5mb', strict: false}))
@@ -215,22 +215,22 @@ let lastRoundTime = 0
 
 async function computeRequest(roundStart, id, round) {
 
+	console.log(id, round, ": handling compute request")
+
 	if (roundStart != lastRoundTime) {
 		lastRoundTime = roundStart
 		tiles.clearCaches()
 		database.clearCaches()
 	}
 
-	//console.log(id, ": handling compute request")
-
-    //let start = performance.now()
+    let start = performance.now()
     let processing = []
 
-    await processActionQueue(id)
-    await units.processSpawns(id)
-
-	let shouldSimulate = await database.getRemainingFullSimQuota(id)
+	await processActionQueue(id)
+	await units.processSpawns(id)
 	
+	let shouldSimulate = await database.getRemainingFullSimQuota(id)
+
 	if (shouldSimulate > 0) {
 		
 		await userstats.verifyVersion(id)
@@ -263,8 +263,8 @@ async function computeRequest(roundStart, id, round) {
 		console.log(id, ": is now unloaded.")
 	}
 
-    //let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
-    //console.log(id, ": compute request took: " + timeTaken + "ms")
+    let timeTaken = (performance.now() - start).toFixed(1).toString().padStart(6, " ");
+    console.log(id, round, ": compute request took:", timeTaken + "ms")
     
     return {}
 }
@@ -284,7 +284,7 @@ function init() {
 httpserver.post("/", (req, res) => {
     computeRequest(req.body.time, req.body.id, req.body.round).then(response => {
         res.json(response)
-    })
+	})
 })
 
 init()

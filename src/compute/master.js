@@ -4,14 +4,21 @@ let performance = require('perf_hooks').performance
 let database = require("./database")
 let Mutex = require('async-mutex').Mutex;
 
+
+const httpAgent = new http.Agent({
+	keepAlive: true,
+})
+
 const options = {
 	hostname: "computenode.dev",
-	port: 6420,
+	agent: httpAgent,
+	port: 80,
 	path: "/",
 	method: "POST",
-	timeout: 2000,
+	timeout: 1900,
 	headers: {
-		"Content-Type": "application/json"
+		"Content-Type": "application/json",
+		"Connection": "keep-alive",
 	}
 }
 
@@ -42,17 +49,23 @@ function attemptRound() {
 		console.log("Skipping round due to over time simulation")
 }
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function processRound() {
-	console.log("Processing")
+
 	database.setRoundStart()
 	let roundNumber = await database.getRoundCount()
+	console.log("Processing", roundNumber)
 
 	let start = performance.now()
 	let playerList = await database.getLoadedKingdoms()
 	let processing = []
 
-	for (let userId of playerList)
+	for (let userId of playerList) {
 		processing.push(sendComputeRequest({time: start, id: userId, round: roundNumber}))
+	}
 
 	await Promise.all(processing)
 
@@ -65,22 +78,32 @@ async function processRound() {
 }
 
 async function sendComputeRequest(data) {
-	let req = http.request(options)
-
-	req.on("error", (e) => {
-		console.log("Failed to send compute request: " + e)
-	})
-
-	req.write(JSON.stringify(data))
-	req.end()
-
 	return new Promise ((resolve) => {
-		req.on("response", () => {
-			resolve()
+	
+		console.log("Sending: ", data)
+
+		let req = http.request(options, (res) => {
+			res.on("end", () => {
+				resolve()
+			})		
+			
+			res.on("aborted", () => {
+				console.log("Compute request aborted!", data)
+			})
+
+			res.on("data", (chunk) => {
+				//console.log(chunk.toString())
+			})
 		})
 
+		req.setSocketKeepAlive(true, 1000)
+		req.write(JSON.stringify(data))
+		req.end()
+
+		//console.log(http.globalAgent.freeSockets)
+
 		req.on("timeout", () => {
-			console.error("Compute request timed out")
+			console.error("Compute request timed out!", data)
 			resolve()
 		})
 	})
@@ -91,12 +114,12 @@ process.on("SIGHUP", shutdown)
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
 process.on("uncaughtException", (error) => {
-	console.error("!!Encountered an error: " + error.message)
-	console.error(error.stack)
+	console.log("!!Encountered an error: " + error.message)
+	console.log(error.stack)
 })
 process.on('unhandledRejection', (error) => {
-	console.error("!!Encountered a rejection: " + error.message)
-	console.error(error.stack)
+	console.log("!!Encountered a rejection: " + error.message)
+	console.log(error.stack)
 })
 
 init()
