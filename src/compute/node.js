@@ -257,6 +257,7 @@ async function computeRequest(roundStart, id, round) {
 		await Promise.all(processing)
 		await database.updateUnits(unitList)
 		await userstats.updatePopulation(id)
+		await userstats.checkTrackedStats(id)
 		await database.setLastSimRoundNumber(id, round)
 	} else {
 		await database.setKingdomUnloaded(id)

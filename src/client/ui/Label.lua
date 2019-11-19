@@ -16,8 +16,8 @@ local function Label(props)
         TextWrapped            = props.TextWrapped ~= nil and props.TextWrapped or true,
         ZIndex                 = props.ZIndex or 1,
         AnchorPoint            = props.AnchorPoint or Vector2.new(0.5, 0.5),
-        [Roact.Ref]            = props.Ref,
-    })
+        [Roact.Ref]            = props.Ref,    
+    }, props[Roact.Children])
 end
 
 return Label

@@ -1,5 +1,14 @@
 #!/bin/bash
 
+if [ "$1" == "make-dev-api" ]; 
+then
+    docker build -t gcr.io/pioneers-roblox/devpionapi -f src/api/Dockerfile src
+    docker push gcr.io/pioneers-roblox/devpionapi
+
+    kubectl scale --replicas=0 deployment/pioneers-dev-api
+    kubectl apply -f src/configs/dev-api/deployment.yaml
+fi
+
 if [ "$1" == "make-dev-compute-master" ]; 
 then
     curl -s -o /dev/null -H "Content-Type: application/json" --request POST  --data @src/configs/PRIVATEdeploymentbody.txt https://api.mysty.dev/pion/updateinitiated

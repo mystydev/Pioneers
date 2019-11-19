@@ -15,6 +15,7 @@ local UserSettings  = require(Common.UserSettings)
 local RunService = game:GetService("RunService")
 
 local currentWorld
+local gameSettings
 local currentStats = {}
 local RequestedTiles = {}
 local strayed = {}
@@ -165,6 +166,10 @@ function Replication.worldDied()
 end
 
 function Replication.getUserStats()
+
+    if currentStats.Keep then
+        return currentStats
+    end
 
     _G.updateLoadStatus("Fetching user stats...")
 
@@ -356,6 +361,14 @@ end
 
 function Replication.spawnConfirm()
     Network.PlayerSpawnConfirm:FireServer()
+end
+
+function Replication.requestGameSettings()
+    gameSettings = Network.RequestGameSettings:InvokeServer()
+end
+
+function Replication.getGameSettings()
+    return gameSettings
 end
 
 return Replication

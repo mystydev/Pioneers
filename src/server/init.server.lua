@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 
 print("Pioneers server starting...")
 
+Replication.fetchGameSettings()
 local world = World.new()
 
 Sync.begin(world)

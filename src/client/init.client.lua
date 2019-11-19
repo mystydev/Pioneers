@@ -33,8 +33,9 @@ local function start()
 
     Replication.init(world, UIBase)
     
-
+    Replication.requestGameSettings()
     local stats = Replication.getUserStats()
+
     Replication.getUserSettings()
 
     ActionHandler.init(world)
@@ -82,6 +83,7 @@ local function start()
     UIBase.showFeedbackButton()
     --UIBase.showFindKingdomButton()
     UIBase.showBuildButton()
+    UIBase.showProgressionUI(stats)
     UIBase.enableManagedInput()
 
 end

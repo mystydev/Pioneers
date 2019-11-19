@@ -275,20 +275,7 @@ app.post("/pion/userjoin", (req, res) => {
             res.json(stats);
         else {
             console.log("New user Id:", req.body.Id);
-            cluster.hmset("stats:"+req.body.Id, {
-                Food: 2500,
-                Wood: 2500,
-                Stone: 2500,
-                PlayerId: req.body.Id,
-                Keep: undefined,
-                FoodCost: 0,
-                WoodCost: 0,
-                StoneCost: 0,
-                FoodProduced: 0,
-                WoodProduced: 0,
-                StoneProduced: 0,
-            })
-            cluster.rpush("playerlist", req.body.Id)
+            userstats.newPlayer(req.body.Id)
             res.json({status:"NewUser"});
         }
     }).catch((error) => {
@@ -296,6 +283,14 @@ app.post("/pion/userjoin", (req, res) => {
         res.json({status:"Fail"})
     })
 });
+
+app.post("/pion/getgamesettings", (req, res) => {
+    let settings = {}
+
+    settings.level_requirements = common.level_requirements
+
+    res.json(settings)
+})
 
 
 process.on("uncaughtException", (error) => {

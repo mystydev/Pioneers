@@ -31,7 +31,9 @@ local feedbackHandle
 local findKingdomHandle
 local partitionViewHandle
 local loadingHandle
+local progressionHandle
 local stats
+local statsBinding, setStats = Roact.createBinding()
 local currentWorld = {}
 local highlighted  = {}
 local modelUpdates = {}
@@ -109,6 +111,7 @@ function UIBase.init(world, displaystats)
     FindKingdomButton   = require(ui.teleport.FindKingdomButton)
     FindKingdom         = require(ui.teleport.FindKingdom)
     PartitionView       = require(ui.partitionOverview.PartitionView)
+    CurrentLevelDisplay = require(ui.progression.CurrentLevelDisplay)
 end
 
 function UIBase.highlightCharacter()
@@ -787,6 +790,19 @@ function UIBase.removeLoadingScreen()
         UIBase.enableManagedInput()
         Roact.unmount(loadingHandle)
         loadingHandle = nil
+    end
+end
+
+function UIBase.showProgressionUI(stats)
+    local progressionHandle = Roact.mount(Roact.createElement(CurrentLevelDisplay, {
+        stats = stats,
+    }), screengui)
+end
+
+function UIBase.hideProgressionUI()
+    if progressionHandle then
+        Roact.unmount(progressionHandle)
+        progressionHandle = nil
     end
 end
 

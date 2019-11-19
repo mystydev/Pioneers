@@ -8,7 +8,7 @@ let units = require("./units")
 let resource = require("./resource")
 let performance = require('perf_hooks').performance
 
-let current_version = "0.27"
+let current_version = "0.28"
 
 userstats.load = async () => {
     console.log("Stats would have loaded!")
@@ -175,12 +175,12 @@ userstats.updatePopulation = async (id) => {
         }
     }
 
-    database.setStat(id, "VillagerPopulation", villagers)
-    database.setStat(id, "FarmerPopulation", farmers)
-    database.setStat(id, "MinerPopulation", miners)
-    database.setStat(id, "LumberjackPopulation", lumberjacks)
-    database.setStat(id, "SoldierPopulation", soldiers)
-    return database.setStat(id, "TotalPopulation", unitList.length)
+    database.setStat(id, "Population:Villager", villagers)
+    database.setStat(id, "Population:Farmer", farmers)
+    database.setStat(id, "Population:Miner", miners)
+    database.setStat(id, "Population:Lumberjack", lumberjacks)
+    database.setStat(id, "Population:Soldier", soldiers)
+    return database.setStat(id, "Population:Total", unitList.length)
 }
 
 userstats.addBuiltBuilding = async (id, buildingType) => {
@@ -215,7 +215,8 @@ userstats.checkTrackedStats = async (id) => {
 
             let stat = parseInt(await database.getStat(id, requirement))
 
-            if (stat <= requirements[requirement]) {
+            if (stat < requirements[requirement]) {
+                console.log(requirement, stat, requirements[requirement], stat <= requirements[requirement])
                 unfulfilled = true
                 break
             }

@@ -235,6 +235,11 @@ local function playerSpawnConfirm(player)
     player.Character.HumanoidRootPart.Anchored = false
 end
 
+local function gameSettingsRequest(player)
+    repeat wait() until gameSettings
+    return gameSettings
+end
+
 function Replication.assignWorld(w)
     currentWorld = w
 
@@ -253,11 +258,18 @@ function Replication.assignWorld(w)
     Network.UpdatePlayerPosition.OnServerInvoke  = updatePlayerPosition
     Network.RequestPartition.OnServerInvoke      = partitionRequest
     Network.GetPartitionOwnership.OnServerInvoke = partitionOwnerRequest
+    Network.RequestGameSettings.OnServerInvoke   = gameSettingsRequest
     Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
     Network.Chatted.OnServerEvent:Connect(chatRequest)
     Network.FeedbackRequest.OnServerEvent:Connect(feedbackRequest)
     Network.PlayerSpawnRequest.OnServerEvent:Connect(playerSpawnRequest)
     Network.PlayerSpawnConfirm.OnServerEvent:Connect(playerSpawnConfirm)
+end
+
+function Replication.fetchGameSettings()
+    local payload = Http:JSONEncode({apikey = API_KEY})
+    local res = Http:PostAsync(API_URL.."getgamesettings", payload)
+    gameSettings = Http:JSONDecode(res)
 end
 
 function Replication.pushStatsChange(stats)

@@ -13,23 +13,23 @@ common.Actions = {
 common.level_requirements = []
 
 common.level_requirements[1] = {}
-common.level_requirements[1]["TotalPopulation"] = 4
+common.level_requirements[1]["Population:Total"] = 4
 common.level_requirements[1]["Built:"+tiles.TileType.HOUSE] = 2
 common.level_requirements[1]["Built:"+tiles.TileType.FARM] = 4
 
 common.level_requirements[2] = {}
-common.level_requirements[2]["TotalPopulation"] = 10
+common.level_requirements[2]["Population:Total"] = 10
 common.level_requirements[2]["Built:"+tiles.TileType.HOUSE] = 5
 common.level_requirements[2]["Built:"+tiles.TileType.FARM] = 6
 common.level_requirements[2]["Built:"+tiles.TileType.MINE] = 2
 common.level_requirements[2]["Built:"+tiles.TileType.FORESTRY] = 2
 
 common.level_requirements[3] = {Unlocks:[tiles.TileType.STORAGE]}
-common.level_requirements[3]["TotalPopulation"] = 20
+common.level_requirements[3]["Population:Total"] = 20
 common.level_requirements[3]["Built:"+tiles.TileType.HOUSE] = 10
 
 common.level_requirements[4] = {Unlocks:[tiles.TileType.BARRACKS]}
-common.level_requirements[4]["TotalPopulation"] = 40
+common.level_requirements[4]["Population:Total"] = 40
 common.level_requirements[4]["Built:"+tiles.TileType.STORAGE] = 1
 
 common.FULL_SIM_QUOTA = 30 //how many full simulation rounds are required to proceed to lightweight simulation
