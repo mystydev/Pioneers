@@ -1,11 +1,14 @@
 local preload = {}
 local Client  = script.Parent
+local UI      = Client.ui
 local Common  = game.ReplicatedStorage.Pioneers.Common
 local Assets  = game.ReplicatedStorage.Pioneers.Assets
 local Roact   = require(game.ReplicatedStorage.Roact)
 
 local UserSettings = require(Common.UserSettings)
 local UIBase       = require(Client.UIBase)
+local SoundManager = require(Client.SoundManager)
+local LoadingSpinner = require(UI.common.LoadingSpinner)
 
 local RunService      = game:GetService("RunService")
 local ContentProvider = game:GetService("ContentProvider")
@@ -44,6 +47,7 @@ preload.Loaded = false
 
 local assetsLoaded = false
 local currentText = ""
+local spinnerHandle
 
 local lock
 local queued = {}
@@ -98,10 +102,13 @@ _G.updateLoadStatus = updateInfo --Yes this will be changed
 
 local function load()
     loadingGui = Assets.LoadingGui:Clone()
+    loadingGui.Spinner:Destroy()
     loadingGui.Parent = game.Players.LocalPlayer.PlayerGui
     game.Lighting.LoadingBlur.Size = 56
     loadingGui.Info.TextColor3 = Color3.fromRGB(255, 255, 255)
     workspace.CurrentCamera.CFrame = CFrame.new(Vector3.new(30, 60, 120))
+
+    spinnerHandle = Roact.mount(Roact.createElement(LoadingSpinner), loadingGui)
 
     spawn(function()
         ContentProvider:PreloadAsync({Assets.Preload})
@@ -110,8 +117,8 @@ local function load()
     end)
 
     TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 0}):Play()
-    TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 0.25}):Play()
-    TweenService:Create(loadingGui.Spinner, spinnerTween, {Rotation = 360}):Play()
+    --TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 0.25}):Play()
+    --TweenService:Create(loadingGui.Spinner, spinnerTween, {Rotation = 360}):Play()
     
     wait(10)
 
@@ -125,7 +132,7 @@ local function load()
 
     if not preload.Loaded then
         TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
-        TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 1}):Play()
+        --TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 1}):Play()
     end
     
     wait(0.5)
@@ -154,13 +161,14 @@ function preload.tellReady()
             updateInfo("Ready", true)
 
             wait(1)
-
+            
+            SoundManager.transition()
             preload.FullyLoaded = true
-            TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 1}):Play()
+            spawn(function() Roact.unmount(spinnerHandle) end)
+            --TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 1}):Play()
             TweenService:Create(loadingGui.Background, tweenInfo, {BackgroundTransparency = 1}):Play()
             TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
             TweenService:Create(game.Lighting.LoadingBlur, tweenInfo, {Size = 0}):Play()
-           
             wait(1)
 
             loadingGui.Info.Text = ""

@@ -1,4 +1,7 @@
+local Client = script.Parent.Parent.Parent
 local Roact = require(game.ReplicatedStorage.Roact)
+
+local SoundManager = require(Client.SoundManager)
 
 local TextService = game:GetService("TextService")
 
@@ -40,9 +43,9 @@ function Button:render()
         ImageTransparency        = self.props.ImageTransparency or 0,
         ScaleType                = "Slice",
         SliceCenter              = Rect.new(15, 33, 15, 33),
-        [Roact.Event.MouseEnter] = function() self:setState({hoverStatus = 1}) end,
+        [Roact.Event.MouseEnter] = function() SoundManager.rollover() self:setState({hoverStatus = 1}) end,
         [Roact.Event.MouseLeave] = function() self:setState({hoverStatus = 0}) end,
-        [Roact.Event.MouseButton1Click] = self.props.ClickEvent,
+        [Roact.Event.MouseButton1Click] = function() SoundManager.menuClick() self.props.ClickEvent() end,
         Image                    = (self.state.hoverStatus == 0) and "rbxassetid://4312670626" or "rbxassetid://4298535124",
     }, label)
 end

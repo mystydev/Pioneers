@@ -496,7 +496,7 @@ function UIBase.dismissPrompt()
     UIBase.refocusBackground()
 
     if promptHandle then
-        Roact.unmount(promptHandle)
+        coroutine.wrap(function() Roact.unmount(promptHandle) end)()
         promptHandle = nil
     end
 
@@ -696,7 +696,7 @@ function UIBase.displayPartitionOverview()
 end
 
 function UIBase.hidePartitionOverview()
-    Roact.unmount(partitionViewHandle)
+    coroutine.wrap(function() Roact.unmount(partitionViewHandle) end)()
     partitionViewHandle = nil
 end
 
@@ -726,6 +726,8 @@ function UIBase.yesNoPrompt(title, message)
         }), screengui)
 
     end
+
+    SoundManager.menuPopup()
 
     UIBase.waitForPromptDismissal()
     return clickedYes
@@ -760,6 +762,8 @@ function UIBase.choicePrompt(title, message, choices)
 
     end
 
+    SoundManager.menuPopup()
+
     UIBase.waitForPromptDismissal()
     return clicked
 end
@@ -786,9 +790,10 @@ end
 
 function UIBase.removeLoadingScreen()
     if loadingHandle then
+        SoundManager.transition()
         UIBase.refocusBackground()
         UIBase.enableManagedInput()
-        Roact.unmount(loadingHandle)
+        coroutine.wrap(function() Roact.unmount(loadingHandle) end)()
         loadingHandle = nil
     end
 end

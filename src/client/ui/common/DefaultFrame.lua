@@ -1,9 +1,10 @@
+local Client = script.Parent.Parent.Parent
 local Roact = require(game.ReplicatedStorage.Roact)
 
 local TweenService  = game:GetService("TweenService")
 local DefaultFrame = Roact.Component:extend("DefaultFrame")
 
-local quickfade = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local quickfade = TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 function DefaultFrame:init()
     self:setState({
@@ -15,7 +16,7 @@ function DefaultFrame:render()
     return Roact.createElement("ImageLabel", {
         BackgroundTransparency = 1,
         Position               = self.props.Position or UDim2.new(0, 0, 0, 0),
-        Size                   = self.props.Size or UDim2.new(1, 0, 1, 0),
+        Size                   = UDim2.new(0, 0, 0, 0),
         AnchorPoint            = self.props.AnchorPoint or Vector2.new(0.5, 0.5),
         ImageColor3            = self.props.ImageColor3 or Color3.new(1,1,1),
         ImageTransparency      = 1,
@@ -28,15 +29,20 @@ function DefaultFrame:render()
 end
 
 local function fadeChildrenIn(instance)
+
     for i, v in pairs(instance:GetDescendants()) do
         if v:IsA("TextLabel") or v:IsA("TextButton") then
             local transparency = v.TextTransparency
             v.TextTransparency = 1
-            TweenService:Create(v, quickfade, {TextTransparency = transparency}):Play()
+            delay(0.1, function()
+                tween = TweenService:Create(v, quickfade, {TextTransparency = transparency}):Play()
+            end)
         elseif v:IsA("ImageLabel") or v:IsA("ImageButton") then
             local transparency = v.ImageTransparency
             v.ImageTransparency = 1
-            TweenService:Create(v, quickfade, {ImageTransparency = transparency}):Play()
+            delay(0.1, function()
+                tween = TweenService:Create(v, quickfade, {ImageTransparency = transparency}):Play()
+            end)
         end
     end
 end
@@ -53,13 +59,19 @@ end
 
 function DefaultFrame:didMount()
     local inst = self.state.ref:getValue()
-    TweenService:Create(inst, quickfade, {ImageTransparency = self.props.ImageTransparency or 0.2}):Play()
+    TweenService:Create(inst, quickfade, {
+        ImageTransparency = self.props.ImageTransparency or 0.2,
+        Size = self.props.Size or UDim2.new(1, 0, 1, 0),
+    }):Play()
     fadeChildrenIn(inst)
 end
 
 function DefaultFrame:willUnmount()
     local inst = self.state.ref:getValue()
-    TweenService:Create(inst, quickfade, {ImageTransparency = 1}):Play()
+    TweenService:Create(inst, quickfade, {
+        ImageTransparency = 1,
+        Size = UDim2.new(0, 0, 0, 0),
+    }):Play()
     fadeChildrenOut(inst)
     wait(0.2)
 end

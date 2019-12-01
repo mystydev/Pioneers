@@ -457,8 +457,8 @@ units.setSpawn = (id, pos) => {
     database.updateUnitSpawn(id, pos, 0)
 }
 
-units.removeSpawn = (id, pos) => {
-    database.deleteUnitSpawn(id, pos)
+units.removeSpawn = async (id, pos) => {
+    await database.deleteUnitSpawn(id, pos)
 }
 
 units.unassignWork = async (unit) => {
@@ -476,7 +476,7 @@ units.unassignWork = async (unit) => {
     if (!units.isMilitary(unit))
         unit.Type = units.UnitType.VILLAGER
 
-    database.updateUnit(unit)
+    return await database.updateUnit(unit)
 }
 
 units.assignWork = async (unit, pos) => {
@@ -539,11 +539,19 @@ units.revokeAttack = (unit) => {
     unit.AttackUnit = ""
 }
 
-units.handleDeath = (unit) => {
-    database.removeUnitFromCollection(unit.OwnerId, unit.Id)
-    database.setDeadUnitExpiration(unit)
-    database.updateUnitSpawn(unit.OwnerId, unit.Home, 0)
-    database.removeUnitFromHome(unit)
+units.handleDeath = async (unit) => {
+    unit.Health = 0
+    unit.State = units.UnitState.DEAD
+    let ops = [
+        database.removeUnitFromCollection(unit.OwnerId, unit.Id),
+        database.setDeadUnitExpiration(unit),
+        database.updateUnitSpawn(unit.OwnerId, unit.Home, 0),
+        database.removeUnitFromHome(unit),
+        units.unassignWork(unit),
+        database.updateUnit(unit, true),
+    ]
+
+    await Promise.all(ops)
 }
 
 units.processFastRoundSim = async (id, roundDelta) => {

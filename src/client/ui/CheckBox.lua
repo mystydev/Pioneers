@@ -19,7 +19,7 @@ local fadeTime = 0.1
 
 function CheckBox:onClick()
     self:setState({lastClick = tick(), Checked = not self.state.Checked})
-    SoundManager.highlight() 
+    SoundManager.menuClick() 
 
     if self.state.Checked then
         self.checkRef.current.Size = UDim2.new(0,0,0,13)

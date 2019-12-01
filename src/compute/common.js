@@ -13,7 +13,7 @@ common.Actions = {
 common.level_requirements = []
 
 common.level_requirements[1] = {}
-common.level_requirements[1]["Population:Total"] = 4
+common.level_requirements[1]["Population:Farmers"] = 4
 common.level_requirements[1]["Built:"+tiles.TileType.HOUSE] = 2
 common.level_requirements[1]["Built:"+tiles.TileType.FARM] = 4
 

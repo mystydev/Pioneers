@@ -125,7 +125,22 @@ tiles.storePrep = (tile) => {
 }
 
 tiles.deleteTile = async (tile) => {
-    units.removeSpawn(tile.OwnerId, tile.Position)
+    
+    if (tile.Type == tiles.TileType.HOUSE) {
+        console.log("House")
+        for (let unitId of tile.UnitList) {
+            let unit = await database.getUnit(tile.OwnerId, unitId)
+            await units.handleDeath(unit)
+        }
+    } else {
+        console.log("other")
+        for (let unitId of tile.UnitList) {
+            let unit = await database.getUnit(tile.OwnerId, unitId)
+            await units.unassignWork(unit)
+        }
+    }
+
+    await units.removeSpawn(tile.OwnerId, tile.Position)
     await database.deleteTile(tile.Position)
 }
 

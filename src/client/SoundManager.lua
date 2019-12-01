@@ -5,7 +5,9 @@ local TweenService = game:GetService("TweenService")
 
 
 local masterGroup = Instance.new("SoundGroup", workspace)
+local effectGroup = Instance.new("SoundGroup", workspace)
 masterGroup.Volume = 1
+effectGroup.Volume = 1
 
 
 local FocusMuteVals = {
@@ -42,7 +44,8 @@ function SoundManager.newBGM()
 end
 
 function SoundManager.tempGlobal(sound)
-    sound.Parent = masterGroup
+    sound.Parent = effectGroup
+    sound:Play()
     sound:Destroy()
 end
 
@@ -70,13 +73,30 @@ end
 
 function SoundManager.initiatePlace()
     local effect = Sounds.Effects.InitiatePlace:Clone()
-    effect.Parent = masterGroup
+    --[[effect.Parent = masterGroup
     effect.Playing = true
-    delay(1, function() effect:Destroy() end)
+    delay(1, function() effect:Destroy() end)]]--
+    SoundManager.tempGlobal(effect)
 end
 
-function SoundManager.highlight()
-    SoundManager.tempGlobal(Sounds.Effects.Highlight:Clone())
+function SoundManager.rollover()
+    local effect = Sounds.Effects.Highlight:Clone()
+    effect.TimePosition = 0.05
+    SoundManager.tempGlobal(effect)
+end
+
+function SoundManager.transition()
+    SoundManager.tempGlobal(Sounds.Effects.Transition:Clone())
+end
+
+function SoundManager.menuPopup()
+    SoundManager.tempGlobal(Sounds.Effects.MenuPopup:Clone())
+end
+
+function SoundManager.menuClick()
+    local effect = Sounds.Effects.MenuClick:Clone()
+    effect.TimePosition = 0.06
+    SoundManager.tempGlobal(effect)
 end
 
 function SoundManager.alert()

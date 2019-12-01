@@ -3,6 +3,7 @@ local Client = ui.Parent
 local Common = game.ReplicatedStorage.Pioneers.Common
 local Roact = require(game.ReplicatedStorage.Roact)
 
+local SoundManager = require(Client.SoundManager)
 local Label = require(ui.Label)
 local Unit = require(Common.Unit)
 local Resource = require(Common.Resource)
@@ -38,7 +39,7 @@ function UnitInfoLabel:render()
 
     local displayImage
     local text
-
+    
     if not self.state.IsUnit then
 
         displayImage = StateDisplay[self.state.Unit.State] or StateDisplay[Unit.UnitState.LOST]
@@ -69,7 +70,8 @@ function UnitInfoLabel:render()
         Size = self.state.Size or UDim2.new(0, 232, 0, 32),
         AnchorPoint = Vector2.new(0.5, 0.5),
         Image = displayImage,
-        [Roact.Event.MouseButton1Click] = function() self.props.SetObject(self.state.Unit) end
+        [Roact.Event.MouseButton1Click] = function() self.props.SetObject(self.state.Unit) end,
+        [Roact.Event.MouseEnter] = not self.state.IsUnit and SoundManager.rollover or nil,
     }, {
         Label = Roact.createElement(Label, {Text = text})
     })

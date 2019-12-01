@@ -6,9 +6,12 @@ local Roact  = require(game.ReplicatedStorage.Roact)
 local Util          = require(Common.Util)
 local Tile          = require(Common.Tile)
 local ActionHandler = require(Client.ActionHandler)
+local SoundManager  = require(Client.SoundManager)
 
+local TweenService = game:GetService("TweenService")
 local AssignWorkButton = Roact.Component:extend("AssignWorkButton")
 
+local quick = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local infoTable = {}
 infoTable[Tile.FARM]        = {Image = "rbxassetid://3480804371", Position = UDim2.new(0, 60, 1, -103), Size = UDim2.new(0, 102, 0, 108)}
@@ -26,14 +29,27 @@ function AssignWorkButton:onClick()
     end
 end
 
+function AssignWorkButton:onEnter()
+    SoundManager.rollover()
+    TweenService:Create(self.state.ref:getValue(), quick, {ImageTransparency = 0}):Play()
+end
+
+function AssignWorkButton:onLeave()
+    TweenService:Create(self.state.ref:getValue(), quick, {ImageTransparency = 0.5}):Play()
+end
+
 function AssignWorkButton:init()
-    
+    self:setState({
+        ref = Roact.createRef(),
+    })
 end
 
 function AssignWorkButton:render()
 
     local children = {}
-    if self.props.Unit and Util.worksOnTileType(self.props.Unit.Type, self.props.Type) then
+    local isWorking = self.props.Unit and Util.worksOnTileType(self.props.Unit.Type, self.props.Type)
+
+    if isWorking then
         children.dismiss = Roact.createElement("ImageButton", {
             Name                   = "DismissWork",
             BackgroundTransparency = 1,
@@ -41,7 +57,9 @@ function AssignWorkButton:render()
             Size                   = UDim2.new(0, 60, 0, 60),
             AnchorPoint            = Vector2.new(0.5, 0.5),
             Image                  = "rbxassetid://3616348293",
+            ImageTransparency      = 0.5,
             [Roact.Event.MouseButton1Click] = function() ActionHandler.assignWork(self.props.Unit, nil) end,
+            [Roact.Ref] = self.state.ref,
         })
     end
 
@@ -52,7 +70,11 @@ function AssignWorkButton:render()
         Size                   = infoTable[self.props.Type].Size,
         AnchorPoint            = Vector2.new(0.5, 0.5),
         Image                  = infoTable[self.props.Type].Image,
+        ImageTransparency      = isWorking and 0 or 0.5,
         [Roact.Event.MouseButton1Click] = function() self:onClick() end,
+        [Roact.Event.MouseEnter] = function() self:onEnter() end,
+        [Roact.Event.MouseLeave] = function() self:onLeave() end,
+        [Roact.Ref] = not isWorking and self.state.ref or nil,
     }, children)
 end
 

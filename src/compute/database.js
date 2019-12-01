@@ -486,12 +486,12 @@ database.updateSettings = (id, settings) => {
     redis.hset("settings", id, JSON.stringify(settings))
 }
 
-database.updateUnitSpawn = (id, pos, count) => {
-    redis.hset("unitspawns:"+id, pos, count)
+database.updateUnitSpawn = async (id, pos, count) => {
+    await redis.hset("unitspawns:"+id, pos, count)
 }
 
-database.deleteUnitSpawn = (id, pos) => {
-    redis.hdel("unitspawns:"+id, pos)
+database.deleteUnitSpawn = async (id, pos) => {
+    await redis.hdel("unitspawns:"+id, pos)
 }
 
 database.updateUnitCount = (count) => {
@@ -512,7 +512,7 @@ database.removeUnitFromCollection = (ownerId, unitId) => {
 
 database.setDeadUnitExpiration = (unit) => {
     redis.hdel("unitCache{"+unit.PartitionId+"}", unit.OwnerId+":"+unit.Id)
-    redis.expire("unit{"+unit.OwnerId+"}"+unit.Id, 120)
+    redis.expire("unit{"+unit.OwnerId+"}"+unit.Id, 10)
 }
 
 database.removeUnitFromHome = async (unit) => {

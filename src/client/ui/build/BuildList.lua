@@ -43,7 +43,7 @@ function Button:render()
         ZIndex                 = 2,
         [Roact.Ref]            = self.instRef,
         [Roact.Event.MouseButton1Click] = function() self.props.UIBase.highlightType(self.props.type, true) end,
-        [Roact.Event.MouseEnter] = function(x, y) SoundManager.highlight() showToolTip(self.props.buildList, self.props.position, self.props.type) end,
+        [Roact.Event.MouseEnter] = function(x, y) SoundManager.rollover() showToolTip(self.props.buildList, self.props.position, self.props.type) end,
         [Roact.Event.MouseMoved] = function(x, y) showToolTip(self.props.buildList, self.props.position, self.props.type) end,
         [Roact.Event.MouseLeave] = function(x, y) hideToolTip(self.props.buildList, self.props.position, self.props.type) end,
     })

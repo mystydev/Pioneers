@@ -78,12 +78,14 @@ function ObjectInfoPanel:render()
             Interest = UnitInfoLabel.Interests.STATUS,
         })
 
-        elements.UnitCarry = Roact.createElement(UnitInfoLabel, {
-            Position = UDim2.new(0.5, 0, 0.38, 42 * 2),
-            IsUnit = true,
-            Unit = state.object,
-            Interest = UnitInfoLabel.Interests.CARRYING,
-        })
+        if self.state.Unit and self.state.Unit.HeldAmount and self.state.Unit.HeldAmount > 0 then
+            elements.UnitCarry = Roact.createElement(UnitInfoLabel, {
+                Position = UDim2.new(0.5, 0, 0.38, 42 * 2),
+                IsUnit = true,
+                Unit = state.object,
+                Interest = UnitInfoLabel.Interests.CARRYING,
+            })
+        end
     end
 
     elements.Title = Roact.createElement(Title, {

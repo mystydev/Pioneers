@@ -39,7 +39,8 @@ typeSpecificAnims[Unit.VILLAGER] = {
     StopWalk  = Assets.Animations.Villager.StopWalk,
     Working   = Assets.Animations.Villager.Working,
     GetTool   = Assets.Animations.Villager.GetTool,
-    PutTool   = Assets.Animations.Villager.PutTool}
+    PutTool   = Assets.Animations.Villager.PutTool,
+    Dies = Assets.Animations.Soldier.Dies}
 
 typeSpecificAnims[Unit.NONE] = typeSpecificAnims[Unit.VILLAGER]
 typeSpecificAnims[Unit.FARMER] = typeSpecificAnims[Unit.VILLAGER]
@@ -283,8 +284,6 @@ local function attackHeading(instance, unit)
     return cframeToHeading(direction)
 end
 
-
-
 local function queueAnimation(instance, unit, animation)
 
     if instance.currentAnim then
@@ -315,6 +314,13 @@ local function initiateNewUnit(unit)
     return instance
 end
 
+local function deleteUnitInstance(unit, instance)
+    unitToInstanceMap[unit] = nil
+    instanceToUnitMap[instance] = nil
+    modelToUnitMap[instance.model] = nil
+    instance.model:Destroy()
+end
+
 local function displayUpdateLoop(time, frameDelta)
     local viewPosition = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
 
@@ -325,7 +331,10 @@ end
 
 --Update already existing view to closer resemble underlying data
 function ViewUnit.stepDisplay(unit, instance, frameDelta, viewPosition)
-    if unit.Health <= 0 then
+    if unit.Health <= 0 or unit.State == Unit.UnitState.DEAD then
+        return end
+
+    if unit.preventUpdates then
         return end
     
     local model = instance.model
@@ -398,8 +407,15 @@ end
 
 function ViewUnit.updateDisplay(unit, frameDelta)
     assert(unit, "Undefined unit passed to updateDisplay")
-    assert(unitToInstanceMap[unit], "Updating display for uninitialised unit view")
+    
+    if not unitToInstanceMap[unit] then
+        warn("Updating display for uninitialised unit view")
+        initiateNewUnit(unit)
+    end
 
+    if unit.preventUpdates then
+        return end
+    
     local instance = unitToInstanceMap[unit]
     local transition = FSM.toState(instance.fsm, unit.State)
 
@@ -774,10 +790,16 @@ function ViewUnit.transitionCombatToGuarding(instance, unit)
 end
 
 function ViewUnit.transitionAnyToDead(instance, unit)
-    local currentAnimation = instance.currentAnim
+    --local currentAnimation = instance.currentAnim
 
-    if currentAnimation then
-        currentAnimation:Stop(0.5)
+    --if currentAnimation then
+    --    currentAnimation:Stop(0.5)
+    --end
+    local anims = instance.model.Humanoid:GetPlayingAnimationTracks()
+
+    for i, v in pairs(anims) do
+        v:Stop()
+        v:Destroy()
     end
 
     local anim = instance.model.Humanoid:LoadAnimation(typeSpecificAnims[unit.Type].Dies)
@@ -787,6 +809,22 @@ function ViewUnit.transitionAnyToDead(instance, unit)
 
     delay(2.4, function()
         anim:AdjustSpeed(0)
+    end)
+
+    delay(15, function()
+        local fading = 0
+        while fading < 1 do
+            local delta = RunService.Heartbeat:Wait()
+            fading = fading + delta
+
+            for _, part in pairs(instance.model:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = part.Transparency + delta
+                end
+            end
+        end
+
+        deleteUnitInstance(unit, instance)
     end)
 end
 
@@ -833,6 +871,15 @@ function ViewUnit.convertIdListToInsts(list)
     end
 
     return insts
+end
+
+function ViewUnit.simDeath(unit)
+    unit.State = Unit.UnitState.DEAD
+    ViewUnit.updateDisplay(unit, 0)
+    unit.preventUpdates = true
+    delay(5, function()
+        unit.preventUpdates = false
+    end)
 end
 
 return ViewUnit

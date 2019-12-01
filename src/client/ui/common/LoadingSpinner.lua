@@ -9,17 +9,65 @@ local spin = TweenInfo.new(0.3, Enum.EasingStyle.Linear, Enum.EasingDirection.Ou
 local fade = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local quickfade = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
+local hexagonPositions = {
+    Vector2.new(0, 0),
+
+    Vector2.new(0, 1),
+    Vector2.new(-0.866, 0.5),
+    Vector2.new(-0.866, -0.5),
+    Vector2.new(0, -1),
+    Vector2.new(0.866, -0.5),
+    Vector2.new(0.866, 0.5),
+
+    Vector2.new(0.866, 1.5),
+    Vector2.new(0, 2),
+    Vector2.new(-0.866, 1.5),
+    Vector2.new(2 * -0.866, 1.0),
+    Vector2.new(2 * -0.866, 0),
+    Vector2.new(2 * -0.866, -1.0),
+    Vector2.new(-0.866, -1.5),
+    Vector2.new(0, -2),
+    Vector2.new(0.866, -1.5),
+    Vector2.new(2 * 0.866, -1.0),
+    Vector2.new(2 * 0.866, 0),
+    Vector2.new(2 * 0.866, 1.0),
+}
+
+local scale = 0.33
+local speed = 1
+local spread = 1
+local interval = 0.3
+
 function LoadingSpinner:init()
     self:setState({
-        ref = Roact.createRef(),
+        time = 0,
+        frameRef = Roact.createRef(),
         vignetteRef = Roact.createRef(),
         textRef = Roact.createRef(),
     })
 end
 
 function LoadingSpinner:render()
+    local hexagons = {}
+    local num = #hexagonPositions
 
-    local message
+    for i, position in pairs(hexagonPositions) do
+        local posCombination = position.x + position.y
+        
+        hexagons[i] = Roact.createElement("ImageLabel",{
+            Image = "rbxassetid://4431055230",
+            Size = UDim2.new(0, 100 * scale, 0, 86 * scale),
+            Position = UDim2.new(0, position.x * 100 * scale, 0, position.y * -100 * scale),
+            BackgroundTransparency = 1,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            ImageTransparency = 0.4 - math.sin(2 * math.pi * ((interval * num * self.state.time + (num-i)^0.5) % num/(num))),
+            ImageColor3 = Color3.fromHSV(
+                (0.2*tick() + posCombination*0.03)%1, 
+                1.0, 
+                1.0),
+        })
+    
+    end
 
     if self.props.message then
         message = Roact.createElement(Label, {
@@ -32,16 +80,16 @@ function LoadingSpinner:render()
         })
     end
 
-    local spinner = Roact.createElement("ImageLabel", {
-        Image       = "rbxassetid://3106304235",
-        Position    = UDim2.new(0.5, 0, 0.5, 0) or self.props.Position,
-        Size        = UDim2.new(0, 200, 0, 200) or self.props.Size,
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        [Roact.Ref] = self.state.ref,
+    local rot = math.tan(interval * math.pi * self.state.time * 0.5 + 2.1)
+    local sign = math.sign(rot)
+
+    local spinner = Roact.createElement("Frame", {
         BackgroundTransparency = 1,
-        ImageTransparency = 1,
-        ImageColor3 = Color3.fromRGB(230 , 230, 230),
-    })
+        Position = UDim2.new(0.5, 0, 0.5, -30),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Rotation = 360 * 0.3 * sign * math.log(math.abs(rot)),
+        [Roact.Ref] = self.state.frameRef,
+    }, hexagons)
 
     if self.props.vignette then
         return Roact.createElement("ImageLabel", {
@@ -60,13 +108,17 @@ function LoadingSpinner:render()
     else
         return spinner
     end
-
 end
 
 function LoadingSpinner:didMount()
-    local spinInst = self.state.ref:getValue()
-    TweenService:Create(spinInst, spin, {Rotation = 360}):Play()
-    TweenService:Create(spinInst, quickfade, {ImageTransparency = 0}):Play()
+    self:setState({
+        time = -1.2,
+        updater = RunService.Stepped:Connect(function(time, delta)            
+            self:setState({
+                time = self.state.time + delta,
+            })
+        end)
+    })
 
     local vigInst = self.state.vignetteRef:getValue()
     if vigInst then
@@ -81,8 +133,12 @@ function LoadingSpinner:didMount()
 end
 
 function LoadingSpinner:willUnmount()
-    local spinInst = self.state.ref:getValue()
-    TweenService:Create(spinInst, quickfade, {ImageTransparency = 1}):Play()
+
+    self.state.updater:Disconnect()
+
+    for _, hexagon in pairs(self.state.frameRef:getValue():GetChildren()) do
+        TweenService:Create(hexagon, fade, {ImageTransparency = 1}):Play()
+    end
 
     local vigInst = self.state.vignetteRef:getValue()
     if vigInst then
@@ -93,7 +149,8 @@ function LoadingSpinner:willUnmount()
     if textInst then
         TweenService:Create(textInst, quickfade, {TextTransparency = 1}):Play()
     end
-    wait(1)
+
+    wait(0.6)
 end
 
 return LoadingSpinner

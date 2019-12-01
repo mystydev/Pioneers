@@ -151,7 +151,7 @@ async function verifyTileDeletion(id, pos) {
 	//Remove maintenance cost from users stats, delete the tile and update cached unit values
 	userstats.removeTileMaintenance(id, tiles.TileMaintenanceCosts[tile.Type])
 	userstats.removeBuiltBuilding(id, tile.Type)
-	await tiles.deleteTile(tile)
+	return await tiles.deleteTile(tile)
 }
 
 async function verifyTileRepair(id, pos) {

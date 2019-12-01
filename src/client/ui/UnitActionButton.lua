@@ -1,7 +1,9 @@
+local Client = script.Parent.Parent
 local ui = script.Parent
 local Roact = require(game.ReplicatedStorage.Roact)
 local Common = game.ReplicatedStorage.Pioneers.Common
 
+local SoundManager = require(Client.SoundManager)
 local World = require(Common.World)
 local ActionList = require(ui.ActionList)
 
@@ -36,7 +38,8 @@ function UnitActionButton:render()
         Image                  = "rbxassetid://3077218297",
         HoverImage             = "rbxassetid://3077212059",
         PressedImage           = "rbxassetid://3077212059",
-        [Roact.Event.MouseButton1Click] = function() self:setState({clicked = true}) end,
+        [Roact.Event.MouseButton1Click] = function() SoundManager.menuClick() self:setState({clicked = true}) end,
+        [Roact.Event.MouseEnter] = SoundManager.rollover
     }, children)
 end
 

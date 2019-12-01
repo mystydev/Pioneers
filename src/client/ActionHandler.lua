@@ -8,6 +8,8 @@ local Tile        = require(Common.Tile)
 local World       = require(Common.World)
 local ViewTile    = require(Client.ViewTile)
 local Replication = require(Client.Replication)
+local SoundManager = require(Client.SoundManager)
+local ViewUnit    = require(Client.ViewUnit)
 local Players = game:GetService("Players")
 
 local currentWorld
@@ -62,13 +64,24 @@ function ActionHandler.attemptBuild(tile, type)
     local worldTile = World.getTileXY(currentWorld.Tiles, tile.Position.X, tile.Position.Y)
     --Update tile then send request to place the tile
     tempChangeTileType(tile, type, Players.LocalPlayer.UserId)
-    Replication.requestTilePlacement(tile, type, Players.LocalPlayer.UserId)
+
+    if type ~= Tile.KEEP then
+        SoundManager.initiatePlace()
+    end
+
+    coroutine.wrap(function() Replication.requestTilePlacement(tile, type, Players.LocalPlayer.UserId) end)()
     return worldTile
 end
 
 function ActionHandler.attemptDelete(tile)
     --Update tile then send request to delete the tile
     tempChangeTileType(tile, Tile.GRASS, nil)
+
+    for _, id in pairs(tile.UnitList) do
+        local unit =  currentWorld.Units[id]
+        ViewUnit.simDeath(unit)
+    end
+
     Replication.requestTileDelete(tile)
 end
 
