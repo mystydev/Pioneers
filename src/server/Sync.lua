@@ -28,7 +28,8 @@ local function syncStats(player, world)
     while syncing and player do
 
         local payload = Http:JSONEncode({apikey = API_KEY, time = syncTime, userId = player.UserId})
-        local res = Http:JSONDecode(Http:PostAsync(API_URL.."longpolluserstats", payload))
+        local res = Http:PostAsync(API_URL.."longpolluserstats", payload)
+        res = Http:JSONDecode(res)
 
         syncTime = res.time
         UserStats.Store[player.UserId] = res.data
@@ -107,9 +108,7 @@ local function playerJoined(player)
     local stats = Http:JSONDecode(jsonStats)
 
     if stats.status and stats.status == "NewUser" then
-        UserStats.Store[player.UserId] = {Food = 0, Wood = 0, Stone = 0, 
-                                        MFood = 0, MWood = 0, MStone = 0, 
-                                        PFood = 0, PWood = 0, PStone = 0}
+        UserStats.Store[player.UserId] = stats.stats
     else
         UserStats.Store[player.UserId] = stats
     end

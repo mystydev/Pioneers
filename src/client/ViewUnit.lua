@@ -214,6 +214,7 @@ local function getNewInstanceFromUnitType(type)
     FSM.addTransition(newInstance.fsm, Unit.UnitState.MOVING, Unit.UnitState.DEAD, ViewUnit.transitionAnyToDead)
     FSM.addTransition(newInstance.fsm, Unit.UnitState.GUARDING, Unit.UnitState.DEAD, ViewUnit.transitionAnyToDead)
     FSM.addTransition(newInstance.fsm, Unit.UnitState.TRAINING, Unit.UnitState.DEAD, ViewUnit.transitionAnyToDead)
+    FSM.addTransition(newInstance.fsm, Unit.UnitState.WORKING, Unit.UnitState.DEAD, ViewUnit.transitionAnyToDead)
 
     if newInstance.tool then
         newInstance.tool.Parent = newInstance.model
@@ -407,7 +408,7 @@ end
 
 function ViewUnit.updateDisplay(unit, frameDelta)
     assert(unit, "Undefined unit passed to updateDisplay")
-    
+
     if not unitToInstanceMap[unit] then
         warn("Updating display for uninitialised unit view")
         initiateNewUnit(unit)
@@ -795,6 +796,7 @@ function ViewUnit.transitionAnyToDead(instance, unit)
     --if currentAnimation then
     --    currentAnimation:Stop(0.5)
     --end
+    disablePopup(instance, unit)
     local anims = instance.model.Humanoid:GetPlayingAnimationTracks()
 
     for i, v in pairs(anims) do
@@ -874,10 +876,36 @@ function ViewUnit.convertIdListToInsts(list)
 end
 
 function ViewUnit.simDeath(unit)
+    unit.Health = 0
     unit.State = Unit.UnitState.DEAD
     ViewUnit.updateDisplay(unit, 0)
     unit.preventUpdates = true
     delay(5, function()
+        unit.preventUpdates = false
+    end)
+end
+
+function ViewUnit.poofDisappear(unit)
+    unit.State = Unit.UnitState.DEAD
+    ViewUnit.updateDisplay(unit, 0)
+    unit.preventUpdates = true
+
+    local instance = unitToInstanceMap[unit]
+    local smoke = Assets.SmokePuffEmitter:Clone()
+    smoke.Parent = instance.model.HumanoidRootPart
+    smoke:Emit(500)
+    unit.preventUpdates = true
+
+    delay(0.1, function()
+        for _, part in pairs(instance.model:GetDescendants()) do 
+            if part:IsA("BasePart") then
+                part.Transparency = 1
+            end
+        end
+    end)
+
+    delay(15, function()
+        deleteUnitInstance(unit, instance)
         unit.preventUpdates = false
     end)
 end

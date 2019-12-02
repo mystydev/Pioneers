@@ -161,7 +161,7 @@ async function waitForProcess(n) {
 
 app.post("/pion/longpolluserstats", (req, res) => {
     waitForProcess(req.body.time).then(() => {
-        cluster.hgetall('stats:'+req.body.userId).then(stats => {
+        database.getStats(req.body.userId).then(stats => {
             res.json({time:lastProcess, data:stats});
         }).catch((err) => {
             console.error("Failed to get stats")
@@ -270,16 +270,15 @@ app.post("/pion/updateusersettings", (req, res) => {
 })
 
 app.post("/pion/userjoin", (req, res) => {
-    cluster.hgetall('stats:'+req.body.Id).then((stats) => {
-        if (stats.Food != undefined)
-            res.json(stats);
-        else {
-            console.log("New user Id:", req.body.Id);
-            userstats.newPlayer(req.body.Id)
-            res.json({status:"NewUser"});
+    database.getStats(req.body.Id).then((stats) => {
+        if (stats.Food != undefined) {
+            res.json(stats)
+        } else {
+            stats = userstats.newPlayer(req.body.Id)
+            res.json({status:"NewUser", stats:stats})
         }
     }).catch((error) => {
-        console.log("Error on userjoin:", error);
+        console.log("Error on userjoin:", error)
         res.json({status:"Fail"})
     })
 });

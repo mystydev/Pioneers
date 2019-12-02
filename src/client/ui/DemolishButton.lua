@@ -14,9 +14,9 @@ local function DeleteButton(props)
         TextSize               = 24,
         TextTransparency       = 0.4,
         TextColor3             = Color3.fromRGB(170, 0, 0),
-        [Roact.Event.MouseButton1Click] = function() 
-            ActionHandler.attemptDelete(props.Obj)
+        [Roact.Event.MouseButton1Click] = function()
             props.UIBase.exitInfoView()
+            ActionHandler.attemptDelete(props.Obj)
         end,
     })
 end

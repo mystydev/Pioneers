@@ -83,6 +83,7 @@ function UIBase.init(world, displaystats)
     Util                = require(Common.Util)
     Tile                = require(Common.Tile)
     UserSettings        = require(Common.UserSettings)
+    UserStats           = require(Common.UserStats)
     ViewTile            = require(Client.ViewTile)
     ViewUnit            = require(Client.ViewUnit)
     ViewWorld           = require(Client.ViewWorld)
@@ -389,11 +390,22 @@ end
 function UIBase.highlightBuildableTile(tile, type)
     local inst = ViewTile.getInstFromTile(tile)
     local clone = UIBase.highlightInst(inst, 0.5)
+
+    local stats = Replication.getUserStats()
+    local req = Tile.ConstructionCosts[type]
+
     if clone then
         UIBase.listenToInst(inst,
             function()
-                ActionHandler.attemptBuild(tile, type)
-                UIBase.highlightType(type, true)
+                if UserStats.hasEnoughResources(stats, req) then
+                    ActionHandler.attemptBuild(tile, type)
+                end
+
+                if UserStats.hasEnoughResources(stats, req) then
+                    UIBase.highlightType(type, true)
+                else
+                    UIBase.unHighlightAllInsts()
+                end
             end, 
             function() clone.Transparency = 0 end,
             function() clone.Transparency = 0.5 end)

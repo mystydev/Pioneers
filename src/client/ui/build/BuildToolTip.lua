@@ -89,6 +89,7 @@ function BuildToolTip:render()
         Position = UDim2.new(0.375, 0, 0.8, 5),
         Value = MaintenanceBinding,
         Transparency = self.state.Transparency + 0.1,
+        IsMaintenance = true,
     })
 
     children.StoneMaintenance = Roact.createElement(SmallResourceLabel, {
@@ -96,6 +97,7 @@ function BuildToolTip:render()
         Position = UDim2.new(0.65, 0, 0.8, 5),
         Value = MaintenanceBinding,
         Transparency = self.state.Transparency + 0.1,
+        IsMaintenance = true,
     })
 
     return Roact.createElement("ImageLabel", {

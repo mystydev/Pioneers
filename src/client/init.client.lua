@@ -35,7 +35,7 @@ local function start()
     
     Replication.requestGameSettings()
     local stats = Replication.getUserStats()
-
+ 
     Replication.getUserSettings()
 
     ActionHandler.init(world)
@@ -125,6 +125,19 @@ end)
 spawn(function()
     while not pcall(function() game.StarterGui:SetCore("ResetButtonCallback", resetBindable) end) do
         wait()
+    end
+end)
+
+spawn(function()
+    while wait() do
+        local char = game.Players.LocalPlayer.Character
+
+        if char then
+            local p = char.HumanoidRootPart
+            if p.Position.Y < -10 then
+                p.CFrame = CFrame.new(p.Position) + Vector3.new(0, 50, 0)
+            end
+        end
     end
 end)
 

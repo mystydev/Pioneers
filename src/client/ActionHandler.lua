@@ -36,11 +36,11 @@ local function tempChangeTileType(tile, type, newId)
     --Update display
     World.setTile(currentWorld.Tiles, tile, tile.Position)
     ViewTile.updateDisplay(tile)
-    tile.lastChange = tick()
+    tile.lastChange = tick() + 2
 
     --Update neighbouring tiles
     for _, n in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
-        ViewTile.updateDisplay(n)
+        ViewTile.updateDisplay(n, nil, true)
     end
 
     --Wait to see if request failed and tile needs to be restored
@@ -75,12 +75,15 @@ end
 
 function ActionHandler.attemptDelete(tile)
     --Update tile then send request to delete the tile
-    tempChangeTileType(tile, Tile.GRASS, nil)
-
-    for _, id in pairs(tile.UnitList) do
-        local unit =  currentWorld.Units[id]
-        ViewUnit.simDeath(unit)
+    
+    if tile.Type == Tile.HOUSE then
+        for _, id in pairs(tile.UnitList) do
+            local unit =  currentWorld.Units[id]
+            ViewUnit.simDeath(unit)
+        end
     end
+
+    tempChangeTileType(tile, Tile.GRASS, nil)
 
     Replication.requestTileDelete(tile)
 end

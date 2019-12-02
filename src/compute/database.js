@@ -3,6 +3,7 @@ module.exports = database
 let common = require("./common")
 let tiles = require("./tiles")
 let units = require("./units")
+let userstats = require("./userstats")
 let Redis = require("ioredis")
 let redis
 
@@ -383,7 +384,7 @@ database.getAllStats = async () => {
     let num = 0
 
     for (let key in stats) {
-        Stats[key] = JSON.parse(stats[key])
+        Stats[key] = userstats.sanitise(JSON.parse(stats[key]))
         num++
     }
 
@@ -405,11 +406,12 @@ database.setStat = (id, type, value) => {
 }
 
 database.setStats = (id, stats) => {
-    redis.hmset("stats:"+id, stats)
+    redis.hmset("stats:"+id, userstats.storePrep(stats))
 }
 
 database.getStats = async (id) => {
-    return redis.hgetall("stats:"+id)
+    console.log(id)
+    return userstats.sanitise(await redis.hgetall("stats:"+id))
 }
 
 database.resetFullSimQuota = async (id) => {

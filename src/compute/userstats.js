@@ -15,7 +15,7 @@ userstats.load = async () => {
 }
 
 userstats.newPlayer = (id) => {
-    stats = {
+    let stats = {
         Food: 2500,
         Wood: 2500,
         Stone: 2500,
@@ -29,10 +29,28 @@ userstats.newPlayer = (id) => {
         WoodProduced: 0,
         StoneProduced: 0,
         Version: current_version,
+        Unlocked: [
+            tiles.TileType.PATH,
+            tiles.TileType.HOUSE,
+            tiles.TileType.FARM,
+        ],
     }
 
     database.setStats(id, stats)
     database.addPlayer(id)
+    return stats
+}
+
+userstats.sanitise = (stats) => {
+    stats.Unlocked = stats.Unlocked ? JSON.parse(stats.Unlocked) : []
+    return stats
+}
+
+userstats.storePrep = (stats) => {
+    let preppedStats = {}
+    Object.assign(preppedStats, stats)
+    preppedStats.Unlocked = JSON.stringify(preppedStats.Unlocked)
+    return preppedStats
 }
 
 userstats.canAfford = async (id, type, amount) => {
@@ -63,7 +81,7 @@ userstats.add = async (id, type, amount) => {
 userstats.canBuild = async (id, type) => {
     let requirements = tiles.TileConstructionCosts[type]
 
-    for (res in requirements)
+    for (let res in requirements)
         if (!await userstats.canAfford(id, res, requirements[res]))
             return false
     
@@ -220,6 +238,26 @@ userstats.checkTrackedStats = async (id) => {
                 break
             }
         }
+    }
+
+    let unlocked = JSON.parse(await database.getStat(id, "Unlocked"))
+    let changed = false
+
+    for (let i = 1; i < level; i++) {
+        let requirements = common.level_requirements[i]
+
+        if (requirements.Unlocks) {
+            for (let tileType of requirements.Unlocks) {
+                if (!unlocked.includes(tileType)) {
+                    unlocked.push(tileType)
+                    changed = true
+                }
+            }
+        }
+    }
+
+    if (changed) {
+        database.setStat(id, "Unlocked", JSON.stringify(unlocked))
     }
 
     if (!unfulfilled) {

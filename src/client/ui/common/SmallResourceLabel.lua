@@ -1,6 +1,10 @@
-local ui = script.Parent.Parent
+local Client = script.Parent.Parent.Parent
+local ui = Client.ui
+local Common = game.ReplicatedStorage.Pioneers.Common
 local Roact = require(game.ReplicatedStorage.Roact)
 
+local UserStats = require(Common.UserStats)
+local Replication = require(Client.Replication)
 local Label = require(ui.Label)
 local RunService = game:GetService("RunService")
 
@@ -21,6 +25,13 @@ end
 function SmallResourceLabel:render()
 
     local children = {}
+    local stats = Replication.getUserStats()
+    local requirement = self.props.Value:getValue()
+    local canAfford = self.props.IsMaintenance
+
+    if requirement  and not self.props.IsMaintenance then
+        canAfford = UserStats.hasEnoughResources(stats, requirement)
+    end
 
     children.Label = Roact.createElement(Label, {
         Text = self.state.Value, 
@@ -30,6 +41,7 @@ function SmallResourceLabel:render()
         TextTransparency = self.props.Transparency,
         TextXAlignment = "Left",
         AnchorPoint = Vector2.new(0, 0),
+        Color = not canAfford and Color3.new(1,1,1) or nil,
     })
 
     return Roact.createElement("ImageLabel", {
@@ -41,6 +53,7 @@ function SmallResourceLabel:render()
         Image                  = imageIds[self.props.Type],
         ImageTransparency      = self.props.Transparency or 0,
         AnchorPoint            = Vector2.new(0, 1),
+        ImageColor3            = canAfford and Color3.new(1,1,1) or Color3.new(0.9, 0.2, 0.2),
     }, children)
 end
 

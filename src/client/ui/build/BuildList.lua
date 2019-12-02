@@ -5,7 +5,9 @@ local Common = game.ReplicatedStorage.Pioneers.Common
 local TweenService = game:GetService("TweenService")
 
 local Tile = require(Common.Tile)
+local UserStats = require(Common.UserStats)
 local SoundManager = require(Client.SoundManager)
+local Replication = require(Client.Replication)
 local BuildToolTip = require(ui.build.BuildToolTip)
 local BuildList = Roact.Component:extend("BuildList")
 
@@ -32,6 +34,24 @@ function Button:init()
 end
 
 function Button:render()
+
+    local stats = Replication.getUserStats()
+
+    if not UserStats.hasUnlocked(stats, self.props.type) then
+        return nil
+    end
+
+    local req = Tile.ConstructionCosts[self.props.type]
+    local canAfford = UserStats.hasEnoughResources(stats, req)
+
+    local onClick
+    
+    onClick = function()
+        if UserStats.hasEnoughResources(stats, req) then
+            self.props.UIBase.highlightType(self.props.type, true)
+        end
+    end
+
     return Roact.createElement("ImageButton", {
         Name                   = self.props.type,
         BackgroundTransparency = 1,
@@ -41,8 +61,9 @@ function Button:render()
         AnchorPoint            = Vector2.new(0, 1),
         Image                  = self.props.imageId,
         ZIndex                 = 2,
+        ImageColor3            = canAfford and Color3.new(1,1,1) or Color3.new(0.95, 0.2, 0.2),
         [Roact.Ref]            = self.instRef,
-        [Roact.Event.MouseButton1Click] = function() self.props.UIBase.highlightType(self.props.type, true) end,
+        [Roact.Event.MouseButton1Click] = onClick,
         [Roact.Event.MouseEnter] = function(x, y) SoundManager.rollover() showToolTip(self.props.buildList, self.props.position, self.props.type) end,
         [Roact.Event.MouseMoved] = function(x, y) showToolTip(self.props.buildList, self.props.position, self.props.type) end,
         [Roact.Event.MouseLeave] = function(x, y) hideToolTip(self.props.buildList, self.props.position, self.props.type) end,
@@ -50,7 +71,9 @@ function Button:render()
 end
 
 function Button:didMount()
-    TweenService:Create(self.instRef:getValue(), transparencyTween, {ImageTransparency = 0}):Play()
+    if self.instRef:getValue() then
+        TweenService:Create(self.instRef:getValue(), transparencyTween, {ImageTransparency = 0}):Play()
+    end
 end
 
 function button(buildList, position, type, imageId)

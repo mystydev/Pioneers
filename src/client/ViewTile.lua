@@ -114,10 +114,10 @@ function ViewTile.displayTile(tile, displaySize)
     ViewTile.updateDisplay(tile, displaySize or 1)
 end
 
-function ViewTile.updateDisplay(tile, displaySize)
+function ViewTile.updateDisplay(tile, displaySize, skipTimeCheck)
     local model = TileToInstMap[tile]
 
-    if tick() < (tile.lastChange or 0) then return end
+    if not skipTimeCheck and tick() < (tile.lastChange or 0) then return end
 
     if not model then
         return ViewTile.displayTile(tile)
