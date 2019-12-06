@@ -128,7 +128,7 @@ local function displayIdlePopup(instance, unit)
 
     model.HumanoidRootPart.StatusEmitter.Texture = StatusIds.IDLE
     model.HumanoidRootPart.StatusEmitter.Color = StatusCols.IDLE
-    model.HumanoidRootPart.StatusEmitter.Rate = 1/3
+    model.HumanoidRootPart.StatusEmitter.Rate = 1/10
     model.HumanoidRootPart.StatusEmitter.Size = NumberSequence.new(4)
     model.HumanoidRootPart.StatusEmitter.Enabled = true
     model.HumanoidRootPart.StatusEmitter.Lifetime = NumberRange.new(3)
@@ -322,9 +322,11 @@ local function deleteUnitInstance(unit, instance)
     instance.model:Destroy()
 end
 
+local updateTime = tick()
 local function displayUpdateLoop(time, frameDelta)
     local viewPosition = Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
 
+    updateTime = tick()
     for unit, instance in pairs(unitToInstanceMap) do
         ViewUnit.stepDisplay(unit, instance, frameDelta, viewPosition)
     end
@@ -339,8 +341,9 @@ function ViewUnit.stepDisplay(unit, instance, frameDelta, viewPosition)
         return end
     
     local model = instance.model
+    local viewDistance = (unit.Position - viewPosition).magnitude
 
-    if (unit.Position - viewPosition).magnitude > ClientUtil.getCurrentViewDistance() then
+    if viewDistance > ClientUtil.getCurrentViewDistance() then
         --model.Parent = nil
         instance.unloaded = true
         return
@@ -348,6 +351,14 @@ function ViewUnit.stepDisplay(unit, instance, frameDelta, viewPosition)
         --model.Parent = workspace
         instance.unloaded = nil
     end
+
+    if (updateTime - (unit.lastStep or 0)) < viewDistance / 300 then
+        unit.missedDelta = (unit.missedDelta or 0) + frameDelta
+        return end
+    
+    frameDelta = (unit.missedDelta or 0) + frameDelta
+    unit.lastStep = updateTime
+    unit.missedDelta = 0
 
     checkToolAssignment(instance, unit)
 
@@ -398,8 +409,9 @@ function ViewUnit.stepDisplay(unit, instance, frameDelta, viewPosition)
     local newHeading = viewHeading - PID.getValue(instance.headingPidInfo, headingDelta, frameDelta) * (1 + instance.velocity / 10)
     local newOrientation = CFrame.Angles(0, newHeading, 0)
 
-    model:SetPrimaryPartCFrame(newOrientation + newPosition)
-    model.Parent = workspace
+    model.PrimaryPart.CFrame = newOrientation + newPosition
+    --model:SetPrimaryPartCFrame(newOrientation + newPosition)
+    --model.Parent = workspace
 
     if instance.currentAnim and instance.currentAnim.Animation == typeSpecificAnims[unit.Type].Walking then
         instance.currentAnim:AdjustSpeed(instance.velocity / 6.5)

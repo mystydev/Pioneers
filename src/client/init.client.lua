@@ -41,10 +41,14 @@ local function start()
     ActionHandler.init(world)
     UIBase.init(world, stats)
 
-    ViewWorld.displayWorld(world)
-
     if not stats.Keep or stats.Keep == "" then
+        ViewWorld.displayWorld(world)
         ClientPreload.tellReady()
+        wait(2)
+        repeat
+            wait()
+        until ClientPreload.FullyLoaded
+    
         UIBase.showInDevelopmentWarning(status)
         UIBase.waitForPromptDismissal()
         UIBase.displayPartitionOverview()
@@ -64,13 +68,21 @@ local function start()
             })
         UIBase.disableManagedInput()
         UIBase.waitForPartitionOverviewDismissal()
+        Replication.spawnConfirm()
     else
+        _G.updateLoadStatus("Map", "⭕Fetching map info...")
         Replication.requestSpawn(Util.positionStringToVector(stats.Keep))
-        wait(4)
-        ClientPreload.tellReady()
-    end
+        
+        repeat wait() until Players.LocalPlayer.Character
 
-    Replication.spawnConfirm()
+        ViewWorld.displayWorld(world)
+
+        repeat
+            wait()
+        until ClientPreload.FullyLoaded
+    
+        Replication.spawnConfirm()
+    end
 
     --[[if not UserSettings.hasDoneTutorial() then
         UIBase.showTutorialPrompt()
@@ -100,6 +112,10 @@ LogService.MessageOut:Connect(function(message, type)
             if (v:IsA("BasePart") or v:IsA("Model") or v:IsA("SoundGroup")) and v.Name ~= "Terrain" then
                 v:Destroy()
             end
+        end
+
+        for i, v in pairs(game.Players.LocalPlayer.PlayerGui:GetChildren()) do
+            v:Destroy()
         end
 
         if world then
@@ -132,7 +148,7 @@ spawn(function()
     while wait() do
         local char = game.Players.LocalPlayer.Character
 
-        if char then
+        if char and char:FindFirstChild("HumanoidRootPart") then
             local p = char.HumanoidRootPart
             if p.Position.Y < -10 then
                 p.CFrame = CFrame.new(p.Position) + Vector3.new(0, 50, 0)

@@ -180,8 +180,14 @@ units.processUnit = async (unit, inCombat) => {
             unit.Fatigue += 1
 
             if (unit.Fatigue >= common.MAX_FATIGUE){
-                unit.Target = await tiles.findClosestStorage(unit.Position)
-                unit.Storage = unit.Target
+                let [storage, distance] = await tiles.findClosestStorageDist(unit.Work)
+
+                if (distance > common.MAX_STORAGE_DIST) {
+                    units.unassignWork(unit)
+                } else {
+                    unit.Target = storage
+                    unit.Storage = storage
+                }
             }
 
             break
@@ -192,7 +198,16 @@ units.processUnit = async (unit, inCombat) => {
 
             if (unit.Fatigue <= common.FATIGUE_RECOVER_RATE){
                 unit.Fatigue = 0
-                unit.Target = unit.Work
+
+                if (unit.Work) {
+                    let [storage, distance] = await tiles.findClosestStorageDist(unit.Work)
+                    if (distance > common.MAX_STORAGE_DIST) {
+                        units.unassignWork(unit)
+                    } else {
+                        unit.Target = unit.Work
+                    }
+                }
+
             } else {
                 unit.Fatigue -= common.FATIGUE_RECOVER_RATE
             }
@@ -226,9 +241,7 @@ units.processUnit = async (unit, inCombat) => {
             delete unit.HeldResource
             unit.HeldAmount = 0
             unit.StepsSinceStore = 0
-
-            if (unit.Fatigue > 0)
-                unit.Target = unit.Home
+            unit.Target = unit.Home
 
             break
     }

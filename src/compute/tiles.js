@@ -64,6 +64,12 @@ TileOutputs[TileType.FARM]     = resource.Type.FOOD
 TileOutputs[TileType.FORESTRY] = resource.Type.WOOD
 TileOutputs[TileType.MINE]     = resource.Type.STONE
 
+let TilesRequiringStorage = tiles.TilesRequiringStorage = {}
+TilesRequiringStorage[TileType.HOUSE] = true
+TilesRequiringStorage[TileType.FARM] = true
+TilesRequiringStorage[TileType.FORESTRY] = true
+TilesRequiringStorage[TileType.MINE] = true
+
 tiles.TileFields = [
     "Type",
     "OwnerId",
@@ -470,7 +476,7 @@ tiles.findMilitaryPath = (start, target) => {
     return tiles.findPath(start, target, true)
 }
 
-tiles.findClosestStorage = async (pos) => {
+tiles.findClosestStorageDist = async (pos) => {
     let searchQueue = []
     let index = 0
     let current = pos
@@ -488,7 +494,7 @@ tiles.findClosestStorage = async (pos) => {
             distance[neighbour] = dist
 
             if (await tiles.fastStorageCheck(neighbour)) //TODO: Check if storage has health?
-                return neighbour
+                return [neighbour, dist]
             else if (await tiles.fastWalkableCheck(neighbour)) {
                 searchQueue.push(neighbour)
             }
@@ -496,6 +502,10 @@ tiles.findClosestStorage = async (pos) => {
 
         current = searchQueue[index++]
     }
+}
+
+tiles.findClosestStorage = async (pos) => {
+    return (await tiles.findClosestStorageDist(pos))[0]
 }
 
 tiles.getNumberOfSimilarAdjacentTiles = async (tile, neighbours) => {

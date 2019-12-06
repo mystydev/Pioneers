@@ -151,19 +151,16 @@ function Tile.getIndex(tile)
     end
 end
 
-function Tile.canAssignWorker(tile)
-    if not Tile.isProductivityTile(tile) then
-        return end
-
-    if not tile.UnitList or #tile.UnitList == 0 then
-        return true
-    end
-
-    return false
-end
-
 function Tile.isProductivityTile(tile)
     return tile.Type == Tile.FARM or tile.Type == Tile.FORESTRY or tile.Type == Tile.MINE or tile.Type == Tile.BARRACKS
+end
+
+function Tile.isStorageTile(tile)
+    return tile.Type == Tile.KEEP or tile.Type == Tile.STORAGE
+end
+
+function Tile.isWalkable(tile)
+    return tile.Type == Tile.PATH or tile.Type == Tile.GATE
 end
 
 return Tile

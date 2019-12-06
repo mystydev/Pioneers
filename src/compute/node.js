@@ -25,12 +25,13 @@ function handleNewPlayer(id) {
 }
 
 async function canBuild(id, pos, type) {
-	//Start fetching data from db early to minimise waiting
-	let tile = tiles.fromPosString(pos)
-	let neighbours = tiles.getNeighbours(pos)
+
+	//Has the user unlocked this tile type
+	if (!await userstats.hasUnlocked(id, type))
+		return
 
 	//Tile is currently empty with no units assigned
-	tile = await tile
+	tile = await tiles.fromPosString(pos)
 	if (!tiles.isEmpty(tile) || !tiles.isVacant(tile))
 		return false
 
@@ -61,7 +62,7 @@ async function canBuild(id, pos, type) {
 			return false
 
 	//Tile is attached to a path
-	neighbours = await neighbours
+	neighbours = await tiles.getNeighbours(pos)
 	for (let neighbour of neighbours)
 		if (tiles.isWalkable(neighbour))
 			return true
@@ -69,12 +70,12 @@ async function canBuild(id, pos, type) {
 
 async function verifyTilePlacement(id, pos, type) {
 
-	//Can the player build a tile of this type here
-	if (!(await canBuild(id, pos, type)))
-		return
-
 	//Is the user currently in combat
 	if (await userstats.isInCombat(id))
+		return
+
+	//Can the player build a tile of this type here
+	if (!(await canBuild(id, pos, type)))
 		return
 
 	//Update users stats
@@ -106,6 +107,15 @@ async function verifyWorkAssignment(id, unitid, pos) {
 	//If it is a military unit can it be assigned military work
 	if (units.isMilitary(unit) && !await tiles.canAssignMilitaryWorker(pos, unit))
 		return 
+
+	//Work is within distance of storage
+	let tile = await tiles.fromPosString(pos)
+	if (tiles.TilesRequiringStorage[tile.Type]) {
+		let [storage, distance] = await tiles.findClosestStorageDist(pos)
+		
+		if (distance > common.MAX_STORAGE_DIST)
+			return false
+	}
 
 	//Assign the worker
 	await tiles.assignWorker(pos, unit)
@@ -177,6 +187,10 @@ async function verifyTileRepair(id, pos) {
 	database.updateTile(pos, tile)
 }
 
+async function performKingdomDeletion(id) {
+	database.deleteKingdom(id)
+}
+
 async function processActionQueue(id) {
     let actions = await database.getActionQueue(id)
     
@@ -204,6 +218,9 @@ async function processActionQueue(id) {
 			case common.Actions.REPAIR_TILE:
                 await verifyTileRepair(action.id, action.position)
 				break
+			case common.Actions.DELETE_KINGDOM:
+				performKingdomDeletion(action.id)
+				return true
             default:
                 console.log("Unknown action!", action)
         }
@@ -226,7 +243,11 @@ async function computeRequest(roundStart, id, round) {
     let start = performance.now()
     let processing = []
 
-	await processActionQueue(id)
+	let kingdomDeleted = await processActionQueue(id)
+	if (kingdomDeleted) {
+		return {}
+	}
+
 	await units.processSpawns(id)
 	
 	let shouldSimulate = await database.getRemainingFullSimQuota(id)

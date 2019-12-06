@@ -23,9 +23,7 @@ function connectoToRedis() {
     cluster = database.connect()
 }
 
-const Actions = {NEW_PLAYER:0,PLACE_TILE:1,SET_WORK:2,ATTACK:3,DELETE_TILE:4,REPAIR_TILE:5};
-//PLACE_TILE = user id, action enum, tile type enum, tile as position string
-//SET_WORK   = user id, action enum, unitid, tile as position string
+const Actions = common.Actions
 
 const PORT = 443;
 
@@ -75,6 +73,8 @@ app.post("/pion/actionRequest", (req, res) => {
     
     database.resetFullSimQuota(id)
 
+    console.log(action, Actions.DELETE_KINGDOM)
+
     switch(action){
         case Actions.PLACE_TILE:
             tileType = req.body.type;
@@ -106,6 +106,11 @@ app.post("/pion/actionRequest", (req, res) => {
         case Actions.REPAIR_TILE:
             tileLoc = req.body.position;
             cluster.rpush("actionQueue:"+id, JSON.stringify({id:id, action:action, position:tileLoc}));
+            res.json({status:"Ok"})
+            break;
+
+        case Actions.DELETE_KINGDOM:
+            cluster.rpush("actionQueue:"+id, JSON.stringify({id:id, action:action}))
             res.json({status:"Ok"})
             break;
 
@@ -287,6 +292,7 @@ app.post("/pion/getgamesettings", (req, res) => {
     let settings = {}
 
     settings.level_requirements = common.level_requirements
+    settings.MAX_STORAGE_DIST = common.MAX_STORAGE_DIST
 
     res.json(settings)
 })

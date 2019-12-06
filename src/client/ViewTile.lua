@@ -26,7 +26,7 @@ local meshes = {}
 meshes[Tile.DESTROYED]= {mesh = Assets.Ruins,    offset = Vector3.new(0,     0 + 0.5,    0)}
 meshes[Tile.GRASS]    = {mesh = Assets.Grass,    offset = Vector3.new(0,     0 + 0.5,    0)}
 meshes[Tile.KEEP]     = {mesh = Assets.Keep,     offset = Vector3.new(0, 11.007, 0)}
-meshes[Tile.HOUSE]    = {mesh = Assets.House,    offset = Vector3.new(0, 5.479, 0)}
+meshes[Tile.HOUSE]    = {mesh = Assets.House,    offset = Vector3.new(0, 8.115, 0)}
 meshes[Tile.PATH]     = {mesh = Assets.Path,     offset = Vector3.new(0,     0 + 0.5,    0)}
 meshes[Tile.FARM]     = {mesh = Assets.Farm,     offset = Vector3.new(-0.015, 1.594, 0.059)}
 meshes[Tile.FORESTRY] = {mesh = Assets.Forestry, offset = Vector3.new(0,     0 + 0.5,    0)}--Vector3.new(0, 7.682, 0.131)}
@@ -183,6 +183,45 @@ function ViewTile.updateDisplay(tile, displaySize, skipTimeCheck)
         end
     end
 
+    if tile.Type == Tile.HOUSE then
+        local orientation
+        local pos = tile.Position
+
+        local n1 = World.getTileXY(currentTiles, pos.x    , pos.y + 1)
+        local n2 = World.getTileXY(currentTiles, pos.x + 1, pos.y + 1)
+        local n3 = World.getTileXY(currentTiles, pos.x + 1, pos.y    )
+        local n4 = World.getTileXY(currentTiles, pos.x    , pos.y - 1)
+        local n5 = World.getTileXY(currentTiles, pos.x - 1, pos.y - 1)
+        local n6 = World.getTileXY(currentTiles, pos.x - 1, pos.y    )
+
+        local orientations = {}
+
+        if (n1 and n1.Type == Tile.PATH) then
+            table.insert(orientations, 1)
+        end
+        if (n2 and n2.Type == Tile.PATH) then
+            table.insert(orientations, 2)
+        end
+        if (n3 and n3.Type == Tile.PATH) then
+            table.insert(orientations, 3)
+        end
+        if (n4 and n4.Type == Tile.PATH) then
+            table.insert(orientations, 4)
+        end
+        if (n5 and n5.Type == Tile.PATH) then
+            table.insert(orientations, 5)
+        end
+        if (n6 and n6.Type == Tile.PATH) then
+            table.insert(orientations, 6)
+        end
+
+        local r = Random.new(tile.Position.x + tile.Position.y*5)
+        local orientation = orientations[r:NextInteger(1, #orientations)]
+        if orientation then
+            model.CFrame = CFrame.new(model.Position) * CFrame.Angles(0, (-orientation) * math.rad(60), 0)
+        end
+    end
+
     if tile.Type == Tile.PATH then
         local pos = tile.Position
 
@@ -218,7 +257,9 @@ function ViewTile.updateDisplay(tile, displaySize, skipTimeCheck)
         end
     end
 
-    if model:FindFirstChild("ParticleEmitter") then
+    if tile.EmitterSkip and tile.EmitterSkip > 0 then
+        tile.EmitterSkip = tile.EmitterSkip - 1
+    elseif model:FindFirstChild("ParticleEmitter") then
         local playerPosition = ClientUtil.getPlayerPosition()
         local emitter = model.ParticleEmitter
         local distance = (model.Position - playerPosition).magnitude
@@ -230,6 +271,8 @@ function ViewTile.updateDisplay(tile, displaySize, skipTimeCheck)
             distance = math.clamp(distance, 60, 1000) / 60
             emitter.Rate = 5 / distance^1.5
         end
+
+        tile.EmitterSkip = math.min(30, math.floor(distance) + 10)
     end
 
     if tile.Health then
@@ -287,7 +330,7 @@ function ViewTile.simulateDeletion(tile)
     ViewTile.updateDisplay(tile)
     tile.lastChange = tick()
 
-    for _, neighbour in pairs(Util.getNeighbours(currentTiles, tile.Position)) do
+    for _, neighbour in pairs(World.getNeighbours(currentTiles, tile.Position)) do
         ViewTile.updateDisplay(neighbour)
     end
 end

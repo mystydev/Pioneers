@@ -30,6 +30,7 @@ userstats.newPlayer = (id) => {
         StoneProduced: 0,
         Version: current_version,
         Unlocked: [
+            tiles.TileType.KEEP,
             tiles.TileType.PATH,
             tiles.TileType.HOUSE,
             tiles.TileType.FARM,
@@ -282,6 +283,17 @@ userstats.recalculate = async (id) => {
     await userstats.checkTrackedStats(id)
     await database.setStat(id, "Version", current_version)
     console.log(id, ": updated stats to version", current_version)
+}
+
+userstats.hasUnlocked = async (id, type) => {
+    let unlocked = JSON.parse(await database.getStat(id, "Unlocked"))
+
+    for (t of unlocked) {
+        if (t == type)
+            return t
+    }
+
+    return false
 }
 
 module.exports = userstats

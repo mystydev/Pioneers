@@ -87,22 +87,6 @@ function Util.circularPosCollection(posx, posy, startRadius, endRadius)
     return collection
 end
 
-function Util.getNeighbours(tiles, pos)
-    
-    return {
-        World.getTileXY(tiles, pos.x    , pos.y + 1),
-        World.getTileXY(tiles, pos.x + 1, pos.y + 1),
-        World.getTileXY(tiles, pos.x + 1, pos.y    ),
-        World.getTileXY(tiles, pos.x    , pos.y - 1),
-        World.getTileXY(tiles, pos.x - 1, pos.y - 1),
-        World.getTileXY(tiles, pos.x - 1, pos.y    ),
-    }
-end
-
-function Util.isWalkable(tile)
-    return tile.Type == Tile.PATH or tile.Type == Tile.GATE
-end
-
 function Util.worksOnTileType(unitType, tileType)
     if tileType == Tile.FARM and unitType == Unit.FARMER then
         return true

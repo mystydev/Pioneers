@@ -40,6 +40,7 @@ local modelUpdates = {}
 local instChanges  = {}
 local instEvents   = {}
 local healthBars   = {}
+local tileMarkers  = {}
 local UIState      = UIBase.State.MAIN
 local player       = Players.LocalPlayer
 local worldgui     = Instance.new("ScreenGui", player.PlayerGui)
@@ -84,6 +85,7 @@ function UIBase.init(world, displaystats)
     Tile                = require(Common.Tile)
     UserSettings        = require(Common.UserSettings)
     UserStats           = require(Common.UserStats)
+    World               = require(Common.World)
     ViewTile            = require(Client.ViewTile)
     ViewUnit            = require(Client.ViewUnit)
     ViewWorld           = require(Client.ViewWorld)
@@ -98,6 +100,7 @@ function UIBase.init(world, displaystats)
     WorldLocation       = require(ui.info.WorldLocation)
     AdminEditor         = require(ui.admin.AdminEditor)
     HealthBar           = require(ui.world.HealthBar)
+    TileMarker          = require(ui.world.TileMarker)
     TesterAlert         = require(ui.TesterAlert)
     NewPlayerPrompt     = require(ui.tutorial.NewPlayerPrompt)
     TutorialPrompt      = require(ui.tutorial.TutorialPrompt)
@@ -113,6 +116,8 @@ function UIBase.init(world, displaystats)
     FindKingdom         = require(ui.teleport.FindKingdom)
     PartitionView       = require(ui.partitionOverview.PartitionView)
     CurrentLevelDisplay = require(ui.progression.CurrentLevelDisplay)
+
+    gameSettings = Replication.getGameSettings()
 end
 
 function UIBase.highlightCharacter()
@@ -254,6 +259,7 @@ function UIBase.exitBuildView()
         UIState = UIBase.State.MAIN
         UIBase.hideBuildList()
         UIBase.refocusBackground()
+        UIBase.unmountTileMarkers()
     end
 end
 
@@ -306,6 +312,7 @@ function UIBase.promptSelectWork(workType, unitpos) --unitpos is a military unit
         UIBase.transitionToSelectWorkView()
     end
 
+    UIBase.unmountTileMarkers()
     UIBase.unHighlightAllInsts()
     --UIBase.highlightModel(player.Character)
 
@@ -318,13 +325,20 @@ function UIBase.promptSelectWork(workType, unitpos) --unitpos is a military unit
     end
 
     for _, tile in pairs(ViewTile.getPlayerTiles()) do
-        if tile.Type == workType and Tile.canAssignWorker(tile) then
-            local inst = ViewTile.getInstFromTile(tile)
-            UIBase.highlightInst(inst)
-            UIBase.listenToInst(inst, function()
-                Replication.requestUnitWork(infoObjectBinding:getValue(), tile)
-                UIBase.exitSelectWorkView()
-            end)
+        if tile.Type == workType then
+        
+            local canAssign = World.canAssignWorker(Replication.getTiles(), tile, gameSettings.MAX_STORAGE_DIST)
+
+            if canAssign == false  then
+                UIBase.displayTileMarker(tile)
+            elseif canAssign then
+                local inst = ViewTile.getInstFromTile(tile)
+                UIBase.highlightInst(inst)
+                UIBase.listenToInst(inst, function()
+                    Replication.requestUnitWork(infoObjectBinding:getValue(), tile)
+                    UIBase.exitSelectWorkView()
+                end)
+            end
         end
     end
     
@@ -355,6 +369,7 @@ function UIBase.exitSelectWorkView()
     if UIState == UIBase.State.SELECTWORK or UIState == UIBase.State.INFO then
         UIState = UIBase.State.INFO
         UIBase.exitInfoView()
+        UIBase.unmountTileMarkers()
     end
 end
 
@@ -394,6 +409,12 @@ function UIBase.highlightBuildableTile(tile, type)
     local stats = Replication.getUserStats()
     local req = Tile.ConstructionCosts[type]
 
+    local storage, distance = World.getClosestStorageToTile(Replication.getTiles(), tile.Position)
+
+    if distance >  gameSettings.MAX_STORAGE_DIST then
+        UIBase.displayTileMarker(tile)
+    end
+
     if clone then
         UIBase.listenToInst(inst,
             function()
@@ -413,6 +434,9 @@ function UIBase.highlightBuildableTile(tile, type)
 end
 
 function UIBase.highlightBuildableArea(type)
+   
+    UIBase.unmountTileMarkers()
+
     if type == Tile.KEEP then
         return UIBase.keepPlacementPrompt()
     end
@@ -420,8 +444,8 @@ function UIBase.highlightBuildableArea(type)
     local tiles = ViewTile.getPlayerTiles()
 
     for _, tile in pairs(tiles) do
-        if Util.isWalkable(tile) then
-            for _, neighbour in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
+        if Tile.isWalkable(tile) then
+            for _, neighbour in pairs(World.getNeighbours(currentWorld.Tiles, tile.Position)) do
                 if neighbour.Type == Tile.GRASS then
                     UIBase.highlightBuildableTile(neighbour, type)
                 end
@@ -449,7 +473,7 @@ function UIBase.highlightGuardableArea(pos)
     local tiles = ViewTile.getPlayerTiles()
 
     for _, tile in pairs(tiles) do
-        for _, neighbour in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
+        for _, neighbour in pairs(World.getNeighbours(currentWorld.Tiles, tile.Position)) do
             if neighbour.Type == Tile.GRASS and (not tile.UnitList or #tile.UnitList == 0) then
                 UIBase.highlightGuardableTile(neighbour)
             end
@@ -820,6 +844,25 @@ function UIBase.hideProgressionUI()
     if progressionHandle then
         Roact.unmount(progressionHandle)
         progressionHandle = nil
+    end
+end
+
+UIBase.TileMarker = {}
+UIBase.TileMarker.NOSTORAGE = 1
+function UIBase.displayTileMarker(tile, markerType)
+    local inst, updateInst = Roact.createBinding(ViewTile.getInstFromTile(tile))
+
+    if not tileMarkers[tile] then
+        tileMarkers[tile] = Roact.mount(Roact.createElement(TileMarker, {
+            inst = inst
+        }), screengui)
+    end
+end
+
+function UIBase.unmountTileMarkers()
+    for tile, marker in pairs(tileMarkers) do
+        Roact.unmount(marker)
+        tileMarkers[tile] = nil
     end
 end
 

@@ -24,9 +24,9 @@ function ViewWorld.displayWorld(world)
 
     Replication.keepViewAreaLoaded()
 
-    for id, unit in pairs(units) do 
-        ViewUnit.displayUnit(unit)
-    end
+    --for id, unit in pairs(units) do 
+    --    ViewUnit.displayUnit(unit)
+    --end
 end
 
 function ViewWorld.convertInstanceToTile(inst)

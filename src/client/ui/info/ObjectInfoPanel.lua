@@ -78,7 +78,7 @@ function ObjectInfoPanel:render()
             Interest = UnitInfoLabel.Interests.STATUS,
         })
 
-        if self.state.Unit and self.state.Unit.HeldAmount and self.state.Unit.HeldAmount > 0 then
+        if state.object and state.object.HeldAmount and state.object.HeldAmount > 0 then
             elements.UnitCarry = Roact.createElement(UnitInfoLabel, {
                 Position = UDim2.new(0.5, 0, 0.38, 42 * 2),
                 IsUnit = true,
@@ -99,7 +99,7 @@ function ObjectInfoPanel:render()
     elements.CloseButton = Roact.createElement(CloseButton, 
                             {Position = UDim2.new(0.04, 0, 0.865, 0)})
     
-    if state.Owner == Player.userId then
+    if state.Owner == Player.userId and not state.object.Id then
         elements.DemolishButton = Roact.createElement(DemolishButton, 
                             {Position = UDim2.new(0.65, 0, 0.865, 0),
                             Obj = state.object,

@@ -410,7 +410,6 @@ database.setStats = (id, stats) => {
 }
 
 database.getStats = async (id) => {
-    console.log(id)
     return userstats.sanitise(await redis.hgetall("stats:"+id))
 }
 
@@ -699,4 +698,55 @@ database.getOwnersOfPartitions = async (partitionList) => {
 
     await pipeline.exec()
     return ownerMap
+}
+
+database.deletePartition = async (partitionId) => {
+    let pipeline = redis.pipeline()
+
+    pipeline.del("versionCache{"+partitionId+"}")
+    pipeline.del("fastPathCache{"+partitionId+"}")
+    pipeline.del("adjacencyCache{"+partitionId+"}")
+
+    let [x, y] = findXYFromPartitionId(partitionId)
+
+    for (let dx = 0; dx < partitionSize; dx++)
+        for (let dy = 0; dy < partitionSize; dy++)
+            pipeline.del("tile{"+partitionId+"}"+(x+dx)+':'+(y+dy))
+
+    pipeline.exec()
+
+    redis.del("{PartitionOwner}:"+partitionId)
+}
+
+database.deleteUnitsAtPartition = async (partitionId) => {
+    let pipeline = redis.pipeline()
+
+    pipeline.del("militaryUnitCache{"+partitionId+"}")
+    pipeline.del("unitCache{"+partitionId+"}")
+
+    pipeline.exec()
+}
+
+database.deleteKingdom = async (id) => {
+    //delete partitions
+    let partitions = await database.getPartitionsOwned(id)
+    for (let partitionId of partitions) {
+        database.deletePartition(partitionId)
+        database.deleteUnitsAtPartition(partitionId)
+    }
+
+    //delete units
+    let units = await database.getUnitCollection(id)
+    for (let unitId of units)
+        redis.del("unit{"+id+"}"+unitId)
+
+    redis.del("unitcollection:"+id)
+    redis.del("unitspawns:"+id)
+
+    //delete stats
+    redis.del("stats:"+id)
+
+    //delete settings
+    redis.hdel("settings", id)
+    redis.del("PartitionOwnership{"+id+"}")
 }

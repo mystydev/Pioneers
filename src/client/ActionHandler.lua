@@ -10,6 +10,7 @@ local ViewTile    = require(Client.ViewTile)
 local Replication = require(Client.Replication)
 local SoundManager = require(Client.SoundManager)
 local ViewUnit    = require(Client.ViewUnit)
+local UIBase      = require(Client.UIBase)
 local Players = game:GetService("Players")
 
 local currentWorld
@@ -39,7 +40,7 @@ local function tempChangeTileType(tile, type, newId)
     tile.lastChange = tick() + 2
 
     --Update neighbouring tiles
-    for _, n in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
+    for _, n in pairs(World.getNeighbours(currentWorld.Tiles, tile.Position)) do
         ViewTile.updateDisplay(n, nil, true)
     end
 
@@ -53,7 +54,7 @@ local function tempChangeTileType(tile, type, newId)
 
             ViewTile.updateDisplay(tile)
 
-            for _, n in pairs(Util.getNeighbours(currentWorld.Tiles, tile.Position)) do
+            for _, n in pairs(World.getNeighbours(currentWorld.Tiles, tile.Position)) do
                 ViewTile.updateDisplay(n)
             end
         end
@@ -74,8 +75,13 @@ function ActionHandler.attemptBuild(tile, type)
 end
 
 function ActionHandler.attemptDelete(tile)
+
+    --If this is a keep then delete whole kingdom!
+    if (tile.Type == Tile.KEEP) then
+        return ActionHandler.attemptDeleteKingdom()
+    end
+
     --Update tile then send request to delete the tile
-    
     if tile.Type == Tile.HOUSE then
         for _, id in pairs(tile.UnitList) do
             local unit =  currentWorld.Units[id]
@@ -86,6 +92,25 @@ function ActionHandler.attemptDelete(tile)
     tempChangeTileType(tile, Tile.GRASS, nil)
 
     Replication.requestTileDelete(tile)
+end
+
+function ActionHandler.attemptDeleteKingdom()
+    local yes = UIBase.yesNoPrompt(
+        "Want to start again?", 
+        "Deleting your keep will delete your entire kingdom!\n\n Are you sure you wish to start again?")
+
+    if yes then
+        yes = UIBase.yesNoPrompt(
+            "Are you really sure?",
+            "Deleting your kingdom is permanent!\n\n This cannot be undone!\n\nAre you sure you wish to start again?"
+        )
+
+        if yes then
+            UIBase.blockingLoadingScreen("Deleting your kingdom...")
+            Replication.requestKingdomDeletion()
+            error("Pion unrecoverable - User deleted kingdom")
+        end
+    end
 end
 
 function ActionHandler.assignWork(unit, tile)

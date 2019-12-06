@@ -9,6 +9,7 @@ local UserStats    = require(Common.UserStats)
 local UserSettings = require(Common.UserSettings)
 local Util         = require(Common.Util)
 
+local Network       = game.ReplicatedStorage.Network
 local Players       = game:GetService("Players")
 local Http          = game:GetService("HttpService")
 local ServerStorage = game:GetService("ServerStorage")
@@ -113,12 +114,14 @@ local function playerJoined(player)
         UserStats.Store[player.UserId] = stats
     end
 
+    Replication.earlyPlayerPositionSet(player, UserStats.Store[player.UserId])
+
     local keepPosition = Util.positionStringToVector(stats.Keep or "0:0")
     local worldPosition = Util.axialCoordToWorldCoord(keepPosition)
-    delay(2, function()
+    delay(0.1, function()
         --player:LoadCharacter()
         player.CharacterAdded:Connect(function(character)
-            character:MoveTo(worldPosition + Vector3.new(20, 50, 20))
+            character:MoveTo(worldPosition + Vector3.new(0, 50, 0))
         end)
     end)
 
@@ -134,6 +137,7 @@ end
 
 Players.PlayerAdded:Connect(function(p) pcall(playerJoined, p) end)
 Players.PlayerAdded:Connect(function(player) loadPlayerSettings(player) end)
+Network.PlayerRejoined.OnServerInvoke = playerJoined
 
 for _, player in pairs(Players:GetChildren()) do
     pcall(playerJoined, player)

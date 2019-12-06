@@ -41,6 +41,7 @@ local loadingGui
 
 local tweenInfo  = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local fastTween  = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local midTween = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local spinnerTween = TweenInfo.new(0.3, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1)
 
 preload.Loaded = false
@@ -52,7 +53,70 @@ local spinnerHandle
 local lock
 local queued = {}
 local queuelength = 0
-local function updateInfo(text, loadedOverride, queueOverride)
+
+local infos = {}
+local sequentialInfos = {}
+local infoPosIndex = 0
+
+local function createText()
+    local element = Instance.new("TextLabel")
+    element.BackgroundTransparency = 1
+    element.TextColor3 = Color3.new(1,1,1)
+    element.Font = "SourceSans"
+    element.TextSize = 24
+    element.AnchorPoint = Vector2.new(0.5, 0.5)
+    element.Position = UDim2.new(0.5, 0, 0.6, 0)
+    element.TextTransparency = 1
+    element.Parent = loadingGui
+    --element.TextXAlignment = "Left"
+
+    sequentialInfos[infoPosIndex] = element
+    
+    coroutine.wrap(function()
+        for i = 0, infoPosIndex-1 do
+            --wait(0.1)
+            TweenService:Create(sequentialInfos[i], midTween, {Position = UDim2.new(0.5, 0, 0.6, (infoPosIndex - i) * 30)}):Play()
+        end
+    end)()
+
+    infoPosIndex = infoPosIndex + 1
+
+    return element
+end
+
+local function deleteTexts()
+    for i, v in pairs(infos) do
+        v:Destroy()
+        infos[i] = nil
+    end
+
+    infoPosIndex = 0
+end
+
+local function updateInfo(index, text)
+    coroutine.wrap(function()
+
+        local element = infos[index]
+
+        if not element then
+            element = createText()
+            infos[index] = element
+            element.Text = text
+            --wait(infoPosIndex / 20)
+            wait(0.5)
+            if preload.FullyLoaded  then return end
+            TweenService:Create(element, tweenInfo, {TextTransparency = 0}):Play()
+        else
+            TweenService:Create(element, midTween, {TextTransparency = 1}):Play()
+            wait(0.2)
+            if preload.FullyLoaded then return end
+            element.Text = text
+            TweenService:Create(element, midTween, {TextTransparency = 0}):Play()
+        end
+    end)()
+end
+
+--[[local function updateInfo(text, loadedOverride, queueOverride)
     spawn(function()
 
         if queued[text] and not queueOverride then 
@@ -88,7 +152,7 @@ local function updateInfo(text, loadedOverride, queueOverride)
             lock = false
         end
     end)
-end
+end]]--
 
 --show update then return to previous text
 local function smallUpdateInfo(text, override)
@@ -111,8 +175,14 @@ local function load()
     spinnerHandle = Roact.mount(Roact.createElement(LoadingSpinner), loadingGui)
 
     spawn(function()
+        updateInfo("Assets", "⭕Loading assets...")
         ContentProvider:PreloadAsync({Assets.Preload})
-        smallUpdateInfo("Assets loaded", true)
+
+        repeat 
+            wait() 
+        until ContentProvider.RequestQueueSize > 0
+        
+        updateInfo("Assets", "✅Assets loaded")
         assetsLoaded = true
     end)
 
@@ -123,7 +193,7 @@ local function load()
     wait(10)
 
     if not preload.Loaded then
-        updateInfo("Looks like something is taking a while...", true)
+        updateInfo("Long", "❗Looks like something is taking a while...")
     end
         
     wait(10)
@@ -131,14 +201,14 @@ local function load()
     preload.Aborting = true
 
     if not preload.Loaded then
-        TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
+        --TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 1}):Play()
         --TweenService:Create(loadingGui.Spinner, fastTween, {ImageTransparency = 1}):Play()
     end
     
     wait(0.5)
 
     if not preload.Loaded then
-        loadingGui.Info.Text = "Client failed to load, retrying..."
+        loadingGui.Info.Text = "❗Client failed to load, retrying..."
         loadingGui.Info.TextColor3 = Color3.fromRGB(218, 40, 43)
         TweenService:Create(loadingGui.Info, fastTween, {TextTransparency = 0}):Play()
         wait(1.5)
@@ -158,10 +228,11 @@ function preload.tellReady()
             if preload.Aborting then
                 return end
 
-            updateInfo("Ready", true)
+            updateInfo("Ready", "🔆Ready")
 
             wait(1)
             
+            deleteTexts()
             SoundManager.transition()
             preload.FullyLoaded = true
             spawn(function() Roact.unmount(spinnerHandle) end)

@@ -1,5 +1,7 @@
-
+local Client = script.Parent.Parent
 local Roact = require(game.ReplicatedStorage.Roact)
+
+local UIBase = require(Client.UIBase)
 
 local function CloseButton(props)
     return Roact.createElement("TextButton", {
@@ -12,7 +14,7 @@ local function CloseButton(props)
         TextSize               = 24,
         TextTransparency       = 0.4,
         AnchorPoint            = props.AnchorPoint or Vector2.new(0, 0),
-        [Roact.Event.MouseButton1Click] = props.OnClick
+        [Roact.Event.MouseButton1Click] = UIBase.exitInfoView
     })
 end
 

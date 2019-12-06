@@ -164,6 +164,16 @@ local function partitionRequest(player, partitionId)
     local x, y = Util.partitionIdToCoordinates(partitionId)
     local tileCollection = {}
 
+    local waits = 0
+    while not partitionHashes[partitionId] do
+        wait(0.2)
+        waits = waits + 1
+
+        if waits > 50 then
+            warn("Excessive wait time for partition request!")
+        end
+    end
+
     for dx = 0, Util.PARTITIONSIZE do
         for dy = 0, Util.PARTITIONSIZE do
             table.insert(tileCollection, World.getTileXY(currentWorld.Tiles, x + dx, y + dy))
@@ -225,7 +235,7 @@ local function playerSpawnRequest(player, position)
     local worldPosition = Util.axialCoordToWorldCoord(position)
     player:LoadCharacter()
     repeat wait() until player.Character
-    player.Character:MoveTo(worldPosition + Vector3.new(15, 50, 0))
+    player.Character:MoveTo(worldPosition + Vector3.new(0, 50, 0))
     player.Character.HumanoidRootPart.Anchored = true
 end
 
@@ -238,6 +248,19 @@ end
 local function gameSettingsRequest(player)
     repeat wait() until gameSettings
     return gameSettings
+end
+
+local function kingdomDeletionRequest(player)
+    local payload = {
+        apikey = API_KEY,
+        id = player.UserId,
+        action = Actions.DELETE_KINGDOM,
+    }
+
+    local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
+    res = Http:JSONDecode(res)
+
+    return res.status
 end
 
 function Replication.assignWorld(w)
@@ -259,6 +282,7 @@ function Replication.assignWorld(w)
     Network.RequestPartition.OnServerInvoke      = partitionRequest
     Network.GetPartitionOwnership.OnServerInvoke = partitionOwnerRequest
     Network.RequestGameSettings.OnServerInvoke   = gameSettingsRequest
+    Network.RequestKingdomDeletion.OnServerInvoke= kingdomDeletionRequest
     Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
     Network.Chatted.OnServerEvent:Connect(chatRequest)
     Network.FeedbackRequest.OnServerEvent:Connect(feedbackRequest)
@@ -273,10 +297,12 @@ function Replication.fetchGameSettings()
 end
 
 function Replication.pushStatsChange(stats)
-    local player = Players:GetPlayerByUserId(stats.PlayerId)
-    
-    if player then
-        Network.StatsUpdate:FireClient(player, stats)
+    if stats.PlayerId then
+        local player = Players:GetPlayerByUserId(stats.PlayerId)
+        
+        if player then
+            Network.StatsUpdate:FireClient(player, stats)
+        end
     end
 end
 
@@ -420,6 +446,16 @@ function Replication.getFeedback()
     local feedback = feedbackBuffer
     feedbackBuffer = {}
     return feedback
+end
+
+--Sets player position early based on keep location
+--Assists with loading tiles faster
+function Replication.earlyPlayerPositionSet(player, stats)
+    if stats.Keep and not playerPositions[player] then
+        
+        playerPositions[player] = Util.axialCoordToWorldCoord(Util.positionStringToVector(stats.Keep))
+        print("set", playerPositions[player])
+    end
 end
 
 Network.Ready.OnServerInvoke = function() return nil end

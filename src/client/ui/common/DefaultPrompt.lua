@@ -30,7 +30,7 @@ function DefaultPrompt(props)
 
     elements.label = Roact.createElement(Label, {
         Text = props.Text,
-        TextSize = 32,
+        TextSize = 28,
     })
 
     return Roact.createElement(DefaultFrame, {

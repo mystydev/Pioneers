@@ -221,7 +221,7 @@ function ObjectSelection.buildTileAtSelection(tileType)
     --Predict build is ok
     ViewTile.updateDisplay(selectedObject)
 
-    for _, n in pairs(Util.getNeighbours(currentWorld.Tiles, selectedObject.Position)) do
+    for _, n in pairs(World.getNeighbours(currentWorld.Tiles, selectedObject.Position)) do
         ViewTile.updateDisplay(n)
     end
 

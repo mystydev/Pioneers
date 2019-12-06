@@ -6,6 +6,7 @@ local Network     = game.ReplicatedStorage.Network
 local ViewUnit      = require(Client.ViewUnit)
 local ViewTile      = require(Client.ViewTile)
 local ClientUtil    = require(Client.ClientUtil)
+local ClientPreload = require(Client.ClientPreload)
 local World         = require(Common.World)
 local Tile          = require(Common.Tile)
 local Util          = require(Common.Util)
@@ -112,6 +113,7 @@ local function handleStatsUpdate(stats)
 end
 
 local function handleTileUpdate(tile, t)
+
     local pos = tile.Position
     local localTile = World.getTileXY(currentWorld.Tiles, pos.x, pos.y)
     local t = t or tick()
@@ -148,8 +150,6 @@ function Replication.init(world, uiBinding)
     tileupdate = Network.TileUpdate.OnClientEvent:Connect(handleTileUpdate)
     updatealert = Network.UpdateAlert.OnClientEvent:Connect(handleUpdateAlert)
     chatsupdate = Network.ChatsUpdate.OnClientEvent:Connect(handleChatsUpdate)
-
-    _G.updateLoadStatus("Fetching map data...")
 end
 
 function Replication.worldDied()
@@ -171,12 +171,14 @@ function Replication.getUserStats()
         return currentStats
     end
 
-    _G.updateLoadStatus("Fetching user stats...")
+    _G.updateLoadStatus("Stats", "⭕Fetching user stats...")
 
     repeat
         currentStats = Network.RequestStats:InvokeServer()
         wait(0.5)
     until currentStats
+
+    _G.updateLoadStatus("Stats", "✅Loaded user stats ")
     
     return currentStats
 end
@@ -184,7 +186,7 @@ end
 function Replication.getUserSettings()
     local settings
     
-    _G.updateLoadStatus("Fetching user settings...")
+    _G.updateLoadStatus("Settings", "⭕Fetching user settings...")
 
     repeat
         settings = Network.RequestSettings:InvokeServer()
@@ -192,6 +194,8 @@ function Replication.getUserSettings()
     until settings
 
     UserSettings.defineLocalSettings(settings)
+
+    _G.updateLoadStatus("Settings", "✅Loaded user settings ")
 
     return settings
 end
@@ -286,6 +290,7 @@ local function fetchPartitionData(partitionId)
             end
         end
     end
+
 end
 
 Replication.keepViewAreaLoaded = coroutine.wrap(function()
@@ -299,12 +304,20 @@ Replication.keepViewAreaLoaded = coroutine.wrap(function()
 
         --Send server position update and get partition hashes
         local partitionInfo = Network.UpdatePlayerPosition:InvokeServer(ClientUtil.getPlayerPosition())
-
+        
         --Check partition hashes are correct (equal and therefore synchronised)
         for partitionId, partitionHash in pairs(partitionInfo) do
             if partitionHashes[partitionId] ~= partitionHash and partitionHash ~= "0" then
                 partitionHashes[partitionId] = partitionHash
                 fetchPartitionData(partitionId)
+
+                if not ClientPreload.Loaded and tonumber(partitionHash) ~= 0 then
+                    coroutine.wrap(function()
+                        wait(2)
+                        _G.updateLoadStatus("Map", "✅Map info loaded ")
+                        ClientPreload.tellReady()
+                    end)()
+                end
             end
         end
 
@@ -320,7 +333,6 @@ Replication.keepViewAreaLoaded = coroutine.wrap(function()
                 RunService.Stepped:Wait()
             end
         end
-
     end
 end)
 
@@ -345,8 +357,9 @@ function Replication.sendFeedback(react, text)
 end
 
 function Replication.ready()
-    _G.updateLoadStatus("Waiting for server to be ready...")
+    _G.updateLoadStatus("ServerReady", "⭕Waiting for server to be ready...")
     local status = Network.Ready:InvokeServer()
+    _G.updateLoadStatus("ServerReady", "✅Server is ready ")
 
     return status
 end
@@ -369,6 +382,20 @@ end
 
 function Replication.getGameSettings()
     return gameSettings
+end
+
+function Replication.getTiles()
+    return currentWorld.Tiles
+end
+
+function Replication.getUnits()
+    return currentWorld.Units
+end
+
+function Replication.requestKingdomDeletion()
+    Network.RequestKingdomDeletion:InvokeServer()
+    wait(2)
+    Network.PlayerRejoined:InvokeServer()
 end
 
 return Replication
