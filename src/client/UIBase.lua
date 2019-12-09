@@ -402,6 +402,8 @@ function UIBase.highlightType(type, showBuildable)
     end
 end
 
+local placementHighlight = Assets.Grass:Clone()
+placementHighlight.CFrame = CFrame.new(0,math.huge,0)
 function UIBase.highlightBuildableTile(tile, type)
     local inst = ViewTile.getInstFromTile(tile)
     local clone = UIBase.highlightInst(inst, 0.5)
@@ -416,8 +418,11 @@ function UIBase.highlightBuildableTile(tile, type)
     end
 
     if clone then
+        placementHighlight.Parent = clone.Parent
+        
         UIBase.listenToInst(inst,
             function()
+                placementHighlight.CFrame = CFrame.new(0,math.huge,0)
                 if UserStats.hasEnoughResources(stats, req) then
                     ActionHandler.attemptBuild(tile, type)
                 end
@@ -425,11 +430,15 @@ function UIBase.highlightBuildableTile(tile, type)
                 if UserStats.hasEnoughResources(stats, req) then
                     UIBase.highlightType(type, true)
                 else
-                    UIBase.unHighlightAllInsts()
+                    UIBase.exitBuildView()
                 end
             end, 
-            function() clone.Transparency = 0 end,
-            function() clone.Transparency = 0.5 end)
+            function() 
+                placementHighlight.CFrame = clone.CFrame
+            end,
+            function() 
+                placementHighlight.CFrame = CFrame.new(0,math.huge,0)
+            end)
     end
 end
 

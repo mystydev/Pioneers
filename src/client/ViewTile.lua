@@ -29,7 +29,7 @@ meshes[Tile.KEEP]     = {mesh = Assets.Keep,     offset = Vector3.new(0, 11.007,
 meshes[Tile.HOUSE]    = {mesh = Assets.House,    offset = Vector3.new(0, 8.115, 0)}
 meshes[Tile.PATH]     = {mesh = Assets.Path,     offset = Vector3.new(0,     0 + 0.5,    0)}
 meshes[Tile.FARM]     = {mesh = Assets.Farm,     offset = Vector3.new(-0.015, 1.594, 0.059)}
-meshes[Tile.FORESTRY] = {mesh = Assets.Forestry, offset = Vector3.new(0,     0 + 0.5,    0)}--Vector3.new(0, 7.682, 0.131)}
+meshes[Tile.FORESTRY] = {mesh = Assets.Forestry, offset = Vector3.new(0, 8.592, 0)}--Vector3.new(0, 7.682, 0.131)}
 meshes[Tile.MINE]     = {mesh = Assets.Mine,     offset = Vector3.new(0, 1.795,    0)}
 meshes[Tile.STORAGE]  = {mesh = Assets.Storage,  offset = Vector3.new(0, 16.842, -0.459)}
 meshes[Tile.BARRACKS] = {mesh = Assets.Barracks, offset = Vector3.new(0, 5.407, -0)}
@@ -101,7 +101,7 @@ function ViewTile.displayTile(tile, displaySize)
 
     TileToInstMap[tile] = model
     InstToTileMap[model] = tile
-    model.CFrame = CFrame.new(Util.axialCoordToWorldCoord(tile.Position) + meshInfo.offset)
+    model.CFrame = CFrame.new(Util.axialCoordToWorldCoord(tile.Position) + meshInfo.offset + Vector3.new(0, 1.01, 0))
 
     if tile.Type == Tile.GATE then
         model.Bars.PrismaticConstraint.Enabled = false
@@ -257,6 +257,15 @@ function ViewTile.updateDisplay(tile, displaySize, skipTimeCheck)
         end
     end
 
+    --Terrain grass impl
+    --[[if tile.Type == Tile.GRASS then
+        if not tile.SetTerrain then
+            workspace.Terrain:FillCylinder(CFrame.new(model.position.x, -4, model.position.z), 4, 14, "Grass")
+            tile.SetTerrain = true
+        end
+    end]]--
+
+    --Custom grass impl
     if tile.EmitterSkip and tile.EmitterSkip > 0 then
         tile.EmitterSkip = tile.EmitterSkip - 1
     elseif model:FindFirstChild("ParticleEmitter") then
