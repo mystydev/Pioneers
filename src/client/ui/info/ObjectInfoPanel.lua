@@ -1,6 +1,7 @@
-local ui = script.Parent.Parent
+local Client = script.Parent.Parent.Parent
+local ui     = Client.ui
 local Common = game.ReplicatedStorage.Pioneers.Common
-local Roact = require(game.ReplicatedStorage.Roact)
+local Roact  = require(game.ReplicatedStorage.Roact)
 
 local Title            = require(ui.Title)
 local OwnerLabel       = require(ui.OwnerLabel)
@@ -12,6 +13,7 @@ local UnitList         = require(ui.UnitList)
 local UnitInfoLabel    = require(ui.UnitInfoLabel)
 local AssignWorkButton = require(ui.info.AssignWorkButton)
 local RepairButton     = require(ui.info.RepairButton)
+local UIBase           = require(Client.UIBase)
 
 local Tile = require(Common.Tile)
 local Unit = require(Common.Unit)
@@ -60,15 +62,15 @@ function ObjectInfoPanel:render()
         
         if state.Owner == Player.userId then
             if not Unit.isMilitary(state.object) then
-                elements.FarmWork     = Roact.createElement(AssignWorkButton, {Type = Tile.FARM,     Unit = state.object, UIBase = self.props.UIBase})
-                elements.ForestryWork = Roact.createElement(AssignWorkButton, {Type = Tile.FORESTRY, Unit = state.object, UIBase = self.props.UIBase})
-                elements.MineWork     = Roact.createElement(AssignWorkButton, {Type = Tile.MINE,     Unit = state.object, UIBase = self.props.UIBase})
+                elements.FarmWork     = Roact.createElement(AssignWorkButton, {Type = Tile.FARM,     Unit = state.object})
+                elements.ForestryWork = Roact.createElement(AssignWorkButton, {Type = Tile.FORESTRY, Unit = state.object})
+                elements.MineWork     = Roact.createElement(AssignWorkButton, {Type = Tile.MINE,     Unit = state.object})
             else
-                elements.AttackWork = Roact.createElement(AssignWorkButton, {Type = Tile.OTHERPLAYER, UIBase = self.props.UIBase})
-                elements.GuardWork = Roact.createElement(AssignWorkButton, {Type = Tile.GRASS, Unit = state.object, UIBase = self.props.UIBase})
+                elements.AttackWork = Roact.createElement(AssignWorkButton, {Type = Tile.OTHERPLAYER})
+                elements.GuardWork = Roact.createElement(AssignWorkButton, {Type = Tile.GRASS, Unit = state.object})
             end
 
-            elements.TrainingWork = Roact.createElement(AssignWorkButton, {Type = Tile.BARRACKS, UIBase = self.props.UIBase})
+            elements.TrainingWork = Roact.createElement(AssignWorkButton, {Type = Tile.BARRACKS})
         end
 
         elements.UnitStatus = Roact.createElement(UnitInfoLabel, {
@@ -97,13 +99,13 @@ function ObjectInfoPanel:render()
     })
     elements.Owner = Roact.createElement(OwnerLabel, state)
     elements.CloseButton = Roact.createElement(CloseButton, 
-                            {Position = UDim2.new(0.04, 0, 0.865, 0)})
+                            {Position = UDim2.new(0.04, 0, 0.865, 0),
+                            OnClick = UIBase.exitInfoView})
     
     if state.Owner == Player.userId and not state.object.Id then
         elements.DemolishButton = Roact.createElement(DemolishButton, 
                             {Position = UDim2.new(0.65, 0, 0.865, 0),
-                            Obj = state.object,
-                            UIBase = self.props.UIBase})
+                            Obj = state.object})
     end
 
     if state.object.Health then

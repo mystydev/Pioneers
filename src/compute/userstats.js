@@ -8,7 +8,7 @@ let units = require("./units")
 let resource = require("./resource")
 let performance = require('perf_hooks').performance
 
-let current_version = "0.29"
+let current_version = "0.32"
 
 userstats.load = async () => {
     console.log("Stats would have loaded!")
@@ -16,7 +16,7 @@ userstats.load = async () => {
 
 userstats.newPlayer = (id) => {
     let stats = {
-        Food: 2500,
+        Food: 1500,
         Wood: 2500,
         Stone: 2500,
         PlayerId: id,
@@ -25,6 +25,9 @@ userstats.newPlayer = (id) => {
         FoodCost: 0,
         WoodCost: 0,
         StoneCost: 0,
+        FoodLimit: 2500,
+        WoodLimit: 2500,
+        StoneLimit: 2500,
         FoodProduced: 0,
         WoodProduced: 0,
         StoneProduced: 0,
@@ -56,6 +59,7 @@ userstats.storePrep = (stats) => {
 
 userstats.canAfford = async (id, type, amount) => {
     let stat = await database.getStat(id, type)
+    amount = (amount == 0) ? -Infinity : amount
     return stat > amount
 }
 
@@ -212,14 +216,19 @@ userstats.removeBuiltBuilding = async (id, buildingType) => {
 
 userstats.updateBuildingsBuilt = async (id) => {
     let partitions = await database.getPartitionsOwned(id)
-    let tiles = await database.getTilesFromPartitions(partitions)
+    let tileCollection = await database.getTilesFromPartitions(partitions)
     let builtTiles = {}
 
-    for (let tile of tiles)
+    for (let tile of tileCollection)
         builtTiles[tile.Type] = builtTiles[tile.Type] ? ++builtTiles[tile.Type] : 1
 
     for (let type in builtTiles)
         database.setStat(id, "Built:"+type, builtTiles[type])
+
+    let storageLimit = 2500 + 1000 * (builtTiles[tiles.TileType.STORAGE] || 0)
+    database.setStat(id, "FoodLimit", storageLimit)
+    database.setStat(id, "WoodLimit", storageLimit)
+    database.setStat(id, "StoneLimit", storageLimit)
 }
 
 
@@ -294,6 +303,19 @@ userstats.hasUnlocked = async (id, type) => {
     }
 
     return false
+}
+
+userstats.enforceStorageLimit = async (id) => {
+    let stats = await database.getStats(id)
+
+    if (parseFloat(stats.Food) > parseFloat(stats.FoodLimit))
+        database.setStat(id, "Food", parseFloat(stats.FoodLimit))
+
+    if (parseFloat(stats.Wood) > parseFloat(stats.WoodLimit))
+        database.setStat(id, "Wood", parseFloat(stats.WoodLimit))
+
+    if (parseFloat(stats.Stone) > parseFloat(stats.StoneLimit))
+        database.setStat(id, "Stone", parseFloat(stats.StoneLimit))
 }
 
 module.exports = userstats

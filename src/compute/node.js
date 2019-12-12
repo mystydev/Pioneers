@@ -87,6 +87,13 @@ async function verifyTilePlacement(id, pos, type) {
 	let tile = await tiles.newTile(type, id, pos)
 	userstats.addBuiltBuilding(id, type)
 	await database.updateTile(pos, tile)
+
+	//Increase storage limit if this is a storage building
+	if (type == tiles.TileType.STORAGE) {
+		database.addStat(id, "FoodLimit", 1000)
+		database.addStat(id, "WoodLimit", 1000)
+		database.addStat(id, "StoneLimit", 1000)
+	}
 }
 
 async function verifyWorkAssignment(id, unitid, pos) {
@@ -123,6 +130,7 @@ async function verifyWorkAssignment(id, unitid, pos) {
 }
 
 async function verifyAttackAssignment(id, unitid, pos) {
+	return false
 	let unit = await units.fromid(id, unitid)
 
 	//Check if the unit exists, is owned by the same owner and is a military unit
@@ -157,6 +165,13 @@ async function verifyTileDeletion(id, pos) {
 	//Will deleting this tile cause a kingdom fragmentation
 	if (await tiles.isFragmentationDependant(pos, await userstats.getKeep(id)))
 		return false
+
+	//Decrease storage limit if this is a storage building
+	if (tile.Type == tiles.TileType.STORAGE) {
+		database.addStat(id, "FoodLimit", -1000)
+		database.addStat(id, "WoodLimit", -1000)
+		database.addStat(id, "StoneLimit", -1000)
+	}
 
 	//Remove maintenance cost from users stats, delete the tile and update cached unit values
 	userstats.removeTileMaintenance(id, tiles.TileMaintenanceCosts[tile.Type])
@@ -279,6 +294,7 @@ async function computeRequest(roundStart, id, round) {
 		await database.updateUnits(unitList)
 		await userstats.updatePopulation(id)
 		await userstats.checkTrackedStats(id)
+		await userstats.enforceStorageLimit(id)
 		await database.setLastSimRoundNumber(id, round)
 	} else {
 		await database.setKingdomUnloaded(id)

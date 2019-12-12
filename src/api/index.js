@@ -228,7 +228,7 @@ app.post("/pion/getPartitionOwners", async (req, res) => {
 
     let partitionList = []
 
-    for (let x = req.body.x - 200; x < req.body.x + 200; x += 20)
+    for (let x = req.body.x - 200; x < req.body.x + 200; x += 20) //TODO: use partition size not 20
         for (let y = req.body.y - 200; y < req.body.y + 200; y += 20)
             partitionList.push(database.findPartitionId(x+":"+y))
 

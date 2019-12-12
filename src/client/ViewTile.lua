@@ -101,7 +101,7 @@ function ViewTile.displayTile(tile, displaySize)
 
     TileToInstMap[tile] = model
     InstToTileMap[model] = tile
-    model.CFrame = CFrame.new(Util.axialCoordToWorldCoord(tile.Position) + meshInfo.offset + Vector3.new(0, 1.01, 0))
+    model.CFrame = CFrame.new(Util.axialCoordToWorldCoord(tile.Position) + meshInfo.offset)-- + Vector3.new(0, 1.01, 0))
 
     if tile.Type == Tile.GATE then
         model.Bars.PrismaticConstraint.Enabled = false

@@ -38,26 +38,26 @@ tiles.defaults[TileType.GATE]     = {Type:TileType.GATE, Health:10000}
 let TileConstructionCosts = tiles.TileConstructionCosts = {}
 TileConstructionCosts[TileType.KEEP]     = {Stone:0,     Wood:0};
 TileConstructionCosts[TileType.PATH]     = {Stone:20,    Wood:0};
-TileConstructionCosts[TileType.HOUSE]    = {Stone:100,   Wood:100};
+TileConstructionCosts[TileType.HOUSE]    = {Stone:100,   Wood:150};
 TileConstructionCosts[TileType.FARM]     = {Stone:75,    Wood:75};
 TileConstructionCosts[TileType.MINE]     = {Stone:0,     Wood:150};
 TileConstructionCosts[TileType.FORESTRY] = {Stone:150,   Wood:0};
-TileConstructionCosts[TileType.STORAGE]  = {Stone:500,   Wood:500};
-TileConstructionCosts[TileType.BARRACKS] = {Stone:500,   Wood:300};
+TileConstructionCosts[TileType.STORAGE]  = {Stone:1000,  Wood:1300};
+TileConstructionCosts[TileType.BARRACKS] = {Stone:3000,  Wood:3000};
 TileConstructionCosts[TileType.WALL]     = {Stone:1000,  Wood:1000};
 TileConstructionCosts[TileType.GATE]     = {Stone:1000,  Wood:1500};
 
 let TileMaintenanceCosts = tiles.TileMaintenanceCosts = {}
 TileMaintenanceCosts[TileType.KEEP]     = {Stone:0,     Wood:0};
 TileMaintenanceCosts[TileType.PATH]     = {Stone:0,     Wood:0};
-TileMaintenanceCosts[TileType.HOUSE]    = {Stone:0,     Wood:0};
+TileMaintenanceCosts[TileType.HOUSE]    = {Stone:0.3,   Wood:0.3};
 TileMaintenanceCosts[TileType.FARM]     = {Stone:0,     Wood:0};
 TileMaintenanceCosts[TileType.MINE]     = {Stone:0,     Wood:0};
 TileMaintenanceCosts[TileType.FORESTRY] = {Stone:0,     Wood:0};
-TileMaintenanceCosts[TileType.STORAGE]  = {Stone:1,     Wood:1};
-TileMaintenanceCosts[TileType.BARRACKS] = {Stone:2,     Wood:2};
-TileMaintenanceCosts[TileType.WALL]     = {Stone:3,     Wood:3};
-TileMaintenanceCosts[TileType.GATE]     = {Stone:3,     Wood:3};
+TileMaintenanceCosts[TileType.STORAGE]  = {Stone:0.2,   Wood:0.2};
+TileMaintenanceCosts[TileType.BARRACKS] = {Stone:0.5,   Wood:0.5};
+TileMaintenanceCosts[TileType.WALL]     = {Stone:0.1,   Wood:0.1};
+TileMaintenanceCosts[TileType.GATE]     = {Stone:0.1,   Wood:0.1};
 
 let TileOutputs = {}
 TileOutputs[TileType.FARM]     = resource.Type.FOOD
@@ -521,7 +521,7 @@ tiles.getNumberOfSimilarAdjacentTiles = async (tile, neighbours) => {
 
 tiles.getOutput = async (position) => {
     let tile = await tiles.fromPosString(position)
-    return [TileOutputs[tile.Type], 6 + await tiles.fastAdjacencyCheck(position)]
+    return [TileOutputs[tile.Type], 1 + (await tiles.fastAdjacencyCheck(position)/3)]
 }
 
 //Nothing is built here

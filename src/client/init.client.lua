@@ -55,15 +55,13 @@ local function start()
 
         --UIBase.displayInfoPrompt("Hi there", "Welcome to Pioneers. To begin you need to build a keep. Choose a spot ")
         UIBase.choicePrompt(
-            "Hi there", 
-            "Would you like to choose where you start, or have a good spot picked automatically?", 
+            "Welcome to Pioneers!",
+            "\nDouble click anywhere to place your keep and begin your kingdom.\n\n"..
+            "Make sure to give yourself room to grow!",
             {
                 {
-                    Text = "Let me choose!", 
+                    Text = "Let's go!", 
                     Color = Color3.fromRGB(30, 136, 229),
-                },{
-                    Text = "Auto-choice in dev :(",
-                    Disabled = true,
                 }
             })
         UIBase.disableManagedInput()
@@ -100,6 +98,7 @@ local function start()
 
 end
 
+local UIS = game:GetService("UserInputService")
 local LogService = game:GetService("LogService")
 
 LogService.MessageOut:Connect(function(message, type)
@@ -153,6 +152,26 @@ spawn(function()
             if p.Position.Y < -10 then
                 p.CFrame = CFrame.new(p.Position) + Vector3.new(0, 50, 0)
             end
+        end
+    end
+end)
+
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        local char = game.Players.LocalPlayer.Character
+
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = 150
+        end
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        local char = game.Players.LocalPlayer.Character
+
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = 16
         end
     end
 end)

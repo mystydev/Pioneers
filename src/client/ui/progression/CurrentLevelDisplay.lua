@@ -7,13 +7,20 @@ local Tile = require(Common.Tile)
 local Replication = require(Client.Replication)
 local Label = require(ui.Label)
 local Title = require(ui.Title)
+local ToolTip = require(ui.common.ToolTip)
 
 local CurrentLevelDisplay = Roact.Component:extend("CurrentLevelDisplay")
 local gameSettings
 
 local icons = {}
+
+icons[Tile.FORESTRY] = "rbxassetid://3464265858"
+icons[Tile.FARM] = "rbxassetid://3464265775"
+icons[Tile.MINE] = "rbxassetid://3480834162"
 icons[Tile.STORAGE] = "rbxassetid://3480834300"
 icons[Tile.BARRACKS] = "rbxassetid://3464265681"
+icons[Tile.WALL] = "rbxassetid://3480834420"
+icons[Tile.GATE] = "rbxassetid://3480834049"
 
 local function translateRequirement(req)
     local type, index = unpack(string.split(req, ":"))
@@ -50,13 +57,20 @@ local function textWithShadow(text, position, color)
     })
 end
 
-local function unlockIcon(id, index)
+local function unlockIcon(type, index)
+    id = icons[type]
+
     return Roact.createElement("ImageLabel", {
         Image = id,
         Position = UDim2.new(0, 67, 0, 80 + index * 60),
         Size = UDim2.new(0, 60, 0, 60),
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundTransparency = 1,
+    }, {
+        tooltip = Roact.createElement(ToolTip, {
+            Position = UDim2.new(1, 80, 0.5, 0),
+            Text = "Unlock "..(Tile.Localisation[type] or "?").." next level!",
+        })
     })
 end
 
@@ -79,6 +93,13 @@ function CurrentLevelDisplay:render()
         Title = currentLevel,
         Position = UDim2.new(0, 67, 0, 65),
         Color = Color3.fromRGB(255, 255, 255),
+        Size = UDim2.new(0, 60, 0, 60),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+    }, {
+        tooltip = Roact.createElement(ToolTip, {
+            Position = UDim2.new(0.5, 0, 0.5, -30),
+            Text = "Your current level",
+        })
     })
 
     -- +1 because lua is dumb and starts arrays at 1, offsetting json arrays by 1
@@ -88,7 +109,7 @@ function CurrentLevelDisplay:render()
     for req, value in pairs(requirements) do
         if req == "Unlocks" then
             for i, v in pairs(value) do
-                elements[req..v] = unlockIcon(icons[tonumber(v)], i)
+                elements[req..v] = unlockIcon(tonumber(v), i)
             end
         else
             local stat = tonumber(self.props.stats[req]) or 0

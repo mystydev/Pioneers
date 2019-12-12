@@ -33,10 +33,10 @@ function DefaultPrompt(props)
         TextSize = 28,
     })
 
-    return Roact.createElement(DefaultFrame, {
-        Position = props.Position or UDim2.new(0.5, 0, 0.5, 0),
-        Size     = props.Size or UDim2.new(0, 550, 0, 350),
-    }, elements)
+    props.Position = props.Position or UDim2.new(0.5, 0, 0.5, 0)
+    props.Size = props.Size or UDim2.new(0, 550, 0, 350)
+
+    return Roact.createElement(DefaultFrame, props, elements)
 end
 
 return DefaultPrompt

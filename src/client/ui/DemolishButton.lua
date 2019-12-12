@@ -2,6 +2,7 @@ local Roact = require(game.ReplicatedStorage.Roact)
 local Client = script.Parent.Parent
 
 local ActionHandler = require(Client.ActionHandler)
+local UIBase        = require(Client.UIBase)
 
 local function DeleteButton(props)
     return Roact.createElement("TextButton", {
@@ -15,7 +16,7 @@ local function DeleteButton(props)
         TextTransparency       = 0.4,
         TextColor3             = Color3.fromRGB(170, 0, 0),
         [Roact.Event.MouseButton1Click] = function()
-            props.UIBase.exitInfoView()
+            UIBase.exitInfoView()
             ActionHandler.attemptDelete(props.Obj)
         end,
     })

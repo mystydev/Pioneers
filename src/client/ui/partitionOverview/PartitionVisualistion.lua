@@ -8,6 +8,7 @@ local Util          = require(Common.Util)
 local UIBase        = require(Client.UIBase)
 local ActionHandler = require(Client.ActionHandler)
 local Replication   = require(Client.Replication)
+local Label         = require(ui.Label)
 
 local Players = game:GetService("Players")
 local UIS     = game:GetService("UserInputService")
@@ -35,7 +36,37 @@ images[14] = "rbxassetid://4129784397"
 images[15] = "rbxassetid://4129748344"
 
 local keepImageId = "rbxassetid://3464269762"
+local nameCache = {}
 
+local function textWithShadow(text, position, color)
+    
+    if nameCache[text] then
+        text = nameCache[text]
+    else
+        nameCache[text] = Players:GetNameFromUserIdAsync(text)
+        text = nameCache[text]
+    end
+
+    return Roact.createElement(Label, {
+        Text = text,
+        Position = position,
+        Color = Color3.fromRGB(33, 33, 33),
+        TextSize = 28,
+        XAlign = "Center",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Size = UDim2.new(0, 300, 0, 50)
+    }, {
+        white = Roact.createElement(Label, {
+            Text = text,
+            Position = UDim2.new(0, -1, 0, -1),
+            Size = UDim2.new(1, 0, 1, 0),
+            Color = color or Color3.fromRGB(255, 255, 255),
+            TextSize = 28,
+            XAlign = "Center",
+            AnchorPoint = Vector2.new(0, 0),
+        })
+    })
+end
 
 function PartitionVisualistion:init()
     self.frameRef = Roact.createRef()
@@ -98,6 +129,8 @@ function PartitionVisualistion:render()
             BackgroundTransparency = 1,
             Position = UDim2.new(position.x * 0.2, 0, -position.y * 0.2, 0),
             AnchorPoint = Vector2.new(0.5, 0.5),
+        }, {
+            label = textWithShadow(ownerId, UDim2.new(0.5,0,0,10))
         }))
 
     end
@@ -123,7 +156,7 @@ function PartitionVisualistion:didMount()
     keepIndicator.AnchorPoint = Vector2.new(0.5, 0.5)
     keepIndicator.Size = UDim2.new(0, 60, 0, 60)
 
-    self.wheelForward = mouse.WheelForward:Connect(function()
+    --[[self.wheelForward = mouse.WheelForward:Connect(function()
         local frame = self.frameRef:getValue()
 
         if not frame then return end
@@ -148,13 +181,13 @@ function PartitionVisualistion:didMount()
 
         frame.Size = frame.Size - UDim2.new(0, 1, 0, 1)
         frame.Position = UDim2.new(0.5, frame.Position.X.Offset * difference, 0.5, frame.Position.Y.Offset * difference)
-    end)
+    end)]]--
 
     local changed = UIS.InputChanged:Connect(function(input, processed) 
         
         if processed then return end
 
-        local movementDelta = UIS:GetMouseLocation() - lastPosition
+        --local movementDelta = UIS:GetMouseLocation() - lastPosition
         lastPosition = UIS:GetMouseLocation()
 
         if not placing then
@@ -162,14 +195,14 @@ function PartitionVisualistion:didMount()
             keepIndicator.Position = UDim2.new(0, lastPosition.x, 0, lastPosition.y)
         end
         
-        if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+        --[[if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
             local frame = self.frameRef:getValue()
 
             if not frame then return end
 
             local size = frame.Size.X.Offset
             frame.Position = frame.Position + UDim2.new(0, movementDelta.x, 0, movementDelta.y)
-        end
+        end]]--
     end)
 
     local lastClick = 0

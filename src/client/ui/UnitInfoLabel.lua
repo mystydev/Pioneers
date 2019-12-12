@@ -52,6 +52,7 @@ function UnitInfoLabel:render()
 
         if res and amount and amount > 0 then
             displayImage = CarryDisplay[res] or StateDisplay[Unit.UnitState.LOST]
+            amount = math.floor(amount)
             text = "Carrying " .. (amount or "?") .. " " .. res
         else
             displayImage = ""

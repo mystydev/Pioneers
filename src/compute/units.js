@@ -81,7 +81,7 @@ units.initialiseNewUnit = async (unitId, ownerId, pos) => {
 }
 
 units.addResource = async (unit, res, amount) => {
-    unit.HeldAmount = parseInt(unit.HeldAmount)
+    unit.HeldAmount = parseFloat(unit.HeldAmount)
     if (unit.HeldResource != res) {
         unit.HeldResource = res
         unit.HeldAmount = amount
@@ -215,18 +215,18 @@ units.processUnit = async (unit, inCombat) => {
             break
         
         case UnitState.STORING:
-            let perRoundProduce = Math.floor(unit.HeldAmount / unit.StepsSinceStore)
+            let perRoundProduce = unit.HeldAmount / unit.StepsSinceStore
             
-            if (Number.isInteger(perRoundProduce)) {
+            if (Number.isFinite(perRoundProduce)) {
                 if (perRoundProduce != unit.PerRoundProduce || unit.HeldResource != unit.ResourceCollected) {
 
                     if (unit.ResourceCollected) {
-                        let oldFood = Math.floor((common.MAX_FATIGUE * common.FOOD_PER_FATIGUE) / unit.TripLength)
+                        let oldFood = (common.MAX_FATIGUE * common.FOOD_PER_FATIGUE) / unit.TripLength
                         userstats.removePerRoundProduce(unit.OwnerId, unit.ResourceCollected, unit.PerRoundProduce)
                         userstats.addPerRoundProduce(unit.OwnerId, resource.Type.FOOD, oldFood)
                     }
 
-                    let newFood = Math.floor((common.MAX_FATIGUE * common.FOOD_PER_FATIGUE) / unit.StepsSinceStore)
+                    let newFood = (common.MAX_FATIGUE * common.FOOD_PER_FATIGUE) / unit.StepsSinceStore
                     userstats.removePerRoundProduce(unit.OwnerId, resource.Type.FOOD, newFood)
                     userstats.addPerRoundProduce(unit.OwnerId, unit.HeldResource, perRoundProduce)
                     unit.TripLength = unit.StepsSinceStore

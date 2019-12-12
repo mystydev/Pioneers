@@ -17,7 +17,7 @@ local unitToInstanceMap = {}
 local modelToUnitMap = {}
 local currentWorld
 
-local POSITION_OFFSET = Vector3.new(0, 5, 0) + Vector3.new(0, 1.01, 0)
+local POSITION_OFFSET = Vector3.new(0, 5, 0)-- + Vector3.new(0, 1.01, 0)
 local WALK_VELOCITY = 0.5 --1/seconds to walk required distance
 local MAX_FATIGUE = 10
 
@@ -150,7 +150,7 @@ local function displayWorkPopup(instance, unit)
     end
 
     unit.PerRoundProduce = unit.PerRoundProduce or 0
-    local rate = math.clamp(unit.PerRoundProduce/4, 0, 2.5)
+    local rate = math.clamp(unit.PerRoundProduce*1.5, 0, 2.5)
 
     model.HumanoidRootPart.StatusEmitter.Enabled = true
     model.HumanoidRootPart.StatusEmitter.Rate = rate

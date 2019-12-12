@@ -48,19 +48,19 @@ Tile.Description[Tile.GATE]     = "As safe as a wall but now villagers can freel
 Tile.ConstructionCosts = {}
 Tile.ConstructionCosts[Tile.KEEP]     = {Stone =   0,   Wood =    0}
 Tile.ConstructionCosts[Tile.PATH]     = {Stone =   20,  Wood =    0}
-Tile.ConstructionCosts[Tile.HOUSE]    = {Stone =  100,  Wood =  100}
+Tile.ConstructionCosts[Tile.HOUSE]    = {Stone =  100,  Wood =  150}
 Tile.ConstructionCosts[Tile.FARM]     = {Stone =   75,  Wood =   75}
 Tile.ConstructionCosts[Tile.MINE]     = {Stone =    0,  Wood =  150}
 Tile.ConstructionCosts[Tile.FORESTRY] = {Stone =  150,  Wood =    0}
-Tile.ConstructionCosts[Tile.STORAGE]  = {Stone =  500,  Wood =  500}
-Tile.ConstructionCosts[Tile.BARRACKS] = {Stone =  500,  Wood =  300}
+Tile.ConstructionCosts[Tile.STORAGE]  = {Stone = 1000,  Wood = 1300}
+Tile.ConstructionCosts[Tile.BARRACKS] = {Stone = 3000,  Wood = 3000}
 Tile.ConstructionCosts[Tile.WALL]     = {Stone = 1000,  Wood = 1000}
 Tile.ConstructionCosts[Tile.GATE]     = {Stone = 1000,  Wood = 1500}
 
 Tile.MaintenanceCosts = {}
 Tile.MaintenanceCosts[Tile.KEEP]     = {Stone = 0,  Wood = 0}
 Tile.MaintenanceCosts[Tile.PATH]     = {Stone = 0,  Wood = 0}
-Tile.MaintenanceCosts[Tile.HOUSE]    = {Stone = 0,  Wood = 0}
+Tile.MaintenanceCosts[Tile.HOUSE]    = {Stone = 0.3,  Wood = 0.3}
 Tile.MaintenanceCosts[Tile.FARM]     = {Stone = 0,  Wood = 0}
 Tile.MaintenanceCosts[Tile.MINE]     = {Stone = 0,  Wood = 0}
 Tile.MaintenanceCosts[Tile.FORESTRY] = {Stone = 0,  Wood = 0}

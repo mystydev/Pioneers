@@ -17,8 +17,7 @@ end
 
 function PartitionView:render()
 
-
-    local partitionOverview = Replication.getPartitionOwnership(x, y)
+    local partitionOverview = Replication.getPartitionOwnership(0, 0)
     local ownershipMap = partitionOverview.owner
     local keepMap = partitionOverview.keep
 

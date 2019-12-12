@@ -71,6 +71,15 @@ function ResourceLabel:render()
             XAlign = "Left",
             Color = Color3.fromRGB(215,215,215)
         })
+
+        elements.Limit = Roact.createElement(Label, {
+            Text = "/ "..(self.state.limit or '?'), 
+            TextSize = 16, 
+            Position = UDim2.new(0, -60, 0, 13),
+            AnchorPoint = Vector2.new(0, 0),
+            Size = UDim2.new(1,0,1,0),
+            XAlign = "Right",
+        })
     end
 
 
@@ -108,10 +117,11 @@ function ResourceLabel:didMount()
 
                 local cost = self.state.stats[self.state.Type.."Cost"] or 0
                 local produce = self.state.stats[self.state.Type.."Produced"] or 0
-
+            
                 return {
                     display = newval,
-                    change = math.floor(produce - cost),
+                    change = math.floor((produce - cost)*10)/10,
+                    limit = self.state.stats[self.state.Type.."Limit"]
                 }
                 
             end)

@@ -47,6 +47,7 @@ local worldgui     = Instance.new("ScreenGui", player.PlayerGui)
 local screengui    = Instance.new("ScreenGui", player.PlayerGui)
 local viewport     = Instance.new("ViewportFrame", worldgui)
 local blur         = Instance.new("BlurEffect")
+local placementHighlight = Assets.Grass:Clone()
 local vignette     = StarterGui.Vignette:Clone()
 local desaturate   = Lighting.BaseCorrection
 local tweenSlow    = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -117,6 +118,7 @@ function UIBase.init(world, displaystats)
     PartitionView       = require(ui.partitionOverview.PartitionView)
     CurrentLevelDisplay = require(ui.progression.CurrentLevelDisplay)
 
+    placementHighlight.CFrame = CFrame.new(0,math.huge,0)
     gameSettings = Replication.getGameSettings()
 end
 
@@ -256,6 +258,7 @@ end
 
 function UIBase.exitBuildView()
     if UIState == UIBase.State.BUILD or UIState == UIBase.State.TILEBUILD then
+        placementHighlight.CFrame = CFrame.new(0,math.huge,0)
         UIState = UIBase.State.MAIN
         UIBase.hideBuildList()
         UIBase.refocusBackground()
@@ -330,7 +333,7 @@ function UIBase.promptSelectWork(workType, unitpos) --unitpos is a military unit
             local canAssign = World.canAssignWorker(Replication.getTiles(), tile, gameSettings.MAX_STORAGE_DIST)
 
             if canAssign == false  then
-                UIBase.displayTileMarker(tile)
+                UIBase.displayTileMarker(tile, UIBase.TileMarker.NOSTORAGE)
             elseif canAssign then
                 local inst = ViewTile.getInstFromTile(tile)
                 UIBase.highlightInst(inst)
@@ -402,10 +405,15 @@ function UIBase.highlightType(type, showBuildable)
     end
 end
 
-local placementHighlight = Assets.Grass:Clone()
-placementHighlight.CFrame = CFrame.new(0,math.huge,0)
 function UIBase.highlightBuildableTile(tile, type)
     local inst = ViewTile.getInstFromTile(tile)
+
+    local partitionOwner = Replication.getCachedPartitionOwner(tile.Position.x, tile.Position.y)
+    if partitionOwner and tonumber(partitionOwner) ~= player.UserId then
+        UIBase.displayTileMarker(tile, UIBase.TileMarker.NOOWNERSHIP)
+        return
+    end
+
     local clone = UIBase.highlightInst(inst, 0.5)
 
     local stats = Replication.getUserStats()
@@ -413,8 +421,8 @@ function UIBase.highlightBuildableTile(tile, type)
 
     local storage, distance = World.getClosestStorageToTile(Replication.getTiles(), tile.Position)
 
-    if distance >  gameSettings.MAX_STORAGE_DIST then
-        UIBase.displayTileMarker(tile)
+    if distance > gameSettings.MAX_STORAGE_DIST then
+        UIBase.displayTileMarker(tile, UIBase.TileMarker.NOSTORAGE)
     end
 
     if clone then
@@ -779,7 +787,7 @@ function UIBase.yesNoPrompt(title, message)
 end
 
 --choices = {{Text = "...", Color = ...}, {Text=....}}
-function UIBase.choicePrompt(title, message, choices)
+function UIBase.choicePrompt(title, message, choices, props)
 
     UIBase.waitForPromptDismissal()
     UIBase.unfocusBackground()
@@ -798,12 +806,13 @@ function UIBase.choicePrompt(title, message, choices)
                 Event = function() clicked = i if not v.Disabled then UIBase.dismissPrompt() end end,
             }
         end
+        
+        props = props or {}
+        props.Title = title
+        props.Text = message
+        props.Buttons = buttons
 
-        promptHandle = Roact.mount(Roact.createElement(DefaultPrompt, {
-            Title = title,
-            Text = message,
-            Buttons = buttons,
-        }), screengui)
+        promptHandle = Roact.mount(Roact.createElement(DefaultPrompt, props), screengui)
 
     end
 
@@ -858,12 +867,19 @@ end
 
 UIBase.TileMarker = {}
 UIBase.TileMarker.NOSTORAGE = 1
+UIBase.TileMarker.NOOWNERSHIP = 2
+
+TileMarkerIcons = {}
+TileMarkerIcons[UIBase.TileMarker.NOSTORAGE] = "rbxassetid://4486323066"
+TileMarkerIcons[UIBase.TileMarker.NOOWNERSHIP] = "rbxassetid://3616348293"
+
 function UIBase.displayTileMarker(tile, markerType)
     local inst, updateInst = Roact.createBinding(ViewTile.getInstFromTile(tile))
 
     if not tileMarkers[tile] then
         tileMarkers[tile] = Roact.mount(Roact.createElement(TileMarker, {
-            inst = inst
+            inst = inst,
+            imageId = TileMarkerIcons[markerType]
         }), screengui)
     end
 end

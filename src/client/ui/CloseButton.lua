@@ -14,7 +14,7 @@ local function CloseButton(props)
         TextSize               = 24,
         TextTransparency       = 0.4,
         AnchorPoint            = props.AnchorPoint or Vector2.new(0, 0),
-        [Roact.Event.MouseButton1Click] = UIBase.exitInfoView
+        [Roact.Event.MouseButton1Click] = props.OnClick
     })
 end
 

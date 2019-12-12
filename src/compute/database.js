@@ -378,27 +378,12 @@ database.getUnitsAtPartitions = async (partitions) => {
     return unitList
 }
 
-database.getAllStats = async () => {
-    let Stats = {}
-    let stats = await redis.hgetall('stats')
-    let num = 0
-
-    for (let key in stats) {
-        Stats[key] = userstats.sanitise(JSON.parse(stats[key]))
-        num++
-    }
-
-    console.log("Loaded", num, "stats!")
-
-    return Stats
-}
-
 database.getStat = (id, type) => {
     return redis.hget("stats:"+id, type)
 }
 
 database.addStat = (id, type, amount) => {
-    redis.hincrby("stats:"+id, type, parseInt(amount || 0))
+    redis.hincrbyfloat("stats:"+id, type, parseFloat(amount || 0))
 }
 
 database.setStat = (id, type, value) => {

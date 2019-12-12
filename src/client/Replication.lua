@@ -23,6 +23,7 @@ local strayed = {}
 local buildCostBuffer = {}
 local unitReferences = {}
 local unrequestedUnits = {}
+local partitionOwners = {}
 local chats = {}
 local syncing = 0
 local UIBase = nil
@@ -396,6 +397,29 @@ function Replication.requestKingdomDeletion()
     Network.RequestKingdomDeletion:InvokeServer()
     wait(2)
     Network.PlayerRejoined:InvokeServer()
+end
+
+spawn(function()
+
+    repeat
+        wait(1)
+    until currentWorld
+
+    repeat
+        local pos =  Util.worldCoordToAxialCoord(ClientUtil.getPlayerPosition())
+        local partitionOwnership = Replication.getPartitionOwnership(pos.x, pos.y)
+
+        for partitionId, ownerId in pairs(partitionOwnership.owner) do
+            partitionOwners[partitionId] = ownerId
+        end
+
+        wait(10)
+    until currentWorld.Dead
+end)
+
+function Replication.getCachedPartitionOwner(x, y)
+    local partitionId = Util.findPartitionId(x, y)
+    return partitionOwners[partitionId]
 end
 
 return Replication

@@ -7,6 +7,8 @@ local Util          = require(Common.Util)
 local Tile          = require(Common.Tile)
 local ActionHandler = require(Client.ActionHandler)
 local SoundManager  = require(Client.SoundManager)
+local UIBase        = require(Client.UIBase)
+local ToolTip       = require(ui.common.ToolTip)
 
 local TweenService = game:GetService("TweenService")
 local AssignWorkButton = Roact.Component:extend("AssignWorkButton")
@@ -23,19 +25,23 @@ infoTable[Tile.GRASS]       = {Image = "rbxassetid://3480804296", Position = UDi
 
 function AssignWorkButton:onClick()
     if self.props.Unit then
-        self.props.UIBase.promptSelectWork(self.props.Type, self.props.Unit.Position)
+        UIBase.promptSelectWork(self.props.Type, self.props.Unit.Position)
     else
-        self.props.UIBase.promptSelectWork(self.props.Type)
+        UIBase.promptSelectWork(self.props.Type)
     end
 end
 
 function AssignWorkButton:onEnter()
     SoundManager.rollover()
-    TweenService:Create(self.state.ref:getValue(), quick, {ImageTransparency = 0}):Play()
+    if self.state.ref:getValue() then
+        TweenService:Create(self.state.ref:getValue(), quick, {ImageTransparency = 0}):Play()
+    end
 end
 
 function AssignWorkButton:onLeave()
-    TweenService:Create(self.state.ref:getValue(), quick, {ImageTransparency = 0.5}):Play()
+    if self.state.ref:getValue() then
+        TweenService:Create(self.state.ref:getValue(), quick, {ImageTransparency = 0.5}):Play()
+    end
 end
 
 function AssignWorkButton:init()
@@ -49,6 +55,23 @@ function AssignWorkButton:render()
     local children = {}
     local isWorking = self.props.Unit and Util.worksOnTileType(self.props.Unit.Type, self.props.Type)
 
+    children.mouseArea = Roact.createElement("TextButton", {
+        Text = "",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Size = UDim2.new(0, 60, 0, 60),
+        [Roact.Event.MouseButton1Click] = function() self:onClick() end,
+        [Roact.Event.MouseEnter] = function() self:onEnter() end,
+        [Roact.Event.MouseLeave] = function() self:onLeave() end,
+    }, {
+        tooltip = (not isWorking) and Roact.createElement(ToolTip, {
+            Position = UDim2.new(0.5, 0, 0.5, -30),
+            Text = "Assign to " .. Tile.Localisation[self.props.Type],
+        })
+    })
+
     if isWorking then
         children.dismiss = Roact.createElement("ImageButton", {
             Name                   = "DismissWork",
@@ -58,12 +81,19 @@ function AssignWorkButton:render()
             AnchorPoint            = Vector2.new(0.5, 0.5),
             Image                  = "rbxassetid://3616348293",
             ImageTransparency      = 0.5,
+            ZIndex                 = 2,
             [Roact.Event.MouseButton1Click] = function() ActionHandler.assignWork(self.props.Unit, nil) end,
             [Roact.Ref] = self.state.ref,
+        }, {
+            tooltip = Roact.createElement(ToolTip, {
+                Position = UDim2.new(0.5, 0, 0.5, -30),
+                Size = UDim2.new(0, 150, 0, 40),
+                Text = "Dismiss from " .. Tile.Localisation[self.props.Type],
+            }),
         })
     end
 
-    return Roact.createElement("ImageButton", {
+    return Roact.createElement("ImageLabel", {
         Name                   = "AssignWorkButton",
         BackgroundTransparency = 1,
         Position               = infoTable[self.props.Type].Position,
@@ -71,9 +101,6 @@ function AssignWorkButton:render()
         AnchorPoint            = Vector2.new(0.5, 0.5),
         Image                  = infoTable[self.props.Type].Image,
         ImageTransparency      = isWorking and 0 or 0.5,
-        [Roact.Event.MouseButton1Click] = function() self:onClick() end,
-        [Roact.Event.MouseEnter] = function() self:onEnter() end,
-        [Roact.Event.MouseLeave] = function() self:onLeave() end,
         [Roact.Ref] = not isWorking and self.state.ref or nil,
     }, children)
 end

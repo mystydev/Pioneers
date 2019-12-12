@@ -14,7 +14,7 @@ local function Title(props)
         TextColor3             = props.Color or Color3.fromRGB(112, 112, 112),
         TextXAlignment         = props.TextXAlignment or "Center",
         AnchorPoint            = props.AnchorPoint or Vector2.new(0.5, 0.5),
-    })
+    }, props[Roact.Children])
 end
 
 return Title

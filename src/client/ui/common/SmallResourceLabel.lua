@@ -72,6 +72,12 @@ function SmallResourceLabel:didMount()
                         return
                     end
                     
+                    if delta  < 1 then
+                        return {
+                            Value = val[self.props.Type]
+                        }
+                    end
+
                     if (delta > 0) then
                         delta = math.floor(math.max(delta, 1) + 0.5)
                     else
