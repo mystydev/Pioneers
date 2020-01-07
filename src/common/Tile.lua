@@ -159,8 +159,12 @@ function Tile.isStorageTile(tile)
     return tile.Type == Tile.KEEP or tile.Type == Tile.STORAGE
 end
 
-function Tile.isWalkable(tile)
-    return tile.Type == Tile.PATH or tile.Type == Tile.GATE
+function Tile.isWalkable(tile, isMilitary)
+    if not isMilitary then
+        return tile.Type == Tile.PATH or tile.Type == Tile.GATE
+    else
+        return tile.Type == Tile.PATH or tile.Type == Tile.GATE or tile.Type == Tile.GRASS
+    end
 end
 
 return Tile

@@ -20,6 +20,7 @@ UIBase.State.INFO = 4
 UIBase.State.SELECTWORK = 5
 UIBase.State.FEEDBACK = 6
 UIBase.State.FINDKINGDOM = 7
+UIBase.State.UNITCONTROL = 8
 
 local buildListHandle
 local infoHandle
@@ -94,6 +95,7 @@ function UIBase.init(world, displaystats)
     Replication         = require(Client.Replication)
     ClientUtil          = require(Client.ClientUtil)
     SoundManager        = require(Client.SoundManager)
+    UnitControl         = require(Client.UnitControl)
     StatsPanel          = require(ui.StatsPanel)
     InitiateBuildButton = require(ui.build.InitiateBuildButton)
     BuildList           = require(ui.build.BuildList)
@@ -117,6 +119,7 @@ function UIBase.init(world, displaystats)
     FindKingdom         = require(ui.teleport.FindKingdom)
     PartitionView       = require(ui.partitionOverview.PartitionView)
     CurrentLevelDisplay = require(ui.progression.CurrentLevelDisplay)
+    UnitSpots           = require(ui.unitControl.UnitSpots)
 
     placementHighlight.CFrame = CFrame.new(0,math.huge,0)
     gameSettings = Replication.getGameSettings()
@@ -711,6 +714,12 @@ local function mouseRightClicked(input)
     end
 end
 
+local function keyPressed(input)
+    if input.UserInputState == Enum.UserInputState.End and input.KeyCode == Enum.KeyCode.P then
+        UIBase.toggleUnitControlSpots()
+    end
+end
+
 local lastRightDown = tick()
 local function processInput(input, processed)
     if processed then return end
@@ -726,6 +735,8 @@ local function processInput(input, processed)
         end
 
         lastRightDown = tick()
+    elseif input.UserInputType == Enum.UserInputType.Keyboard then
+        keyPressed(input)
     end
 end
 
@@ -888,6 +899,36 @@ function UIBase.unmountTileMarkers()
     for tile, marker in pairs(tileMarkers) do
         Roact.unmount(marker)
         tileMarkers[tile] = nil
+    end
+end
+
+function UIBase.displayUnitControlSpots()
+    if UIState == UIBase.State.MAIN then
+        if not controlSpots then
+            UnitControl.evalLocalArea()
+            controlSpots = Roact.mount(Roact.createElement(UnitSpots), screengui)
+        end
+
+        UIState = UIBase.State.UNITCONTROL
+    end
+end
+
+function UIBase.unmountUnitControlSpots()
+    if UIState == UIBase.State.UNITCONTROL then
+        if controlSpots then
+            Roact.unmount(controlSpots)
+            controlSpots = nil
+        end
+
+        UIState = UIBase.State.MAIN
+    end
+end
+
+function UIBase.toggleUnitControlSpots()
+    if not controlSpots then
+        UIBase.displayUnitControlSpots()
+    else
+        UIBase.unmountUnitControlSpots()
     end
 end
 

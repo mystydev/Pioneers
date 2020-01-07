@@ -4,7 +4,7 @@ metadata:
   name: pioneers-dev-compute-node
   namespace: default
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       run: pioneers-dev-compute-node

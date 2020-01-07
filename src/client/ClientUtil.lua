@@ -1,5 +1,7 @@
 local ClientUtil = {}
+local Common = game.ReplicatedStorage.Pioneers.Common
 
+local Util = require(Common.Util)
 local Players = game:GetService("Players")
 
 local camera = Workspace.CurrentCamera
@@ -18,6 +20,16 @@ end
 
 function ClientUtil.getCurrentViewDistance()
     return viewDistance
+end
+
+function ClientUtil.getTilePositionUnderPlayer()
+    local char = Players.LocalPlayer.Character
+
+    if not (char and char:FindFirstChild("HumanoidRootPart")) then
+        return end
+    
+    local position = char.HumanoidRootPart.Position
+    return Util.worldCoordToAxialCoord(position)
 end
 
 return ClientUtil

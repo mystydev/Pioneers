@@ -389,6 +389,10 @@ function Replication.getTiles()
     return currentWorld.Tiles
 end
 
+function Replication.getTileXY(x, y)
+    return World.getTileXY(currentWorld.Tiles, x, y)
+end
+
 function Replication.getUnits()
     return currentWorld.Units
 end
