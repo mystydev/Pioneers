@@ -260,7 +260,7 @@ end
 
 function Replication.requestTileRepair(tile)
     coroutine.wrap(ViewTile.simulateRepair)(tile)
-    success = Network.RequestTileRepair:InvokeServer(tile)
+    local success = Network.RequestTileRepair:InvokeServer(tile)
 
     if not success then
         print("Tile repair request failed!")

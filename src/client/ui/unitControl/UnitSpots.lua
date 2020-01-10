@@ -5,6 +5,7 @@ local Common       = game.ReplicatedStorage.Pioneers.Common
 local Client       = ui.Parent
 
 local RunService   = game:GetService("RunService")
+local Players      = game:GetService("Players")
 
 local ClientUtil   = require(Client.ClientUtil)
 local ViewWorld    = require(Client.ViewWorld)
@@ -13,8 +14,10 @@ local Util         = require(Common.Util)
 local UnitSpot     = require(ui.unitControl.UnitSpot)
 
 local UnitSpots  = Roact.Component:extend("UnitSpots")
+local Player = Players.LocalPlayer
 local displayedLinks = {}
 local displayedMap = {}
+local mousePosition, updateMousePosition = Roact.createBinding(Vector3.new(0,0,0))
 
 local function linkDisplayed(n1, n2)
     return (displayedMap[n1] and displayedMap[n1][n2]) or (displayedMap[n2] and displayedMap[n2][n1])
@@ -48,7 +51,9 @@ local function updateLink(link, beam)
 end
 
 function UnitSpots:init()
-
+    self:setState({
+        nodes = {}
+    })
 end
 
 function UnitSpots:render()
@@ -56,12 +61,24 @@ function UnitSpots:render()
 
     local links = UnitControl.getLinks()
 
-    for i, node in pairs(UnitControl.getNodes()) do
+    for i, node in pairs(self.state.nodes) do
         spots[i] = Roact.createElement(UnitSpot, {
             node = node,
-            rootPart = rootPart,
             links = links,
+            mousePosition = mousePosition,
+            type = node.type,
         })
+    end
+
+    for i, node in pairs(UnitControl.getNodes()) do
+        if node.type == "F" and not spots[i] then
+            spots[i] = Roact.createElement(UnitSpot, {
+                node = node,
+                links = links,
+                mousePosition = mousePosition,
+                type = node.type,
+            })
+        end
     end
 
     for n1, linktab in pairs(links) do
@@ -95,9 +112,31 @@ function UnitSpots:render()
 end
 
 function UnitSpots:didMount()
+    if self.event then return end
+    local mouse = Player:GetMouse()
+
+    self.running = true
+    local lastupdate = tick()
+
+    self.event = RunService.Stepped:Connect(function()
+        updateMousePosition(mouse.hit.p)
+
+        --if tick() - lastupdate > 0.5 then
+            lastupdate = tick()
+        
+            self:setState({
+                nodes = UnitControl.evalLocalArea(mouse.hit.p),
+            })
+        --end
+    end)
 end
 
 function UnitSpots:willUnmount()
+    if self.event then
+        self.event:Disconnect()
+        self.event = nil
+    end
+
     for link, beam in pairs(displayedLinks) do
         beam:Destroy()
         link.updateDisplay = nil

@@ -89,13 +89,13 @@ local function start()
     --UIBase.waitForPromptDismissal()
     UIBase.showStats()
     UIBase.showLocation()
-    UIBase.showChatBox()
+    --UIBase.showChatBox()
     UIBase.showFeedbackButton()
     --UIBase.showFindKingdomButton()
     UIBase.showBuildButton()
     UIBase.showProgressionUI(stats)
+    UIBase.showUnitControlButton()
     UIBase.enableManagedInput()
-
 end
 
 local UIS = game:GetService("UserInputService")

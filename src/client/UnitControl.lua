@@ -11,7 +11,7 @@ local Util = require(Common.Util)
 --This way every unit can reach each other (as they have a reach of 0.5 hexagons)
 --however they are still regularly spaced so replication is easily consistent
 
-local evalSize = 13
+local evalSize = 2
 local nodes = {}
 local links = {}
 
@@ -53,18 +53,30 @@ local function updateLink(links, source, target, values)
     links[source][target] = link
 end
 
+local evaluated
 function UnitControl.evalNodePosition(position)
-    if not nodes[posToIndex(position)] then
-        nodes[posToIndex(position)] = {
+
+    local index = posToIndex(position)
+
+    if not nodes[index] then
+        nodes[index] = {
             location = position,
             walkable = true,
         }
     end
 
-    local node = nodes[posToIndex(position)]
+    local node = nodes[index]
 
-    node.attachment = Instance.new("Attachment", rootPart)
-    node.attachment.WorldPosition = Util.axialCoordToWorldCoord(position) + Vector3.new(0, 4, 0)
+    if not node.attachment then
+        node.attachment = Instance.new("Attachment", rootPart)
+    end
+
+    local worldPosition = Util.axialCoordToWorldCoord(position) + Vector3.new(0, 2, 0)
+
+    if node.worldPosition ~= worldPosition then
+        node.worldPosition = worldPosition
+        node.attachment.WorldPosition = worldPosition
+    end
 
     local tile1 = Replication.getTileXY(math.floor(position.x), math.floor(position.y))
     local tile2 = Replication.getTileXY(math.ceil(position.x), math.ceil(position.y))
@@ -73,6 +85,8 @@ function UnitControl.evalNodePosition(position)
     node.walkable = node.walkable and Tile.isWalkable(tile1, true)
     node.walkable = node.walkable and Tile.isWalkable(tile2, true)
     node.walkable = node.walkable and Tile.isWalkable(tile3, true)
+
+    evaluated[index] = node
 
     return node
 end
@@ -269,8 +283,15 @@ function UnitControl.performRouting()
     end
 end
 
-function UnitControl.evalLocalArea()
-    local playerPosition = ClientUtil.getTilePositionUnderPlayer()
+function UnitControl.evalLocalArea(playerPosition)
+    debug.profilebegin("UnitControl.evalLocalArea")
+    if not playerPosition then
+        playerPosition = ClientUtil.getTilePositionUnderPlayer()
+    else
+        playerPosition = Util.worldCoordToAxialCoord(playerPosition)
+    end
+
+    evaluated = {}
 
     for x = -evalSize, evalSize do
         for y = -evalSize, evalSize do
@@ -280,7 +301,10 @@ function UnitControl.evalLocalArea()
         end
     end
 
-    UnitControl.evalWalkableLinks()
+    debug.profileend()
+
+    return evaluated
+    --UnitControl.evalWalkableLinks()
 end
 
 function UnitControl.getNodes()

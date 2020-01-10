@@ -115,7 +115,6 @@ local function unequipTool(instance, unit)
 end
 
 local function unequipToolWithLeftHand(instance, unit)
-    local model = instance.model
     local tool = instance.tool
 
     if not tool then return end
@@ -285,16 +284,6 @@ local function attackHeading(instance, unit)
     return cframeToHeading(direction)
 end
 
-local function queueAnimation(instance, unit, animation)
-
-    if instance.currentAnim then
-        instance.currentAnim:GetMarkerReachedSignal("Finished"):Wait()
-    end
-
-    local nextAnim = instance.model.Humanoid:LoadAnimation(animation)
-    nextAnim:Play()
-end
-
 --Create a new unit instance
 local function initiateNewUnit(unit)
     assert(unit, "Undefined unit passed to initiateNewUnit")
@@ -333,15 +322,13 @@ local function displayUpdateLoop(time, frameDelta)
 end
 
 --Update already existing view to closer resemble underlying data
-function ViewUnit.stepDisplay(unit, instance, frameDelta, viewPosition)
-    if unit.Health <= 0 or unit.State == Unit.UnitState.DEAD then
-        return end
+function ViewUnit.stepDisplay(unit, instance, frameDelta, camPosition)
 
-    if unit.preventUpdates then
-        return end
+    if unit.Health <= 0 or unit.State == Unit.UnitState.DEAD then return end
+    if unit.preventUpdates then return end
     
     local model = instance.model
-    local viewDistance = (unit.Position - viewPosition).magnitude
+    local viewDistance = (unit.Position - camPosition).magnitude
 
     if viewDistance > ClientUtil.getCurrentViewDistance() then
         --model.Parent = nil
@@ -354,7 +341,8 @@ function ViewUnit.stepDisplay(unit, instance, frameDelta, viewPosition)
 
     if (updateTime - (unit.lastStep or 0)) < viewDistance / 300 then
         unit.missedDelta = (unit.missedDelta or 0) + frameDelta
-        return end
+        return 
+    end
     
     frameDelta = (unit.missedDelta or 0) + frameDelta
     unit.lastStep = updateTime
@@ -402,7 +390,8 @@ function ViewUnit.stepDisplay(unit, instance, frameDelta, viewPosition)
 
     --is lookatHeading nan
     if instance.lookatHeading ~= instance.lookatHeading then 
-        return end 
+        return 
+    end 
 
     local headingDelta = headingDifference(viewHeading, instance.lookatHeading)
     local newPosition = viewPosition + viewOrientation * Vector3.new(0,0,-1) * instance.velocity * frameDelta
@@ -426,8 +415,7 @@ function ViewUnit.updateDisplay(unit, frameDelta)
         initiateNewUnit(unit)
     end
 
-    if unit.preventUpdates then
-        return end
+    if unit.preventUpdates then return end
     
     local instance = unitToInstanceMap[unit]
     local transition = FSM.toState(instance.fsm, unit.State)

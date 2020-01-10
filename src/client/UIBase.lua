@@ -22,6 +22,7 @@ UIBase.State.FEEDBACK = 6
 UIBase.State.FINDKINGDOM = 7
 UIBase.State.UNITCONTROL = 8
 
+local buildButtonHandle
 local buildListHandle
 local infoHandle
 local adminHandle
@@ -33,6 +34,7 @@ local findKingdomHandle
 local partitionViewHandle
 local loadingHandle
 local progressionHandle
+local unitControlButtonHandle
 local stats
 local statsBinding, setStats = Roact.createBinding()
 local currentWorld = {}
@@ -120,6 +122,7 @@ function UIBase.init(world, displaystats)
     PartitionView       = require(ui.partitionOverview.PartitionView)
     CurrentLevelDisplay = require(ui.progression.CurrentLevelDisplay)
     UnitSpots           = require(ui.unitControl.UnitSpots)
+    InitiateControlButton = require(ui.unitControl.InitiateControlButton)
 
     placementHighlight.CFrame = CFrame.new(0,math.huge,0)
     gameSettings = Replication.getGameSettings()
@@ -132,10 +135,13 @@ function UIBase.highlightCharacter()
     UIBase.highlightModel(player.Character)
 end
 
-function UIBase.unfocusBackground()
+function UIBase.unfocusBackground(blurVal, saturation)
+    blurVal = blurVal or 20
+    saturation = saturation or -0.5
+
     SoundManager.pullFocus()
-    TweenService:Create(blur, tweenSlow, {Size = 20}):Play()
-    TweenService:Create(desaturate, tweenSlow, {Saturation = -0.5}):Play()
+    TweenService:Create(blur, tweenSlow, {Size = blurVal}):Play()
+    TweenService:Create(desaturate, tweenSlow, {Saturation = saturation}):Play()
     --UIBase.highlightCharacter()
 end
 
@@ -245,9 +251,16 @@ function UIBase.showFindKingdomButton()
 end
 
 function UIBase.showBuildButton()
-    Roact.mount(Roact.createElement(InitiateBuildButton, {
+    buildButtonHandle = Roact.mount(Roact.createElement(InitiateBuildButton, {
         UIBase = UIBase,
     }), screengui)
+end
+
+function UIBase.hideBuildButton()
+    if buildButtonHandle then
+        Roact.unmount(buildButtonHandle)
+        buildButtonHandle = false
+    end
 end
 
 function UIBase.showBuildList()
@@ -266,6 +279,10 @@ function UIBase.exitBuildView()
         UIBase.hideBuildList()
         UIBase.refocusBackground()
         UIBase.unmountTileMarkers()
+
+        if unitControlButtonHandle ~= nil then
+            UIBase.showUnitControlButton()
+        end
     end
 end
 
@@ -274,6 +291,7 @@ function UIBase.transitionToBuildView()
         UIState = UIBase.State.BUILD
         UIBase.showBuildList()
         UIBase.unfocusBackground()
+        UIBase.hideUnitControlButton()
     end
 end
 
@@ -904,20 +922,27 @@ end
 
 function UIBase.displayUnitControlSpots()
     if UIState == UIBase.State.MAIN then
+        UIBase.unfocusBackground(6, -0.7)
         if not controlSpots then
             UnitControl.evalLocalArea()
             controlSpots = Roact.mount(Roact.createElement(UnitSpots), screengui)
         end
 
+        UIBase.hideBuildButton()
         UIState = UIBase.State.UNITCONTROL
     end
 end
 
 function UIBase.unmountUnitControlSpots()
     if UIState == UIBase.State.UNITCONTROL then
+        UIBase.refocusBackground()
         if controlSpots then
             Roact.unmount(controlSpots)
             controlSpots = nil
+        end
+
+        if buildButtonHandle ~= nil then
+            UIBase.showBuildButton()
         end
 
         UIState = UIBase.State.MAIN
@@ -929,6 +954,19 @@ function UIBase.toggleUnitControlSpots()
         UIBase.displayUnitControlSpots()
     else
         UIBase.unmountUnitControlSpots()
+    end
+end
+
+function UIBase.showUnitControlButton()
+    unitControlButtonHandle = Roact.mount(Roact.createElement(InitiateControlButton, {
+        UIBase = UIBase,
+    }), screengui)
+end
+
+function UIBase.hideUnitControlButton()
+    if unitControlButtonHandle then
+        Roact.unmount(unitControlButtonHandle)
+        unitControlButtonHandle = false
     end
 end
 

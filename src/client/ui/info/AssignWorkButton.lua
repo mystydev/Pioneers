@@ -68,7 +68,7 @@ function AssignWorkButton:render()
     }, {
         tooltip = (not isWorking) and Roact.createElement(ToolTip, {
             Position = UDim2.new(0.5, 0, 0.5, -30),
-            Text = "Assign to " .. Tile.Localisation[self.props.Type],
+            Text = "Assign to " .. (Tile.Localisation[self.props.Type] or "?"),
         })
     })
 

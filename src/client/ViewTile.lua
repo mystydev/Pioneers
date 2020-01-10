@@ -10,12 +10,9 @@ local Tile       = require(Common.Tile)
 local Util       = require(Common.Util)
 
 local TweenService = game:GetService("TweenService")
-local RunService   = game:GetService("RunService")
 local Players      = game:GetService("Players")
 
-local clamp = math.clamp
 local playerId = Players.LocalPlayer.UserId
-local UIBase
 
 local TileToInstMap = {}
 local InstToTileMap = {}
@@ -84,7 +81,8 @@ function ViewTile.displayTile(tile, displaySize)
 
     if TileToInstMap[tile] then
         ViewTile.updateDisplay(tile, displaySize)
-        return end
+        return 
+    end
 
     local meshInfo
     
@@ -101,7 +99,9 @@ function ViewTile.displayTile(tile, displaySize)
 
     TileToInstMap[tile] = model
     InstToTileMap[model] = tile
-    model.CFrame = CFrame.new(Util.axialCoordToWorldCoord(tile.Position) + meshInfo.offset)-- + Vector3.new(0, 1.01, 0))
+
+    --local offset = 3 * (math.cos(tile.Position.x / 4) + math.sin(tile.Position.y / 4))
+    model.CFrame = CFrame.new(Util.axialCoordToWorldCoord(tile.Position) + meshInfo.offset)-- + Vector3.new(0, offset, 0)-- + Vector3.new(0, 1.01, 0))
 
     if tile.Type == Tile.GATE then
         model.Bars.PrismaticConstraint.Enabled = false
@@ -109,12 +109,15 @@ function ViewTile.displayTile(tile, displaySize)
         model.Bars.PrismaticConstraint.Enabled = true
     end
 
-    model.Parent = Workspace
+    model.Parent = workspace
 
     ViewTile.updateDisplay(tile, displaySize or 1)
 end
 
 function ViewTile.updateDisplay(tile, displaySize, skipTimeCheck)
+
+    if not tile then return end
+
     local model = TileToInstMap[tile]
 
     if not skipTimeCheck and tick() < (tile.lastChange or 0) then return end
@@ -158,11 +161,11 @@ function ViewTile.updateDisplay(tile, displaySize, skipTimeCheck)
         local n5 = World.getTileXY(currentTiles, pos.x    , pos.y + 1)
         local n6 = World.getTileXY(currentTiles, pos.x    , pos.y - 1)
 
-        if (n1 and n1.Type == Tile.WALL and n2 and n2.Type == Tile.WALL) then
+        if n1 and n1.Type == Tile.WALL and n2 and n2.Type == Tile.WALL then
             orientation = 3
-        elseif (n3 and n3.Type == Tile.WALL and n4 and n4.Type == Tile.WALL) then
+        elseif n3 and n3.Type == Tile.WALL and n4 and n4.Type == Tile.WALL then
             orientation = 1
-        elseif (n5 and n5.Type == Tile.WALL and n6 and n6.Type == Tile.WALL) then
+        elseif n5 and n5.Type == Tile.WALL and n6 and n6.Type == Tile.WALL then
             orientation = 2
         end
 
@@ -184,9 +187,8 @@ function ViewTile.updateDisplay(tile, displaySize, skipTimeCheck)
     end
 
     if tile.Type == Tile.HOUSE then
-        local orientation
         local pos = tile.Position
-
+        local orientations = {}
         local n1 = World.getTileXY(currentTiles, pos.x    , pos.y + 1)
         local n2 = World.getTileXY(currentTiles, pos.x + 1, pos.y + 1)
         local n3 = World.getTileXY(currentTiles, pos.x + 1, pos.y    )
@@ -194,24 +196,22 @@ function ViewTile.updateDisplay(tile, displaySize, skipTimeCheck)
         local n5 = World.getTileXY(currentTiles, pos.x - 1, pos.y - 1)
         local n6 = World.getTileXY(currentTiles, pos.x - 1, pos.y    )
 
-        local orientations = {}
-
-        if (n1 and n1.Type == Tile.PATH) then
+        if n1 and n1.Type == Tile.PATH then
             table.insert(orientations, 1)
         end
-        if (n2 and n2.Type == Tile.PATH) then
+        if n2 and n2.Type == Tile.PATH then
             table.insert(orientations, 2)
         end
-        if (n3 and n3.Type == Tile.PATH) then
+        if n3 and n3.Type == Tile.PATH then
             table.insert(orientations, 3)
         end
-        if (n4 and n4.Type == Tile.PATH) then
+        if n4 and n4.Type == Tile.PATH then
             table.insert(orientations, 4)
         end
-        if (n5 and n5.Type == Tile.PATH) then
+        if n5 and n5.Type == Tile.PATH then
             table.insert(orientations, 5)
         end
-        if (n6 and n6.Type == Tile.PATH) then
+        if n6 and n6.Type == Tile.PATH then
             table.insert(orientations, 6)
         end
 
@@ -248,12 +248,12 @@ function ViewTile.updateDisplay(tile, displaySize, skipTimeCheck)
             model.CFrame = CFrame.new(model.Position) * CFrame.Angles(0, -(math.pi/3) * rotation, 0)
             model.TextureID = texture
             
-            if n6 then ViewTile.updateDisplay(n6) end
-            if n5 then ViewTile.updateDisplay(n5) end
-            if n4 then ViewTile.updateDisplay(n4) end
-            if n3 then ViewTile.updateDisplay(n3) end
-            if n2 then ViewTile.updateDisplay(n2) end
-            if n1 then ViewTile.updateDisplay(n1) end
+            ViewTile.updateDisplay(n6)
+            ViewTile.updateDisplay(n5)
+            ViewTile.updateDisplay(n4)
+            ViewTile.updateDisplay(n3)
+            ViewTile.updateDisplay(n2)
+            ViewTile.updateDisplay(n1)
         end
     end
 
@@ -312,7 +312,7 @@ end
 function ViewTile.getOtherPlayerTiles(userId)
     local tiles = {}
 
-    for pos, tile in pairs(currentTiles) do
+    for _, tile in pairs(currentTiles) do
         if tile.OwnerId and tile.OwnerId ~= userId then
             table.insert(tiles, tile)
         end
