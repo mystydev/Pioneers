@@ -5,7 +5,7 @@ local Tile = require(Common.Tile)
 
 local format = string.format
 
-World.Actions = {NEW_PLAYER = 0, PLACE_TILE = 1, SET_WORK = 2, ATTACK = 3, DELETE_TILE = 4, REPAIR_TILE = 5, DELETE_KINGDOM = 6}
+World.Actions = {NEW_PLAYER = 0, PLACE_TILE = 1, SET_WORK = 2, ATTACK = 3, DELETE_TILE = 4, REPAIR_TILE = 5, DELETE_KINGDOM = 6, SET_GUARDPOST = 7}
 World.UnitActions = {World.Actions.SET_WORK, World.Actions.ATTACK}
 
 World.ActionLocalisation = {}

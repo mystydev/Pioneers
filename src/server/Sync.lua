@@ -58,6 +58,12 @@ local function syncUpdates()
             end
         end
 
+        local playerlist = {}
+
+        for _, player in pairs(Players:GetChildren()) do
+            table.insert(playerlist, player.UserId)
+        end
+
         --Construct payload and send it to backend
         local payload = Http:JSONEncode({
             apikey = API_KEY,
@@ -65,6 +71,7 @@ local function syncUpdates()
             partitions = requiredPartitions,
             chats = Replication.getChats(),
             feedback = Replication.getFeedback(),
+            playerlist = playerlist,
         })
         
         local rawres = Http:PostAsync(API_URL.."syncupdates", payload)
@@ -75,6 +82,7 @@ local function syncUpdates()
         Replication.handlePartitionInfo(res.partitions or {})
         Replication.handleUnitInfo(res.units or {})
         Replication.handleChats(res.chats or {})
+        Replication.handleGuardposts(res.guardposts)
 
         --If the lastupdate was issued earlier than the last deploy then the backend is updating
         if tonumber(res.lastUpdate or 0) > tonumber(res.lastDeploy or 0) then --TODO: remove these tonumbers

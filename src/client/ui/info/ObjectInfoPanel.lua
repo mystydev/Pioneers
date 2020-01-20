@@ -66,11 +66,11 @@ function ObjectInfoPanel:render()
                 elements.ForestryWork = Roact.createElement(AssignWorkButton, {Type = Tile.FORESTRY, Unit = state.object})
                 elements.MineWork     = Roact.createElement(AssignWorkButton, {Type = Tile.MINE,     Unit = state.object})
             else
-                elements.AttackWork = Roact.createElement(AssignWorkButton, {Type = Tile.OTHERPLAYER})
+                elements.AttackWork = Roact.createElement(AssignWorkButton, {Type = Tile.OTHERPLAYER, Unit = state.object})
                 elements.GuardWork = Roact.createElement(AssignWorkButton, {Type = Tile.GRASS, Unit = state.object})
             end
 
-            elements.TrainingWork = Roact.createElement(AssignWorkButton, {Type = Tile.BARRACKS})
+            elements.TrainingWork = Roact.createElement(AssignWorkButton, {Type = Tile.BARRACKS, Unit = state.object})
         end
 
         elements.UnitStatus = Roact.createElement(UnitInfoLabel, {

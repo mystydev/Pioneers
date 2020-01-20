@@ -206,11 +206,24 @@ async function performKingdomDeletion(id) {
 	database.deleteKingdom(id)
 }
 
+async function verifySetGuardpost(id, position, set) {
+	//Ensure position is a valid spot
+	position = common.roundDecimalPositionString(position)
+	
+	//Position is in owned partition
+
+	//Assign if set, else unassign
+	if (set) 
+		database.assignGuardpost(id, position)
+	else
+		database.unassignGuardpost(id, position)
+}
+
 async function processActionQueue(id) {
-    let actions = await database.getActionQueue(id)
+    const actions = await database.getActionQueue(id)
     
 	for (let index in actions) {
-		let action = JSON.parse(actions[index])
+		const action = JSON.parse(actions[index])
 		console.log("Processing:", action)
 
         switch(action.action){
@@ -236,6 +249,9 @@ async function processActionQueue(id) {
 			case common.Actions.DELETE_KINGDOM:
 				performKingdomDeletion(action.id)
 				return true
+			case common.Actions.SET_GUARDPOST:
+				await verifySetGuardpost(action.id, action.position, action.set)
+				break
             default:
                 console.log("Unknown action!", action)
         }
@@ -286,6 +302,8 @@ async function computeRequest(roundStart, id, round) {
 		req[id] = await database.getUnitCollection(id)
 		let unitList = await database.getUnits(req)
 		let inCombat = await userstats.isInCombat(id)
+
+		await units.processEmptyGuardposts(id, unitList)
 
 		for (let unit of unitList)
 			processing.push(units.processUnit(unit, inCombat))

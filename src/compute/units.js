@@ -94,12 +94,14 @@ units.isMilitary = (unit) => {
     return unit.Type == UnitType.APPRENTICE || unit.Type == UnitType.SOLDIER
 }
 
-units.establishState = (unit) => {
+units.establishState = async (unit) => {
+
+    const hasTarget = unit.Target && unit.Target != ""
 
     if (unit.Health <= 0)
         return UnitState.DEAD
 
-    if (unit.Target && unit.Position != unit.Target)
+    if (hasTarget && unit.Position != unit.Target)
         return UnitState.MOVING
 
     if (unit.Work && unit.Position == unit.Work)
@@ -117,12 +119,15 @@ units.establishState = (unit) => {
     return UnitState.LOST
 }
 
-units.establishMilitaryState = (unit) => {
+units.establishMilitaryState = async (unit) => {
+
+    const hasTarget = unit.Target && unit.Target != ""
+    const onGuardpost = await tiles.fastCheckGuardpost(unit.OwnerId, unit.Position)
 
     if (unit.Health <= 0)
         return UnitState.DEAD
 
-    if (unit.Target && unit.Position != unit.Target)
+    if (hasTarget && unit.Position != unit.Target)
         return UnitState.MOVING
 
     if (unit.Attack || unit.AttackUnit)
@@ -131,7 +136,7 @@ units.establishMilitaryState = (unit) => {
     if (unit.WorkType == tiles.TileType.BARRACKS)
         return UnitState.TRAINING
 
-    if (unit.WorkType == tiles.TileType.GRASS)
+    if (onGuardpost)
         return UnitState.GUARDING
 
     if (unit.Fatigue > 0 && unit.Position == unit.Home)
@@ -252,7 +257,7 @@ units.calculateAttackTarget = async (unit) => {
 
     //If attacking a tile
     if (unit.Attack) {
-        let path = await tiles.findMilitaryPath(unit.Position, unit.Attack);
+        let path = await tiles.findMilitaryPath(unit.Position, unit.Attack, unit.OwnerId);
         
         //If can attack then go there, otherwise find closest unit to attack
         if (path && path.length >= 2) {
@@ -284,7 +289,7 @@ units.calculateAttackTarget = async (unit) => {
             return
         }
 
-        let path = await tiles.findMilitaryPath(unit.Position, hostile.Position);
+        let path = await tiles.findMilitaryPath(unit.Position, hostile.Position, unit.OwnerId);
 
         //If can attack then go there, otherwise find closest unit to attack
         if (path && path.length >= 2) {
@@ -305,7 +310,9 @@ units.calculateAttackTarget = async (unit) => {
 
 units.processMilitaryUnit = async (unit, inCombat) => {
 
-    if (units.establishMilitaryState(unit) == UnitState.DEAD) {
+    let state = await units.establishMilitaryState(unit)
+
+    if (state == UnitState.DEAD) {
         units.revokeAttack(unit)
         unit.State = UnitState.DEAD
         units.handleDeath(unit)
@@ -324,48 +331,56 @@ units.processMilitaryUnit = async (unit, inCombat) => {
         unit.Target = unit.Work
 
     if (unit.Position == unit.Target) {
-        let collision = await tiles.fastUnitCollisionCheck(unit.Position)
+        let collision = await tiles.fastUnitCollisionCheck(unit.Position) || []
 
         //If this isn't the only unit on this tile, move to a free one
-        for (let unitKey of collision) {
-            let otherId = unitKey.split(":")[1]
+        if (collision.length > 1 && unit.Position != unit.Home) {
+            for (let unitKey of collision) {
+                let otherId = unitKey.split(":")[1]
 
-            if (otherId < unit.Id) {
-                let attackLocation 
+                if (otherId < unit.Id) {
+                    let attackLocation 
 
-                if (unit.Attack) {
-                    attackLocation = unit.Attack
-                } else if (unit.AttackUnit) {
-                    let [ownerId, unitId] = unit.AttackUnit.split(":")
-                    let hostile = await database.getUnit(ownerId, unitId)
-                    
-                    if (hostile)
-                        attackLocation = hostile.Position
+                    if (unit.Attack) {
+                        attackLocation = unit.Attack
+                    } else if (unit.AttackUnit) {
+                        let [ownerId, unitId] = unit.AttackUnit.split(":")
+                        let hostile = await database.getUnit(ownerId, unitId)
+                        
+                        if (hostile)
+                            attackLocation = hostile.Position
+                    }
+
+                    if (attackLocation)
+                        unit.Target = await tiles.closestTileToResolveCollision(unit.Position, attackLocation)
+                    else
+                        unit.Target = await tiles.closestTileToResolveCollision(unit.Position, unit.Target)
                 }
-
-                if (attackLocation)
-                    unit.Target = await tiles.closestTileToResolveCollision(unit.Position, attackLocation)
             }
         }
     }
 
-    let state = units.establishMilitaryState(unit)
+    state = await units.establishMilitaryState(unit)
     unit.State = state
 
-    if (unit.State == UnitState.GUARDING && unit.Position != unit.Work) {
+    /*if (unit.State == UnitState.GUARDING && unit.Position != unit.Work) {
         unit.Target = unit.Work
         unit.State = UnitState.MOVING
-    }
+    }*/
 
     switch (state) {
         case UnitState.MOVING:
             database.resetFullSimQuota(unit.OwnerId)
-            let path = await tiles.findMilitaryPath(unit.Position, unit.Target);
+            let path = await tiles.findMilitaryPath(unit.Position, unit.Target, unit.OwnerId);
 
             if (!path || path.length == 0)
                 unit.State = UnitState.LOST
-            else if (!await tiles.fastUnitCollisionCheck(path[0]))
-                unit.Position = path[0]
+            else {
+                const newPosition = common.roundDecimalPositionString(path[0])
+                tiles.updateFastCollisionCache(unit.Position, newPosition, unit)
+                unit.Position = newPosition
+            }
+                
 
             break
 
@@ -416,7 +431,30 @@ units.processMilitaryUnit = async (unit, inCombat) => {
             }
 
             break
+
+        /*case UnitState.GUARDING:
+            const onGuardPost = await tiles.fastCheckGuardpost(unit.OwnerId, unit.Position)
+
+            if (!onGuardPost) {
+                unit.Work = ""
+                unit.Attack = ""
+                unit.AttackUnit = ""
+                unit.WorkType = ""
+                unit.State = UnitState.IDLE
+            }*/
+
+        case UnitState.IDLE:
+            unit.Target = unit.Home
+            break
+
+        case UnitState.LOST:
+            unit.Target = unit.Home
+            break
     }
+
+    //Correct any positions which were somehow incorrectly assigned (ie 1.335 instead of 1.333)
+    unit.Position = common.roundDecimalPositionString(unit.Position)
+    unit.Target = common.roundDecimalPositionString(unit.Target)
 }
 
 units.processSpawns = async (id) => {
@@ -482,6 +520,7 @@ units.unassignWork = async (unit) => {
         units.revokeAttack(unit)
 
     unit.Work = ""
+    unit.WorkType = ""
     unit.Attack = ""
     unit.AttackUnit = ""
     unit.Target = await tiles.findClosestStorage(unit.Position)
@@ -586,4 +625,144 @@ units.processFastRoundSim = async (id, roundDelta) => {
     }
 
     await database.updateUnits(unitList)
+}
+
+units.processEmptyGuardposts = async (id, unitList) => {
+    const guardposts = await database.getGuardposts(id)
+    let idleSoldiers = []
+    let emptyGuardposts = []
+
+    for (let position of guardposts)
+        if (!await tiles.fastUnitCollisionCheck(position))
+            emptyGuardposts.push(position)
+
+    if (emptyGuardposts.length == 0)
+        return
+
+    for (let unit of unitList) {
+
+        if (!units.isMilitary(unit))
+            continue
+
+            
+        if (emptyGuardposts.includes(unit.Target)) {
+            emptyGuardposts.splice(emptyGuardposts.indexOf(unit.Target), 1)
+            continue
+        }
+
+        let state = await units.establishMilitaryState(unit)
+
+        const noWork = !unit.Work || unit.Work == ""
+        let isIdle = state == UnitState.IDLE
+        isIdle = isIdle || state == UnitState.LOST
+        isIdle = isIdle || (state == UnitState.MOVING && noWork)
+
+        if (isIdle)
+            idleSoldiers.push(unit)        
+    }
+
+    if (idleSoldiers.length == 0)
+        return
+
+    let distances = {}
+    let unitMap = {}
+
+    for (let unit of idleSoldiers) {
+        distances[unit.Id] = {}
+        unitMap[unit.Id] = unit
+
+        //let unitpos = unit.Position
+
+        //if (unit.Target)
+        //    unitpos = unit.Target
+
+        for (let position of emptyGuardposts) {
+            //distances[unit.Id][position] = tiles.costHeuristic(unit.Position, position)
+            const path = await tiles.findMilitaryPath(unit.Position, position, unit.OwnerId) //Is this super expensive?
+            const dist = path ? path.length : Infinity
+            distances[unit.Id][position] = dist
+        }
+    }
+
+    let toAssign = Math.min(idleSoldiers.length, emptyGuardposts.length)
+    let maxiterations = 2000
+    let iterations = 0
+
+    while (toAssign > 0 && iterations < maxiterations) {
+        iterations++
+
+        //Check for single possible position, if so then assign
+        let positionOccurances = {}
+        let invalidatedPositions = []
+
+        for (let unitId in distances) {
+
+            let positions = Object.keys(distances[unitId])
+
+            if (positions.length == 0) {
+                delete distances[unitId]
+                continue
+            } else if (positions.length == 1) {
+                unitMap[unitId].Target = positions[0]
+                console.log("1", unitId, "->", positions[0])
+                toAssign--
+                invalidatedPositions.push(positions[0])
+                break
+            }
+
+            for (let position in distances[unitId]) {
+                if (positionOccurances[position])
+                    positionOccurances[position] += 1
+                else
+                    positionOccurances[position] = 1
+            }
+        }
+
+        if (invalidatedPositions.length == 0) {
+            for (let position in positionOccurances) {
+                const occurances = positionOccurances[position]
+
+                if (occurances == 1) {
+                    for (let unitId in distances) {
+                        if (distances[unitId][position]) {
+                            unitMap[unitId].Target = position
+                            console.log("2", unitId, "->", position)
+                            toAssign--
+                            delete distances[unitId]
+                        }
+                    }
+                }
+            }
+        } else {
+            for (let position of invalidatedPositions)
+                for (let unitId in distances)
+                    if (distances[unitId][position]) 
+                        delete distances[unitId][position]
+
+        }
+
+        //Remove longest distance
+        let longest = 0
+        let furthestUnit
+        let furthestPosition
+
+        for (let unitId in distances) {
+            for (let position in distances[unitId]) {
+                let distance = distances[unitId][position]
+
+                if (distance > longest) {
+                    longest = distance
+                    furthestUnit = unitMap[unitId]
+                    furthestPosition = position
+                }
+            }
+        }
+
+        if (longest != 0) {
+            delete distances[furthestUnit.Id][furthestPosition]
+        }
+
+    }
+
+    await database.updateUnits(idleSoldiers)
 }

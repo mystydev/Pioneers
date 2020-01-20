@@ -84,6 +84,8 @@ let pathfindingBlacklist = {}
 tiles.fastPathCache = {}
 tiles.adjacencyCache = {}
 tiles.fastUnitCollisionCache = {}
+tiles.guardpostsCache = {}
+tiles.highresPathingCache = {}
 
 tiles.newTile = async (type, id, pos, unitlist) => {
     let tile = {
@@ -101,7 +103,7 @@ tiles.newTile = async (type, id, pos, unitlist) => {
     }
 
     if (type == TileType.KEEP) {
-        let neighbours = tiles.getNeighbourPositions(pos)
+        let neighbours = await tiles.getNeighbourPositions(pos)
 
         for (let p of neighbours)
             database.updateTile(p, await tiles.newTile(TileType.PATH, id, p))
@@ -133,13 +135,11 @@ tiles.storePrep = (tile) => {
 tiles.deleteTile = async (tile) => {
     
     if (tile.Type == tiles.TileType.HOUSE) {
-        console.log("House")
         for (let unitId of tile.UnitList) {
             let unit = await database.getUnit(tile.OwnerId, unitId)
             await units.handleDeath(unit)
         }
     } else {
-        console.log("other")
         for (let unitId of tile.UnitList) {
             let unit = await database.getUnit(tile.OwnerId, unitId)
             await units.unassignWork(unit)
@@ -148,10 +148,6 @@ tiles.deleteTile = async (tile) => {
 
     await units.removeSpawn(tile.OwnerId, tile.Position)
     await database.deleteTile(tile.Position)
-}
-
-tiles.load = async () => {
-    console.log("Tiles would have loaded!")
 }
 
 tiles.fromPosString = async (pos) => {
@@ -192,25 +188,55 @@ tiles.getNeighbours = async (pos) => {
         tiles.fromCoords(x - 1, y    )
     ])*/
 
-    return tiles.fromPosList(tiles.getNeighbourPositions(pos))
+    return tiles.fromPosList(await tiles.getNeighbourPositions(pos))
 }
 
-tiles.getNeighbourPositions = (pos) => {
-    var [x, y] = common.strToPosition(pos)
+tiles.getNeighbourPositions = async (pos, isMilitary) => {
+
+    const [x, y] = common.strToPosition(pos)
+
+    let positions = []
+
+    //is it a whole number (center), these offsets are only valid for hexagon centers
+    if (Math.floor(x) == x && Math.floor(y) == y) {
+        positions = [
+            (x    ) + ":" + (y + 1),
+            (x    ) + ":" + (y - 1),
+            (x + 1) + ":" + (y + 1),
+            (x - 1) + ":" + (y - 1),
+            (x + 1) + ":" + (y    ),
+            (x - 1) + ":" + (y    )
+        ]
+    }
+
+    if (isMilitary) {
+        //If unit is walking on grass disallow hexagon centers
+        if (await tiles.searchFastPathCache(pos) == 0)
+            positions = []
+
+        positions = positions.concat(tiles.getHighResNeighbourPositions(pos))
+    }
+
+    return positions
+}
+
+tiles.getHighResNeighbourPositions = (position) => {
+    
+    const [x, y] = common.strToPosition(position)
 
     return [
-        (x    ) + ":" + (y + 1),
-        (x    ) + ":" + (y - 1),
-        (x + 1) + ":" + (y + 1),
-        (x - 1) + ":" + (y - 1),
-        (x + 1) + ":" + (y    ),
-        (x - 1) + ":" + (y    )
+        common.roundDecimal(x + 0.3333) + ":" + common.roundDecimal(y + 0.6666),
+        common.roundDecimal(x + 0.6666) + ":" + common.roundDecimal(y + 0.3333),
+        common.roundDecimal(x + 0.3333) + ":" + common.roundDecimal(y - 0.3333),
+        common.roundDecimal(x - 0.3333) + ":" + common.roundDecimal(y - 0.6666),
+        common.roundDecimal(x - 0.6666) + ":" + common.roundDecimal(y - 0.3333),
+        common.roundDecimal(x - 0.3333) + ":" + common.roundDecimal(y + 0.3333),
     ]
 }
 
 tiles.isWallGap = async (pos) => {
     let neighbours = await tiles.getNeighbours(pos)
-    let neighbourPositions = tiles.getNeighbourPositions(pos)
+    let neighbourPositions = await tiles.getNeighbourPositions(pos)
 
     for (let index in neighbourPositions) {
         let position = neighbourPositions[index]
@@ -219,8 +245,6 @@ tiles.isWallGap = async (pos) => {
         if (!neighbour || position != neighbour.Position)
             neighbours.splice(index, 0, undefined)
     }
-
-    console.log(neighbourPositions, neighbours)
 
     if (tiles.getSafeType(neighbours[0]) == TileType.WALL && tiles.getSafeType(neighbours[1]) == TileType.WALL)
         return true
@@ -288,25 +312,43 @@ tiles.clearCaches = () => {
     tiles.fastPathCache = {}
     tiles.adjacencyCache = {}
     tiles.fastUnitCollisionCache = {}
+    tiles.guardpostsCache = {}
 }
 
-tiles.fastWalkableCheck = async (position, isMilitary) => {
+tiles.searchFastPathCache = async (position) => {
     let partitionId = database.findPartitionId(position)
     let partitionIndex = database.partitionIndex(position)
 
-    if (!tiles.fastPathCache[partitionId]) 
-        tiles.fastPathCache[partitionId] = await database.getFastPathCache(partitionId)
+    let cache = tiles.fastPathCache[partitionId]
 
-    let walkValue = tiles.fastPathCache[partitionId][partitionIndex]
-
-    if (isMilitary) {
-        let unitObstructing = await tiles.fastUnitCollisionCheck(position)
-        //no unit obstructing and there is a path or grass
-        return !unitObstructing && walkValue <= 1 
-    } else {
-        //there is a path
-        return walkValue == 1 
+    if (!cache) {
+        cache = (await database.getFastPathCache(partitionId)) || []
+        tiles.fastPathCache[partitionId] = cache
     }
+
+    return cache[partitionIndex]
+}
+
+//Fast cached check to test if a position is walkable
+tiles.fastWalkableCheck = async (position, isMilitary, ownerId) => {
+    const walkValue = await tiles.searchFastPathCache(position)
+
+    if (!isMilitary)
+        return walkValue == 1  //This is a path tile
+        
+    const unitsObstructing = await tiles.fastUnitCollisionCheck(position)
+    let obstruction = false
+
+    //Is there a hostile unit obstructing this path
+    if (unitsObstructing) {
+        const hostileUnits = unitsObstructing.filter(id => id.split(":")[0] != ownerId)
+
+        if (hostileUnits.length > 0)
+            obstruction = true
+    }
+
+    //No hostile unit obstructing and this is a path or grass
+    return !obstruction && walkValue <= 1 
 }
 
 tiles.fastStorageCheck = async (position) => {
@@ -330,16 +372,51 @@ tiles.fastAdjacencyCheck = async (position) => {
 }
 
 tiles.fastUnitCollisionCheck = async (position) => {
-    let partitionId = database.findPartitionId(position)
+    const partitionId = database.findPartitionId(position)
     
-    if (!tiles.fastUnitCollisionCache[partitionId]) 
-        tiles.fastUnitCollisionCache[partitionId] = await database.getMilitaryUnitPositionsInPartition(partitionId)
+    let partitionMilitaryPositions = tiles.fastUnitCollisionCache[partitionId];
 
-    return tiles.fastUnitCollisionCache[partitionId][position]
+    if (!partitionMilitaryPositions) {
+        partitionMilitaryPositions = await database.getMilitaryUnitPositionsInPartition(partitionId) || [];
+
+        // update cache
+        tiles.fastUnitCollisionCache[partitionId] = partitionMilitaryPositions
+    }
+
+    return partitionMilitaryPositions[position]
+}
+
+//Commits local changes to the cache so units belonging to the same kingdom can path a bit smarter
+tiles.updateFastCollisionCache = async (positionFrom, positionTo, unit) => {
+    let partitionId = database.findPartitionId(positionFrom)
+    let partitionToId = database.findPartitionId(positionTo)
+
+    if (!tiles.fastUnitCollisionCache[partitionId]) 
+        tiles.fastUnitCollisionCache[partitionId] = await database.getMilitaryUnitPositionsInPartition(partitionId) || []
+
+    if (!tiles.fastUnitCollisionCache[partitionToId]) 
+        tiles.fastUnitCollisionCache[partitionToId] = await database.getMilitaryUnitPositionsInPartition(partitionToId) || []
+
+    if (!tiles.fastUnitCollisionCache[partitionId][positionFrom])
+        tiles.fastUnitCollisionCache[partitionId][positionFrom] = []
+
+    if (!tiles.fastUnitCollisionCache[partitionToId][positionTo])
+        tiles.fastUnitCollisionCache[partitionToId][positionTo] = []
+
+    const unitId = unit.OwnerId+':'+unit.Id
+    let positionsFrom = tiles.fastUnitCollisionCache[partitionId][positionFrom]
+    let positionsTo = tiles.fastUnitCollisionCache[partitionToId][positionTo]
+    const fromIndex = positionsFrom.indexOf(unitId)
+    
+    if (fromIndex != undefined)
+        positionsFrom.splice(fromIndex, 1)
+
+    if (!positionsTo.includes(unitId))
+        positionsTo.push(unitId)
 }
 
 tiles.closestTileToResolveCollision = async (position, targetPosition) => {
-    let searchQueue = tiles.getNeighbourPositions(position)
+    let searchQueue = await tiles.getNeighbourPositions(position, true)
 
     for (let position of searchQueue) {
         if (!await tiles.fastUnitCollisionCheck(position) && await tiles.fastWalkableCheck(position, true)) {
@@ -358,7 +435,7 @@ tiles.closestTileToResolveCollision = async (position, targetPosition) => {
             return closestTile
 
         } else if (searchQueue.indexOf(position) == -1) {
-            searchQueue.push(tiles.getNeighbourPositions(position))
+            searchQueue.push(await tiles.getNeighbourPositions(position))
         }
     }
 }
@@ -411,7 +488,7 @@ tiles.fastClosestHostileUnitToPosition = async (playerId, position, unitId, igno
         return closestUnit
 }
 
-tiles.findPath = async (start, target, isMilitary) => {
+tiles.findPath = async (start, target, isMilitary, ownerId) => {
     if (!start) {
         console.error("Undefined start tile passed to findPath!")
         return undefined
@@ -421,6 +498,9 @@ tiles.findPath = async (start, target, isMilitary) => {
         console.error("Undefined target tile passed to findPath!")
         return undefined
     }
+
+    //start = common.roundPositionString(start)
+    //target = common.roundPositionString(target)
 
     let openSet = []
     let closedSet = new Set()
@@ -444,7 +524,7 @@ tiles.findPath = async (start, target, isMilitary) => {
 
         closedSet.add(current.p)
 
-        let neighbours = tiles.getNeighbourPositions(current.p)
+        let neighbours = await tiles.getNeighbourPositions(current.p, isMilitary)
 
         for (let neighbourPos of neighbours) {
             if (pathfindingBlacklist[neighbourPos])
@@ -453,13 +533,16 @@ tiles.findPath = async (start, target, isMilitary) => {
             if (closedSet.has(neighbourPos)) 
                 continue
 
-            if (!await tiles.fastWalkableCheck(neighbourPos, isMilitary) && neighbourPos != target) 
+            if (!await tiles.fastWalkableCheck(neighbourPos, isMilitary, ownerId) && neighbourPos != target) 
                 continue
 
             if (!gScore[neighbourPos]) 
                 gScore[neighbourPos] = Infinity
 
             let g = gScore[current.p] + 1
+
+            if (!await tiles.fastWalkableCheck(neighbourPos, isMilitary))
+                g = g + 2 //Add weight to occupied tile to prefer avoiding it
 
             if (g < gScore[neighbourPos]) {
                 gScore[neighbourPos] = g
@@ -472,8 +555,18 @@ tiles.findPath = async (start, target, isMilitary) => {
     console.log("Pathfinding hit iteration limit")
 }
 
-tiles.findMilitaryPath = (start, target) => {
-    return tiles.findPath(start, target, true)
+tiles.findMilitaryPath = (start, target, ownerId) => {
+    const cost = costHeuristic(start, target)
+
+    //if (cost >= 1)
+        return tiles.findPath(start, target, true, ownerId)
+    //else
+    //    return [target]
+}
+
+//Searches per unit node instead of per tile
+tiles.findHighResMilitaryPath = (start, target) => {
+
 }
 
 tiles.findClosestStorageDist = async (pos) => {
@@ -484,7 +577,7 @@ tiles.findClosestStorageDist = async (pos) => {
     distance[pos] = 0
 
     while (current) {
-        let neighbours = tiles.getNeighbourPositions(current)
+        let neighbours = await tiles.getNeighbourPositions(current)
         let dist = distance[current] + 1
 
         for (let neighbour of neighbours) {
@@ -653,4 +746,11 @@ tiles.getRepairCost = async (pos) => {
     }
 
     return repairCost
+}
+
+tiles.fastCheckGuardpost = async (id, pos) => {
+    if (!tiles.guardpostsCache[id])
+        tiles.guardpostsCache[id] = await database.getGuardposts(id)
+
+    return tiles.guardpostsCache[id].includes(pos)
 }

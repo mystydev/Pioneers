@@ -5,6 +5,7 @@ local Roact  = require(game.ReplicatedStorage.Roact)
 
 local Util          = require(Common.Util)
 local Tile          = require(Common.Tile)
+local Unit          = require(Common.Unit)
 local ActionHandler = require(Client.ActionHandler)
 local SoundManager  = require(Client.SoundManager)
 local UIBase        = require(Client.UIBase)
@@ -53,7 +54,7 @@ end
 function AssignWorkButton:render()
 
     local children = {}
-    local isWorking = self.props.Unit and Util.worksOnTileType(self.props.Unit.Type, self.props.Type)
+    local isWorking = Util.worksOnTileType(self.props.Unit, self.props.Type)
 
     children.mouseArea = Roact.createElement("TextButton", {
         Text = "",

@@ -24,6 +24,7 @@ local buildCostBuffer = {}
 local unitReferences = {}
 local unrequestedUnits = {}
 local partitionOwners = {}
+local guardposts = {}
 local chats = {}
 local syncing = 0
 local UIBase = nil
@@ -142,6 +143,14 @@ local function handleChatsUpdate(inChats)
     chats = inChats
 end
 
+local function handleGuardpostsUpdate(posts)
+    for i, position in pairs(posts) do
+        local p = Util.positionStringToVector(position)
+        local index = math.floor(3*p.x+0.5) .. ":" .. math.floor(3*p.y+0.5) --TODO: Not copy this from UnitControl
+        guardposts[index] = p
+    end
+end
+
 function Replication.init(world, uiBinding)
     currentWorld = world
     UIBase = uiBinding
@@ -151,6 +160,7 @@ function Replication.init(world, uiBinding)
     tileupdate = Network.TileUpdate.OnClientEvent:Connect(handleTileUpdate)
     updatealert = Network.UpdateAlert.OnClientEvent:Connect(handleUpdateAlert)
     chatsupdate = Network.ChatsUpdate.OnClientEvent:Connect(handleChatsUpdate)
+    guardpostsupdate = Network.GuardpostsUpdate.OnClientEvent:Connect(handleGuardpostsUpdate)
 end
 
 function Replication.worldDied()
@@ -424,6 +434,14 @@ end)
 function Replication.getCachedPartitionOwner(x, y)
     local partitionId = Util.findPartitionId(x, y)
     return partitionOwners[partitionId]
+end
+
+function Replication.requestGuardpost(position, set)
+    Network.RequestGuardpost:InvokeServer(position, set)
+end
+
+function Replication.getGuardposts()
+    return guardposts
 end
 
 return Replication

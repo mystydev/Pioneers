@@ -40,6 +40,8 @@ function findXYFromPartitionId(id) {
 
 database.partitionIndex = (position) => {
     let [x, y] = common.strToPosition(position)
+    x = Math.floor(x + 0.5)
+    y = Math.floor(y + 0.5)
     x = (partitionSize + (x % partitionSize))%partitionSize
     y = (partitionSize + (y % partitionSize))%partitionSize
     return x * partitionSize + y
@@ -238,12 +240,13 @@ database.updateUnits = async (unitList, includeHealth = false) => {
 
     for (let owner in batches){
         for (let unit of batches[owner]) {
-            let partitionId = String(database.findPartitionId(unit.Position))
+            const partitionId = String(database.findPartitionId(unit.Position))
+            const updateableState = unit.State != units.UnitState.DEAD && unit.State != units.UnitState.MOVING
 
             if (!pipelines[partitionId]) 
                 pipelines[partitionId] = redis.pipeline()
 
-            if (units.isMilitary(unit) && unit.State != units.UnitState.DEAD)
+            if (units.isMilitary(unit) && updateableState)
                 pipelines[partitionId].hset("militaryUnitCache{"+partitionId+"}", owner+":"+unit.Id, unit.Position)
 
             pipelines[partitionId].hset("unitCache{"+partitionId+"}", owner+":"+unit.Id, unit.Position)
@@ -259,7 +262,7 @@ database.updateUnits = async (unitList, includeHealth = false) => {
                 redis.hset("unit{"+owner+"}"+unit.Id, "PartitionId", partitionId)
             }
 
-            if (units.isMilitary(unit) && unit.State == units.UnitState.DEAD) {
+            if (units.isMilitary(unit) && !updateableState) {
                 pipelines[partitionId].hdel("militaryUnitCache{"+partitionId+"}", owner+":"+unit.Id)
             }
         }
@@ -328,6 +331,8 @@ database.getUnitIdsAtPartitions = async (partitions) => {
     console.log("Unimplemented getUnitIdsAtPartitions")
 }
 
+// militaryUnitCache{partitionId} = {userid:unitid = position, ...}
+// returns dict[position] = [unit1, ...]
 database.getMilitaryUnitPositionsInPartition = async (partitionId) => {
     let data = await redis.hgetall("militaryUnitCache{"+partitionId+"}")
     let positionDict = {}
@@ -346,6 +351,8 @@ database.getMilitaryUnitPositionsInPartition = async (partitionId) => {
     return positionDict
 }   
 
+// unitCache{partitionId} = {userid:unitid = position, ...}
+// returns [unit1, unit2, ...]
 database.getUnitsAtPartitions = async (partitions) => {
     let idMap = {}
     let fetching = []
@@ -734,4 +741,25 @@ database.deleteKingdom = async (id) => {
     //delete settings
     redis.hdel("settings", id)
     redis.del("PartitionOwnership{"+id+"}")
+}
+
+database.assignGuardpost = async (id, position) => {
+    redis.sadd("guardposts{"+id+"}", position)
+}
+
+database.unassignGuardpost = async (id, position) => {
+    redis.srem("guardposts{"+id+"}", position)
+}
+
+database.getGuardposts = async (id) => {
+    return redis.smembers("guardposts{"+id+"}")
+}
+
+database.getGuardpostsFromList = async (idList) => {
+    let guardposts = {}
+
+    for (let id of idList)
+        guardposts[id] = await database.getGuardposts(id)
+
+    return guardposts
 }

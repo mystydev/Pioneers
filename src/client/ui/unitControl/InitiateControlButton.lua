@@ -17,8 +17,8 @@ function InitiateControlButton:render()
         Size                   = UDim2.new(0,60,0,60),
         AnchorPoint            = Vector2.new(0, 1),
         Image                  = "rbxassetid://3480808137",
-        [Roact.Event.MouseButton1Click] = self.props.UIBase.displayUnitControlSpots,
-        [Roact.Event.MouseButton2Click] = self.props.UIBase.unmountUnitControlSpots,
+        [Roact.Event.MouseButton1Click] = self.props.UIBase.transitionToUnitControlView,
+        [Roact.Event.MouseButton2Click] = self.props.UIBase.exitUnitControlView,
     }, {
         tooltip = Roact.createElement(ToolTip, {
             Position = UDim2.new(0.5, 0, 0.5, -30),

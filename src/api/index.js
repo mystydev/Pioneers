@@ -114,6 +114,12 @@ app.post("/pion/actionRequest", (req, res) => {
             res.json({status:"Ok"})
             break;
 
+        case Actions.SET_GUARDPOST:
+            tileLoc = req.body.position
+            cluster.rpush("actionQueue:"+id, JSON.stringify({id:id, action:action, position:tileLoc, set:req.body.set}))
+            res.json({status:"Ok"})
+            break;
+
         default:
             res.json({status:"Fail"})
     };
@@ -208,9 +214,13 @@ app.post("/pion/syncupdates", async (req, res) => {
     let lastUpdate  = cluster.get("lastupdate")
     let lastDeploy  = cluster.get("lastupdatedeploy")
     let chats       = cluster.lrange("chats", 0, 100)
+    let guardposts  = true
+
+    if (req.body.playerlist)
+        guardposts = database.getGuardpostsFromList(req.body.playerlist)
 
     //Wait for redis to return all the data
-    Promise.all([fetchingTiles, fetchingUnits, lastProcess, lastUpdate, lastDeploy, chats])
+    Promise.all([fetchingTiles, fetchingUnits, lastProcess, lastUpdate, lastDeploy, chats, guardposts])
     .then(values => {
         updates.partitions  = values[0];
         updates.units       = values[1];
@@ -218,6 +228,7 @@ app.post("/pion/syncupdates", async (req, res) => {
         updates.lastUpdate  = values[3]; //last time an update was issued
         updates.lastDeploy  = values[4]; //last time the update redeployed instances in kubernetes
         updates.chats       = values[5];
+        updates.guardposts  = values[6];
         res.json(updates)
     })
 

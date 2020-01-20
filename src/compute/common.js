@@ -9,6 +9,7 @@ common.Actions = {
     DELETE_TILE:4,
     REPAIR_TILE:5,
     DELETE_KINGDOM:6,
+    SET_GUARDPOST:7,
 };
 
 common.level_requirements = []
@@ -78,7 +79,7 @@ common.strToPosition = (pos) => {
     }
 
     let [x, y] = pos.split(":")
-    return [parseInt(x), parseInt(y)]
+    return [parseFloat(x), parseFloat(y)]
 }
 
 //Converts x y from axial to world coordinate system
@@ -102,6 +103,27 @@ common.circularPosList = (pos, radius) => {
     }
 
     return list
+}
+
+common.roundPositionString = (position) => {
+    let [x, y] = common.strToPosition(position)
+    x = Math.floor(x + 0.5)
+    y = Math.floor(y + 0.5)
+    return x+':'+y
+}
+
+common.roundDecimal = (a) => {
+    return Math.floor(1000*Math.floor((3*a)+0.5)/3)/1000
+}
+
+common.roundDecimalPositionString = (position) => {
+    if (!position)
+        return ""
+
+	let [x, y] = position.split(":")
+	x = common.roundDecimal(parseFloat(x))
+	y = common.roundDecimal(parseFloat(y))
+    return x+':'+y
 }
 
 module.exports = common

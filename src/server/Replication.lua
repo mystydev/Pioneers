@@ -263,6 +263,22 @@ local function kingdomDeletionRequest(player)
     return res.status
 end
 
+local function guardpostRequest(player, position, set)
+    print(position)
+    local payload = {
+        apikey = API_KEY,
+        id = player.UserId,
+        position = position,
+        set = set,
+        action = Actions.SET_GUARDPOST,
+    }
+
+    local res = Http:PostAsync(API_URL.."actionRequest", Http:JSONEncode(payload))
+    res = Http:JSONDecode(res)
+
+    return res.status
+end
+
 function Replication.assignWorld(w)
     currentWorld = w
 
@@ -283,6 +299,7 @@ function Replication.assignWorld(w)
     Network.GetPartitionOwnership.OnServerInvoke = partitionOwnerRequest
     Network.RequestGameSettings.OnServerInvoke   = gameSettingsRequest
     Network.RequestKingdomDeletion.OnServerInvoke= kingdomDeletionRequest
+    Network.RequestGuardpost.OnServerInvoke      = guardpostRequest
     Network.SettingsUpdate.OnServerEvent:Connect(settingsUpdate)
     Network.Chatted.OnServerEvent:Connect(chatRequest)
     Network.FeedbackRequest.OnServerEvent:Connect(feedbackRequest)
@@ -452,9 +469,17 @@ end
 --Assists with loading tiles faster
 function Replication.earlyPlayerPositionSet(player, stats)
     if stats.Keep and not playerPositions[player] then
-        
         playerPositions[player] = Util.axialCoordToWorldCoord(Util.positionStringToVector(stats.Keep))
-        print("set", playerPositions[player])
+    end
+end
+
+function Replication.handleGuardposts(guardposts)
+    for id, posts in pairs(guardposts) do
+        local player = Players:GetPlayerByUserId(id)
+
+        if player then
+            Network.GuardpostsUpdate:FireClient(player, posts)
+        end
     end
 end
 

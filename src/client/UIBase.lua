@@ -60,7 +60,7 @@ local updatingBinding, setUpdating = Roact.createBinding(false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
 player.PlayerGui:SetTopbarTransparency(1)
 
-local adminEditorEnabled = false
+local adminEditorEnabled = true
 
 function UIBase.init(world, displaystats)
     stats = displaystats 
@@ -612,7 +612,7 @@ function UIBase.endCombatAlert()
 end 
 
 function UIBase.updateAlert()
-    if not updateHandle then
+    if not updateHandle and SoundManager then
         SoundManager.urgentAlert()
         setUpdating(true)
         updateHandle = Roact.mount(Roact.createElement(UpdateAlert, {updating = updatingBinding}), screengui)
@@ -729,13 +729,15 @@ local function mouseRightClicked(input)
         UIBase.exitBuildView()
     elseif UIState == UIBase.State.SELECTWORK then
         UIBase.exitSelectWorkView()
+    elseif UIState == UIBase.State.UNITCONTROL then
+        UIBase.exitUnitControlView()
     end
 end
 
 local function keyPressed(input)
-    if input.UserInputState == Enum.UserInputState.End and input.KeyCode == Enum.KeyCode.P then
-        UIBase.toggleUnitControlSpots()
-    end
+    --if input.UserInputState == Enum.UserInputState.End and input.KeyCode == Enum.KeyCode.P then
+    --    UIBase.toggleUnitControlSpots()
+    --end
 end
 
 local lastRightDown = tick()
@@ -920,7 +922,7 @@ function UIBase.unmountTileMarkers()
     end
 end
 
-function UIBase.displayUnitControlSpots()
+function UIBase.transitionToUnitControlView()
     if UIState == UIBase.State.MAIN then
         UIBase.unfocusBackground(6, -0.7)
         if not controlSpots then
@@ -933,7 +935,7 @@ function UIBase.displayUnitControlSpots()
     end
 end
 
-function UIBase.unmountUnitControlSpots()
+function UIBase.exitUnitControlView()
     if UIState == UIBase.State.UNITCONTROL then
         UIBase.refocusBackground()
         if controlSpots then
@@ -951,9 +953,9 @@ end
 
 function UIBase.toggleUnitControlSpots()
     if not controlSpots then
-        UIBase.displayUnitControlSpots()
+        UIBase.transitionToUnitControlView()
     else
-        UIBase.unmountUnitControlSpots()
+        UIBase.exitUnitControlView()
     end
 end
 

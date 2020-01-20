@@ -6,6 +6,7 @@ local Client       = ui.Parent
 local RunService   = game:GetService("RunService")
 local Players      = game:GetService("Players")
 
+local ActionHandler= require(Client.ActionHandler)
 local ViewWorld    = require(Client.ViewWorld)
 local Replication  = require(Client.Replication)
 local UnitControl  = require(Client.UnitControl)
@@ -21,8 +22,10 @@ local function leftClicked(node)
         node.type = false
         node.walkable = true
         node.inCombat = false
+        ActionHandler.unassignGuardpost(node.location)
     else
         node.type = "F"
+        ActionHandler.assignGuardpost(node.location)
     end
 
     --UnitControl.evalCombatLinks()
@@ -79,9 +82,10 @@ function UnitSpot:render()
             ImageTransparency = 1,
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
+            Active = false,
             [Roact.Ref] = self.state.imageRef,
             [Roact.Event.MouseButton1Click] = function() leftClicked(self.props.node) end,
-            [Roact.Event.MouseButton2Click] = function() rightClicked(self.props.node) end,
+            --[Roact.Event.MouseButton2Click] = function() rightClicked(self.props.node) end,
         }, {
             depthLabel = Roact.createElement("TextLabel", {
                 BackgroundTransparency = 1,
@@ -103,6 +107,7 @@ function UnitSpot:didMount()
     self.event = RunService.Stepped:Connect(function()
         debug.profilebegin("unitspot")
         if self.state.displayedType ~= (self.props.node.type or false) then
+            print("changed type", self.props.node.location)
             self:setState({
                 displayedType = self.props.node.type
             })

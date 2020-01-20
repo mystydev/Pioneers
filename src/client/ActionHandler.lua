@@ -136,4 +136,22 @@ function ActionHandler.sendFeedback(react, text)
     Replication.sendFeedback(react, text)
 end
 
+--Assign a military unit spot as a guard post
+function ActionHandler.assignGuardpost(position)
+    print("Action1:", position)
+    local x = math.floor((math.floor(3*position.x+0.5)/3)*10000)/10000
+    local y = math.floor((math.floor(3*position.y+0.5)/3)*10000)/10000
+    position = x .. ":" .. y
+    print("Action2:", x, y)
+    Replication.requestGuardpost(position, true)
+end
+
+--Unassign a military unit spot as a guard post
+function ActionHandler.unassignGuardpost(position)
+    local x = math.floor((math.floor(3*position.x+0.5)/3)*10000)/10000
+    local y = math.floor((math.floor(3*position.y+0.5)/3)*10000)/10000
+    position = x .. ":" .. y
+    Replication.requestGuardpost(position, false)
+end
+
 return ActionHandler

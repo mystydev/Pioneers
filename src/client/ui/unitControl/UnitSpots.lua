@@ -41,8 +41,8 @@ local function updateLink(link, beam)
         beam.Texture = "rbxassetid://4579670009"
         beam.TextureLength = 15
     else
-        beam.Width0 = 0.1
-        beam.Width1 = 0.1
+        beam.Width0 = 0.3
+        beam.Width1 = 0.3
         beam.Color = ColorSequence.new(Color3.new(1, 1, 1))
         beam.Transparency = NumberSequence.new(0.95)
         beam.ZOffset = 0.02
@@ -88,8 +88,8 @@ function UnitSpots:render()
                 beam.Attachment0 = n1.attachment
                 beam.Attachment1 = n2.attachment
                 beam.FaceCamera = true
-                beam.Width0 = 0.1
-                beam.Width1 = 0.1
+                beam.Width0 = 0.3
+                beam.Width1 = 0.3
                 beam.Segments = 1
                 beam.Transparency = NumberSequence.new(0.95)
 

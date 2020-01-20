@@ -29,7 +29,7 @@ function SmallResourceLabel:render()
     local requirement = self.props.Value:getValue()
     local canAfford = self.props.IsMaintenance
 
-    if requirement  and not self.props.IsMaintenance then
+    if requirement and not self.props.IsMaintenance then
         canAfford = UserStats.hasEnoughResources(stats, requirement)
     end
 

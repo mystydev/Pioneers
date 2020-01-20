@@ -53,7 +53,7 @@ local function updateLink(links, source, target, values)
     links[source][target] = link
 end
 
-local evaluated
+local evaluated = {}
 function UnitControl.evalNodePosition(position)
 
     local index = posToIndex(position)
@@ -285,6 +285,23 @@ end
 
 function UnitControl.evalLocalArea(playerPosition)
     debug.profilebegin("UnitControl.evalLocalArea")
+
+    local guardposts = Replication.getGuardposts()
+
+    for index, node in pairs(nodes) do
+        if guardposts[index] then
+            node.Type = "F"
+        else 
+            node.Type = false
+        end
+    end
+
+    for index, position in pairs(guardposts) do
+        if not nodes[index] then
+            UnitControl.assignAsGuardpost(position)
+        end
+    end
+
     if not playerPosition then
         playerPosition = ClientUtil.getTilePositionUnderPlayer()
     else
@@ -313,6 +330,12 @@ end
 
 function UnitControl.getLinks()
     return links
+end
+
+function UnitControl.assignAsGuardpost(position)
+    print("assigning", position, posToIndex(position))
+    local node = UnitControl.evalNodePosition(position)
+    node.type = "F"
 end
 
 return UnitControl

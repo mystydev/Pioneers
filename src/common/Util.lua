@@ -87,12 +87,19 @@ function Util.circularPosCollection(posx, posy, startRadius, endRadius)
     return collection
 end
 
-function Util.worksOnTileType(unitType, tileType)
+--In Util as requires both Tile and Unit
+function Util.worksOnTileType(unit, tileType)
+    if not unit then return end
+
+    local unitType = unit.Type
+
     if tileType == Tile.FARM and unitType == Unit.FARMER then
         return true
     elseif tileType == Tile.FORESTRY and unitType == Unit.LUMBERJACK then
         return true
     elseif tileType == Tile.MINE and unitType == Unit.MINER then
+        return true
+    elseif tileType == Tile.BARRACKS and Unit.isMilitary(unit) and unit.State == Unit.UnitState.TRAINING then
         return true
     end
 end
