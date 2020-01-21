@@ -10,42 +10,7 @@ let redis
 //Prevents unnecessary writes during the same round to full simulation quotas
 let fullSimCache = new Set()
 
-//The world is split into many squares with width/height of partitionSize
-//These partitions allow for efficient caching of a large number of tiles
-let partitionSize = 20
-
-//Modified Cantor pairing to convert 2d partitions to 1d label
-//Integers mapped to naturals to allow cantor to map every integer pair
-database.findPartitionId = (pos) => {
-    let [x, y] = common.strToPosition(pos)
-    x = Math.floor(x / partitionSize)
-    y = Math.floor(y / partitionSize)
-    x = x >= 0 ? x * 2 : -x * 2 - 1
-    y = y >= 0 ? y * 2 : -y * 2 - 1
-    return 0.5 * (x + y) * (x + y + 1) + y
-}
-
-//Inverse cantor pairing
-function findXYFromPartitionId(id) {
-    id = parseInt(id)
-    let w = Math.floor((Math.sqrt(8 * id + 1) - 1) / 2)
-    let t = (w**2 + w) / 2
-    let y = id - t
-    let x = w - y
-    x = x%2 ? (x + 1) / -2 : x = x / 2
-    y = y%2 ? (y + 1) / -2 : y = y / 2
-
-    return [x * partitionSize, y * partitionSize]
-}
-
-database.partitionIndex = (position) => {
-    let [x, y] = common.strToPosition(position)
-    x = Math.floor(x + 0.5)
-    y = Math.floor(y + 0.5)
-    x = (partitionSize + (x % partitionSize))%partitionSize
-    y = (partitionSize + (y % partitionSize))%partitionSize
-    return x * partitionSize + y
-}
+const partitionSize = common.partitionSize
 
 //Converts position list into a dict of slot friendly lists
 //eg tile [5:7, 234:423] -> { 0 : [5:7...], 2 : [234:423...]}
@@ -53,7 +18,7 @@ function convertPositionList(positions) {
     let partitions = {}
 
     for (let pos of positions) {
-        let partitionId = database.findPartitionId(pos)
+        let partitionId = common.findPartitionId(pos)
         if (!partitions[partitionId]) partitions[partitionId] = []
         partitions[partitionId].push(pos)
     }
@@ -104,7 +69,7 @@ database.disconnect = () => {
 }
 
 database.getTile = async (pos) => {
-    return redis.hgetall("tile{"+database.findPartitionId(pos)+"}"+pos)
+    return redis.hgetall("tile{"+common.findPartitionId(pos)+"}"+pos)
 }
 
 database.getTiles = async (positions) => {
@@ -148,7 +113,7 @@ database.getStaleTilesFromVersionCache = async (partitionId, versionCache) => {
     let hashes = versionCache.split("")
     let freshHashes = freshVersionCache.split("")
     let pipeline = redis.pipeline()
-    let [xoffset, yoffset] = findXYFromPartitionId(partitionId)
+    let [xoffset, yoffset] = common.findXYFromPartitionId(partitionId)
     let tileList = []
 
     //Calculate the position of stale tiles and fetch them
@@ -240,7 +205,7 @@ database.updateUnits = async (unitList, includeHealth = false) => {
 
     for (let owner in batches){
         for (let unit of batches[owner]) {
-            const partitionId = String(database.findPartitionId(unit.Position))
+            const partitionId = String(common.findPartitionId(unit.Position))
             const updateableState = unit.State != units.UnitState.DEAD && unit.State != units.UnitState.MOVING
 
             if (!pipelines[partitionId]) 
@@ -277,7 +242,7 @@ database.updateUnits = async (unitList, includeHealth = false) => {
 }
 
 database.updateUnit = async (unit, includeHealth = false) => {
-    /*let partitionId = database.findPartitionId(unit.Position)
+    /*let partitionId = common.findPartitionId(unit.Position)
     let health = unit.Health
     delete unit.Health
 
@@ -311,7 +276,7 @@ database.damageUnit = async (unit, damage) => {
 database.damageUnitByKey = async (key, damage, unitPosition) => {
     let [ownerId, unitId] = key.split(":")
     let health = await redis.hincrby("unit{"+ ownerId+"}"+unitId, "Health", -damage)
-    let partition = database.findPartitionId(unitPosition)
+    let partition = common.findPartitionId(unitPosition)
 
     if (health <= 0)
         redis.hdel("militaryUnitCache{"+unit.PartitionId+"}", ownerId+":"+unitId)
@@ -332,7 +297,7 @@ database.getUnitIdsAtPartitions = async (partitions) => {
 }
 
 // militaryUnitCache{partitionId} = {userid:unitid = position, ...}
-// returns dict[position] = [unit1, ...]
+// returns dict[position] = [userid:unitid, ...]
 database.getMilitaryUnitPositionsInPartition = async (partitionId) => {
     let data = await redis.hgetall("militaryUnitCache{"+partitionId+"}")
     let positionDict = {}
@@ -521,11 +486,11 @@ database.updateTile = async (position, tile) => {
     let pipeline = redis.pipeline()
 
     //Update tile definition
-    let partitionId = database.findPartitionId(position)
+    let partitionId = common.findPartitionId(position)
     pipeline.hmset("tile{"+partitionId+"}"+tile.Position, tiles.storePrep(tile))
     
     //Calculate location of tile in partition hash
-    let cacheIndex = database.partitionIndex(position)
+    let cacheIndex = common.partitionIndex(position)
 
     //0 = grass, 1 = walkable, 2 = non-walkable, 3 = storage,
     let walkableVal = !(tiles.getSafeType(tile) == tiles.TileType.GRASS) + !tiles.isWalkable(tile, true) + tiles.isStorageTile(tile)
@@ -550,8 +515,8 @@ database.updateAdjacencyCaches = async (tileList) => {
     for (let tile of tileList) {
         if (!tile) continue
 
-        let partitionId = database.findPartitionId(tile.Position)
-        let cacheIndex = database.partitionIndex(tile.Position)
+        let partitionId = common.findPartitionId(tile.Position)
+        let cacheIndex = common.partitionIndex(tile.Position)
         let adjacentVal = await tiles.getNumberOfSimilarAdjacentTiles(tile)
         
         redis.setnx("adjacencyCache{"+partitionId+"}", "0".repeat(partitionSize**2))
@@ -586,8 +551,8 @@ database.getAdjacencyCache = async (partitionId) => {
 database.incrementTileProp = async (position, prop, value) => {
     let pipeline = redis.pipeline()
 
-    let partitionId   = database.findPartitionId(position)
-    let cacheIndex    = database.partitionIndex(position)
+    let partitionId   = common.findPartitionId(position)
+    let cacheIndex    = common.partitionIndex(position)
     let cyclicVersion = await redis.hget("tile{"+partitionId+"}"+position, "CyclicVersion")
     let health
 
@@ -605,11 +570,11 @@ database.deleteTile = async (position) => {
     let pipeline = redis.pipeline()
 
     //Delete tile definition
-    let partitionId = database.findPartitionId(position)
+    let partitionId = common.findPartitionId(position)
     pipeline.del("tile{"+partitionId+"}"+position)
     
     //Calculate location of tile in partition hash
-    let cacheIndex = database.partitionIndex(position)
+    let cacheIndex = common.partitionIndex(position)
     let neighbours = await tiles.getNeighbours(position) 
 
     //Update fast lookup partition caches
@@ -699,7 +664,7 @@ database.deletePartition = async (partitionId) => {
     pipeline.del("fastPathCache{"+partitionId+"}")
     pipeline.del("adjacencyCache{"+partitionId+"}")
 
-    let [x, y] = findXYFromPartitionId(partitionId)
+    let [x, y] = common.findXYFromPartitionId(partitionId)
 
     for (let dx = 0; dx < partitionSize; dx++)
         for (let dy = 0; dy < partitionSize; dy++)

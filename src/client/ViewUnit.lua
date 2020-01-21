@@ -360,14 +360,14 @@ function ViewUnit.stepDisplay(unit, instance, frameDelta, camPosition)
     local positionOverrided = false
 
     --If the unit has an attack target, offset it's target position to be closer
-    if Util.vectorToPositionString(unit.Position) == unit.Target and (unit.AttackUnit and viewDelta.magnitude < 20) then
+    --[[if Util.vectorToPositionString(unit.Position) == unit.Target and (unit.AttackUnit and viewDelta.magnitude < 20) then
         local attackPosition = getUnitAttackPosition(unit.AttackUnit)
         if attackPosition then
             worldPosition = attackPosition + (worldPosition - attackPosition).unit * 6
             viewDelta = worldPosition - viewPosition
             positionOverrided = true
         end
-    end
+    end]]--
 
     --If unit isn't close to it's target position update it's speed as usual
     --If the unit is at it's target position set velocity to 0 to prevent any overshoot
@@ -380,18 +380,24 @@ function ViewUnit.stepDisplay(unit, instance, frameDelta, camPosition)
     end
 
     --If unit is close to target and it has an attack target make it look at that attack target
-    if viewDelta.Magnitude < 3 and positionOverrided then  
+    --[[if viewDelta.Magnitude < 3 and positionOverrided then  
         instance.lookatHeading = attackHeading(instance, unit)
     end
 
     if viewDelta.Magnitude < 2 and positionOverrided then  
         instance.velocity = 0
+    end]]--
+
+    
+    if viewDelta.Magnitude <= 0.5 and unit.AttackUnit then
+        instance.lookatHeading = attackHeading(instance, unit)
     end
 
     --is lookatHeading nan
     if instance.lookatHeading ~= instance.lookatHeading then 
         return 
     end 
+
 
     local headingDelta = headingDifference(viewHeading, instance.lookatHeading)
     local newPosition = viewPosition + viewOrientation * Vector3.new(0,0,-1) * instance.velocity * frameDelta

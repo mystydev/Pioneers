@@ -5,6 +5,8 @@ let userstats = require("./userstats")
 let resource = require("./resource")
 let common = require("./common")
 
+const pvpMovementDepth = 20
+
 let UnitType = units.UnitType = {
     NONE:0,
     VILLAGER:1,
@@ -123,6 +125,7 @@ units.establishMilitaryState = async (unit) => {
 
     const hasTarget = unit.Target && unit.Target != ""
     const onGuardpost = await tiles.fastCheckGuardpost(unit.OwnerId, unit.Position)
+    const inCombat = await userstats.isInCombat(unit.OwnerId)
 
     if (unit.Health <= 0)
         return UnitState.DEAD
@@ -130,7 +133,7 @@ units.establishMilitaryState = async (unit) => {
     if (hasTarget && unit.Position != unit.Target)
         return UnitState.MOVING
 
-    if (unit.Attack || unit.AttackUnit)
+    if (inCombat && (unit.Attack || unit.AttackUnit))
         return UnitState.COMBAT
 
     if (unit.WorkType == tiles.TileType.BARRACKS)
@@ -319,13 +322,20 @@ units.processMilitaryUnit = async (unit, inCombat) => {
         return
     }
 
+    if (!unit.Position)
+        unit.Position = unit.Home
+
     if (inCombat) {
-        unit.AttackUnit = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position, unit.Id)
+        //unit.AttackUnit = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position, unit.Id)
         //await units.calculateAttackTarget(unit)
+    } else {
+        unit.Attack = ""
+        unit.AttackUnit = ""
+        unit.InWar = ""
     }
 
-    if (unit.Attack || unit.AttackUnit)
-        await units.calculateAttackTarget(unit)
+    //if (unit.Attack || unit.AttackUnit)
+        //await units.calculateAttackTarget(unit)
 
     if (!unit.Target && unit.Work)
         unit.Target = unit.Work
@@ -339,7 +349,7 @@ units.processMilitaryUnit = async (unit, inCombat) => {
                 let otherId = unitKey.split(":")[1]
 
                 if (otherId < unit.Id) {
-                    let attackLocation 
+                    /*let attackLocation 
 
                     if (unit.Attack) {
                         attackLocation = unit.Attack
@@ -354,7 +364,8 @@ units.processMilitaryUnit = async (unit, inCombat) => {
                     if (attackLocation)
                         unit.Target = await tiles.closestTileToResolveCollision(unit.Position, attackLocation)
                     else
-                        unit.Target = await tiles.closestTileToResolveCollision(unit.Position, unit.Target)
+                        unit.Target = await tiles.closestTileToResolveCollision(unit.Position, unit.Target)*/
+                    unit.Target = await tiles.closestTileToResolveCollision(unit.Position, unit.Target)
                 }
             }
         }
@@ -376,6 +387,7 @@ units.processMilitaryUnit = async (unit, inCombat) => {
             if (!path || path.length == 0)
                 unit.State = UnitState.LOST
             else {
+                //const index = Math.min(2, path.length) - 1
                 const newPosition = common.roundDecimalPositionString(path[0])
                 tiles.updateFastCollisionCache(unit.Position, newPosition, unit)
                 unit.Position = newPosition
@@ -422,12 +434,12 @@ units.processMilitaryUnit = async (unit, inCombat) => {
                 if (health <= 0) {
                     //unit.AttackUnit = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position, unit.Id, unit.AttackUnit)
                 } else {
-                    userstats.setInCombat(unit.OwnerId)
-                    if (unit.attackedId)
-                        userstats.setInCombat(unit.attackedId)
+                    //userstats.setInCombat(unit.OwnerId)
+                    //if (unit.attackedId)
+                        //userstats.setInCombat(unit.attackedId)
                 }            
             } else {
-                unit.AttackUnit = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position, unit.Id)
+                //unit.AttackUnit = await tiles.fastClosestHostileUnitToPosition(unit.OwnerId, unit.Position, unit.Id)
             }
 
             break
@@ -444,7 +456,8 @@ units.processMilitaryUnit = async (unit, inCombat) => {
             }*/
 
         case UnitState.IDLE:
-            unit.Target = unit.Home
+            if (!unit.InWar)
+                unit.Target = unit.Home
             break
 
         case UnitState.LOST:
@@ -653,9 +666,10 @@ units.processEmptyGuardposts = async (id, unitList) => {
         let state = await units.establishMilitaryState(unit)
 
         const noWork = !unit.Work || unit.Work == ""
+        const noAttack = !unit.InWar
         let isIdle = state == UnitState.IDLE
         isIdle = isIdle || state == UnitState.LOST
-        isIdle = isIdle || (state == UnitState.MOVING && noWork)
+        isIdle = isIdle || (state == UnitState.MOVING && noWork && noAttack)
 
         if (isIdle)
             idleSoldiers.push(unit)        
@@ -671,16 +685,12 @@ units.processEmptyGuardposts = async (id, unitList) => {
         distances[unit.Id] = {}
         unitMap[unit.Id] = unit
 
-        //let unitpos = unit.Position
-
-        //if (unit.Target)
-        //    unitpos = unit.Target
 
         for (let position of emptyGuardposts) {
-            //distances[unit.Id][position] = tiles.costHeuristic(unit.Position, position)
-            const path = await tiles.findMilitaryPath(unit.Position, position, unit.OwnerId) //Is this super expensive?
-            const dist = path ? path.length : Infinity
-            distances[unit.Id][position] = dist
+            distances[unit.Id][position] = tiles.costHeuristic(unit.Position, position)
+            //const path = await tiles.findMilitaryPath(unit.Position, position, unit.OwnerId) //Is this super expensive?
+            //const dist = path ? path.length : Infinity
+            //distances[unit.Id][position] = dist
         }
     }
 
@@ -704,7 +714,6 @@ units.processEmptyGuardposts = async (id, unitList) => {
                 continue
             } else if (positions.length == 1) {
                 unitMap[unitId].Target = positions[0]
-                console.log("1", unitId, "->", positions[0])
                 toAssign--
                 invalidatedPositions.push(positions[0])
                 break
@@ -726,7 +735,6 @@ units.processEmptyGuardposts = async (id, unitList) => {
                     for (let unitId in distances) {
                         if (distances[unitId][position]) {
                             unitMap[unitId].Target = position
-                            console.log("2", unitId, "->", position)
                             toAssign--
                             delete distances[unitId]
                         }
@@ -764,5 +772,205 @@ units.processEmptyGuardposts = async (id, unitList) => {
 
     }
 
+
     await database.updateUnits(idleSoldiers)
+}
+
+units.evaluateCombatMovement = async (unitList, friendlyId, hostileId) => {
+
+    let friendlyPositionOverrides = {}
+
+    for (let i = 0; i < 3; i++) {
+        //Collect all military unit locations
+        //All friendly units, all hostile units in same and surrounding partitions
+        let friendlyUnitLocations = new Set()
+        let hostileUnitLocations = new Set()
+        let partitions = new Set()
+        let unitPosToInstMap = {}
+        let hostilePosToIdMap = {}
+
+        //Collect friendly units and relevant partitions
+        for (let unit of unitList) {
+            if (units.isMilitary(unit)) {
+                let position
+
+                if (friendlyPositionOverrides[unit.Id]) {
+                    position = friendlyPositionOverrides[unit.Id][0]
+                    //console.log(position)
+                } else {
+                    position = unit.Position
+                }
+            
+                friendlyUnitLocations.add(position)
+                unitPosToInstMap[position] = unit
+                partitions.add(unit.PartitionId)
+                const neighbours = common.getNeighbouringPartitionIds(unit.PartitionId)
+                neighbours.forEach(id => partitions.add(id))
+            }
+        }
+
+        //Collect hostile units
+        for (let id of partitions) {
+            const positions = await database.getMilitaryUnitPositionsInPartition(id)
+
+            for (let position in positions) {
+                for (let id of positions[position]) {
+                    if (id.split(":")[0] == hostileId) {
+                        hostileUnitLocations.add(position)
+                        hostilePosToIdMap[position] = id
+                    }
+                }
+            }
+        }
+
+        //Generate node graph
+        let nodes = {}
+        let edgeNodes = []
+
+        hostileUnitLocations.forEach(position => {
+            nodes[position] = {
+                weight: 0,
+                moving: false,
+                inbound: false,
+                destination: undefined,
+            }
+
+            edgeNodes.push(position)
+        })
+
+        let inCombatFriendlies = new Set()
+
+        for (let position of edgeNodes) {
+            for (let neighbour of tiles.getHighResNeighbourPositions(position)) {
+                if (friendlyUnitLocations.has(neighbour)) {
+                    inCombatFriendlies.add(neighbour)
+                    unitPosToInstMap[neighbour].AttackUnit = hostilePosToIdMap[position]
+                }
+            }
+        }
+
+        //Flood fill weightings
+        for (let depth = 1; depth < pvpMovementDepth; depth++) {
+            let newEdges = new Set()
+
+            for (let position of edgeNodes) {
+                if (nodes[position] && nodes[position].weight == depth - 1) {
+                    for (let neighbour of tiles.getHighResNeighbourPositions(position)) {
+                        newEdges.add(neighbour)
+                    }
+                }
+            }
+                    
+            for (let position of newEdges) {
+                //Ignore in combat units as they cannot move
+                if (inCombatFriendlies.has(position)) {
+                    continue
+                } else if (!nodes[position]) {
+                    nodes[position] = {
+                        weight: depth,
+                        moving: false,
+                        inbound: false,
+                        destination: undefined,
+                    }
+                }
+            }
+
+            edgeNodes = newEdges
+        }
+
+        //Generate movement chains
+        //For each depth level
+            //Propose movement
+            //Evaluate and confirm all non-conflicting movements
+            //Reevaluate movements until none left or all remaining are conflicting
+
+        for (let depth = 2; depth < pvpMovementDepth; depth++) {
+            let movements = {}
+            let possibilities = {}
+
+            //Propose movements
+            for (let position in nodes) {
+                let node = nodes[position]
+
+                if (friendlyUnitLocations.has(position) && !inCombatFriendlies.has(position) && node.weight == depth) {
+                    possibilities[position] = []
+
+                    for (let neighbour of tiles.getHighResNeighbourPositions(position)) {
+                        const isMoving = nodes[neighbour] && nodes[neighbour].moving
+                        const canWalk = isMoving || !friendlyUnitLocations.has(neighbour)
+                        const lessDepth = nodes[neighbour] ? nodes[neighbour].weight < depth : false
+
+                        if (canWalk && lessDepth) {
+                            movements[neighbour] = movements[neighbour] || []
+                            movements[neighbour].push(position)
+                            possibilities[position].push(neighbour)
+                        }
+                    }
+                }
+            }
+
+            //Evaluate conflicts
+            let wasConflict = true
+            let updated = true
+            let iterations = 0
+
+            while (wasConflict && updated && (iterations++) < 300) {
+                wasConflict = false
+                updated = false
+
+                for (let destination in movements) {
+                    let inbound = movements[destination]
+                    let requests = 0
+                    let from
+                    let lowestPossibilities = 100
+
+                    for (let p of inbound) {
+                        if (!nodes[p].moving) {
+                            requests++
+
+                            if (possibilities[p].length < lowestPossibilities) {
+                                from = p
+                                lowestPossibilities = possibilities[p].length
+                            }
+                        }
+                    }
+
+                    if (from && !nodes[destination].inbound) {
+                        updated = true
+                        nodes[from].moving = true
+                        nodes[from].destination = destination
+                        nodes[destination].inbound = true
+                    } else if (requests > 1) {
+                        wasConflict = true
+                    }
+                }
+            }
+
+            
+            if (iterations >= 300) {
+                console.log("Hit iteration cap!")
+            }
+        }
+
+        for (let u in nodes) {
+            let destination = nodes[u].destination
+            if (destination) {
+                const unit = unitPosToInstMap[u]
+                
+                if (friendlyPositionOverrides[unit.Id]) {
+                    let positionOverride = friendlyPositionOverrides[unit.Id][0]
+                    tiles.updateFastCollisionCache(unit.Position, positionOverride, unit)
+                    unit.Position = positionOverride
+                }
+            
+                friendlyPositionOverrides[unit.Id] = [destination, unit]
+            }
+        }
+    }
+
+    for (let unitId in friendlyPositionOverrides) {
+        const [destination, unit] = friendlyPositionOverrides[unitId]
+        unit.Target = destination
+        unit.InWar = true
+    }
 }

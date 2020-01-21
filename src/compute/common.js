@@ -1,6 +1,10 @@
 let common = module.exports = {}
 let tiles = require("./tiles")
 
+//The world is split into many squares with width/height of partitionSize
+//These partitions allow for efficient caching of a large number of tiles
+const partitionSize = common.partitionSize = 20
+
 common.Actions = {
     NEW_PLAYER:0,
     PLACE_TILE:1,
@@ -124,6 +128,55 @@ common.roundDecimalPositionString = (position) => {
 	x = common.roundDecimal(parseFloat(x))
 	y = common.roundDecimal(parseFloat(y))
     return x+':'+y
+}
+
+//Modified Cantor pairing to convert 2d partitions to 1d label
+//Integers mapped to naturals to allow cantor to map every integer pair
+common.findPartitionId = (pos) => {
+    let [x, y] = common.strToPosition(pos)
+    x = Math.floor(x / partitionSize)
+    y = Math.floor(y / partitionSize)
+    x = x >= 0 ? x * 2 : -x * 2 - 1
+    y = y >= 0 ? y * 2 : -y * 2 - 1
+    return 0.5 * (x + y) * (x + y + 1) + y
+}
+
+//Inverse cantor pairing
+common.findXYFromPartitionId = (id) => {
+    id = parseInt(id)
+    let w = Math.floor((Math.sqrt(8 * id + 1) - 1) / 2)
+    let t = (w**2 + w) / 2
+    let y = id - t
+    let x = w - y
+    x = x%2 ? (x + 1) / -2 : x = x / 2
+    y = y%2 ? (y + 1) / -2 : y = y / 2
+
+    return [x * partitionSize, y * partitionSize]
+}
+
+common.getNeighbouringPartitionIds = (partitionId) => {
+    const [x, y] = common.findXYFromPartitionId(partitionId)
+
+    return [
+        common.findPartitionId((x + partitionSize) + ":" + (y + partitionSize)),
+        common.findPartitionId((x + partitionSize) + ":" + (y)),
+        common.findPartitionId((x + partitionSize) + ":" + (y - partitionSize)),
+        common.findPartitionId((x) + ":" + (y + partitionSize)),
+        common.findPartitionId((x) + ":" + (y - partitionSize)),
+        common.findPartitionId((x - partitionSize) + ":" + (y + partitionSize)),
+        common.findPartitionId((x - partitionSize) + ":" + (y)),
+        common.findPartitionId((x - partitionSize) + ":" + (y - partitionSize)),
+    ]
+}
+
+
+common.partitionIndex = (position) => {
+    let [x, y] = common.strToPosition(position)
+    x = Math.floor(x + 0.5)
+    y = Math.floor(y + 0.5)
+    x = (partitionSize + (x % partitionSize))%partitionSize
+    y = (partitionSize + (y % partitionSize))%partitionSize
+    return x * partitionSize + y
 }
 
 module.exports = common

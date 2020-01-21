@@ -41,7 +41,7 @@ async function canBuild(id, pos, type) {
 		return false
 
 	//Does the user own this partition/is this partition free
-	let partitionIndex = database.findPartitionId(pos)
+	let partitionIndex = common.findPartitionId(pos)
 	let owner = await database.getPartitionOwner(partitionIndex)
 
 	if (owner != null && owner != id)
@@ -130,7 +130,7 @@ async function verifyWorkAssignment(id, unitid, pos) {
 }
 
 async function verifyAttackAssignment(id, unitid, pos) {
-	return false
+	//return false
 	let unit = await units.fromid(id, unitid)
 
 	//Check if the unit exists, is owned by the same owner and is a military unit
@@ -143,8 +143,8 @@ async function verifyAttackAssignment(id, unitid, pos) {
 	if (!tile || tiles.isWalkable(tile) || tile.OwnerId == unit.OwnerId)
 		return
 
-	units.assignAttack(unit, pos)
-	userstats.setInCombat(id)
+	//units.assignAttack(unit, pos)
+	userstats.setInCombat(id, tile.OwnerId)
 }
 
 async function verifyTileDeletion(id, pos) {
@@ -303,7 +303,13 @@ async function computeRequest(roundStart, id, round) {
 		let unitList = await database.getUnits(req)
 		let inCombat = await userstats.isInCombat(id)
 
-		await units.processEmptyGuardposts(id, unitList)
+		
+
+		if (inCombat) {
+			await units.evaluateCombatMovement(unitList, id, inCombat)
+		} else {
+			await units.processEmptyGuardposts(id, unitList)
+		}
 
 		for (let unit of unitList)
 			processing.push(units.processUnit(unit, inCombat))

@@ -112,7 +112,7 @@ tiles.newTile = async (type, id, pos, unitlist) => {
     }
 
     if (type != TileType.GRASS) {
-        let partitionId = database.findPartitionId(pos)
+        let partitionId = common.findPartitionId(pos)
         database.setPartitionOwner(id, partitionId)
     }
 
@@ -316,8 +316,8 @@ tiles.clearCaches = () => {
 }
 
 tiles.searchFastPathCache = async (position) => {
-    let partitionId = database.findPartitionId(position)
-    let partitionIndex = database.partitionIndex(position)
+    let partitionId = common.findPartitionId(position)
+    let partitionIndex = common.partitionIndex(position)
 
     let cache = tiles.fastPathCache[partitionId]
 
@@ -340,11 +340,15 @@ tiles.fastWalkableCheck = async (position, isMilitary, ownerId) => {
     let obstruction = false
 
     //Is there a hostile unit obstructing this path
-    if (unitsObstructing) {
-        const hostileUnits = unitsObstructing.filter(id => id.split(":")[0] != ownerId)
+    if (!ownerId) {
+        obstruction = unitsObstructing
+    } else {
+        if (unitsObstructing) {
+            const hostileUnits = unitsObstructing.filter(id => id.split(":")[0] != ownerId)
 
-        if (hostileUnits.length > 0)
-            obstruction = true
+            if (hostileUnits.length > 0)
+                obstruction = true
+        }
     }
 
     //No hostile unit obstructing and this is a path or grass
@@ -352,8 +356,8 @@ tiles.fastWalkableCheck = async (position, isMilitary, ownerId) => {
 }
 
 tiles.fastStorageCheck = async (position) => {
-    let partitionId = database.findPartitionId(position)
-    let partitionIndex = database.partitionIndex(position)
+    let partitionId = common.findPartitionId(position)
+    let partitionIndex = common.partitionIndex(position)
 
     if (!tiles.fastPathCache[partitionId]) 
         tiles.fastPathCache[partitionId] = await database.getFastPathCache(partitionId)
@@ -362,8 +366,8 @@ tiles.fastStorageCheck = async (position) => {
 }
 
 tiles.fastAdjacencyCheck = async (position) => {
-    let partitionId = database.findPartitionId(position)
-    let partitionIndex = database.partitionIndex(position)
+    let partitionId = common.findPartitionId(position)
+    let partitionIndex = common.partitionIndex(position)
 
     if (!tiles.adjacencyCache[partitionId]) 
         tiles.adjacencyCache[partitionId] = await database.getAdjacencyCache(partitionId)
@@ -372,7 +376,7 @@ tiles.fastAdjacencyCheck = async (position) => {
 }
 
 tiles.fastUnitCollisionCheck = async (position) => {
-    const partitionId = database.findPartitionId(position)
+    const partitionId = common.findPartitionId(position)
     
     let partitionMilitaryPositions = tiles.fastUnitCollisionCache[partitionId];
 
@@ -388,8 +392,8 @@ tiles.fastUnitCollisionCheck = async (position) => {
 
 //Commits local changes to the cache so units belonging to the same kingdom can path a bit smarter
 tiles.updateFastCollisionCache = async (positionFrom, positionTo, unit) => {
-    let partitionId = database.findPartitionId(positionFrom)
-    let partitionToId = database.findPartitionId(positionTo)
+    let partitionId = common.findPartitionId(positionFrom)
+    let partitionToId = common.findPartitionId(positionTo)
 
     if (!tiles.fastUnitCollisionCache[partitionId]) 
         tiles.fastUnitCollisionCache[partitionId] = await database.getMilitaryUnitPositionsInPartition(partitionId) || []
@@ -416,7 +420,7 @@ tiles.updateFastCollisionCache = async (positionFrom, positionTo, unit) => {
 }
 
 tiles.closestTileToResolveCollision = async (position, targetPosition) => {
-    let searchQueue = await tiles.getNeighbourPositions(position, true)
+    let searchQueue = await tiles.getHighResNeighbourPositions(position, true)
 
     for (let position of searchQueue) {
         if (!await tiles.fastUnitCollisionCheck(position) && await tiles.fastWalkableCheck(position, true)) {
@@ -435,7 +439,7 @@ tiles.closestTileToResolveCollision = async (position, targetPosition) => {
             return closestTile
 
         } else if (searchQueue.indexOf(position) == -1) {
-            searchQueue.push(await tiles.getNeighbourPositions(position))
+            searchQueue.push(await tiles.getHighResNeighbourPositions(position))
         }
     }
 }
@@ -446,15 +450,15 @@ tiles.fastClosestHostileUnitToPosition = async (playerId, position, unitId, igno
     let [x, y] = common.strToPosition(position)
 
     let partitions = [
-        database.findPartitionId(position),
-        database.findPartitionId((x + 20) + ":" + (y + 20)), //TODO: dont use hardcoded partition size
-        database.findPartitionId((x + 20) + ":" + (y     )),
-        database.findPartitionId((x + 20) + ":" + (y - 20)),
-        database.findPartitionId((x     ) + ":" + (y + 20)),
-        database.findPartitionId((x     ) + ":" + (y - 20)),
-        database.findPartitionId((x - 20) + ":" + (y + 20)),
-        database.findPartitionId((x - 20) + ":" + (y     )),
-        database.findPartitionId((x - 20) + ":" + (y - 20))]
+        common.findPartitionId(position),
+        common.findPartitionId((x + 20) + ":" + (y + 20)), //TODO: dont use hardcoded partition size
+        common.findPartitionId((x + 20) + ":" + (y     )),
+        common.findPartitionId((x + 20) + ":" + (y - 20)),
+        common.findPartitionId((x     ) + ":" + (y + 20)),
+        common.findPartitionId((x     ) + ":" + (y - 20)),
+        common.findPartitionId((x - 20) + ":" + (y + 20)),
+        common.findPartitionId((x - 20) + ":" + (y     )),
+        common.findPartitionId((x - 20) + ":" + (y - 20))]
 
     for (let partitionId of partitions) {
         if (!tiles.fastUnitCollisionCache[partitionId]) 
@@ -556,12 +560,7 @@ tiles.findPath = async (start, target, isMilitary, ownerId) => {
 }
 
 tiles.findMilitaryPath = (start, target, ownerId) => {
-    const cost = costHeuristic(start, target)
-
-    //if (cost >= 1)
-        return tiles.findPath(start, target, true, ownerId)
-    //else
-    //    return [target]
+    return tiles.findPath(start, target, true, ownerId)
 }
 
 //Searches per unit node instead of per tile

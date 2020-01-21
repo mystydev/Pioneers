@@ -94,7 +94,7 @@ userstats.canBuild = async (id, type) => {
 }
 
 userstats.assignKeep = async (id, pos) => {
-    let partitionId = database.findPartitionId(pos)
+    let partitionId = common.findPartitionId(pos)
     database.setPartitionOwner(id, partitionId)
     await database.setStat(id, "Keep", pos)
 }
@@ -158,13 +158,19 @@ userstats.processFastRoundSim = async (id, rounds) => {
     }
 }
 
-userstats.setInCombat = (id) => {
+userstats.setInCombat = (id, hostileId) => {
     database.setStat(id, "InCombat", Math.floor(Date.now() / 1000))
+    database.setStat(id, "InCombatWith", hostileId)
 }
 
 userstats.isInCombat = async (id) => {
     let combatTime = await database.getStat(id, "InCombat")
-    return ((Date.now() / 1000) - combatTime) < 10
+
+    if (((Date.now() / 1000) - combatTime) < 30) {
+        return await database.getStat(id, "InCombatWith")
+    } else {
+        return undefined
+    }
 }
 
 userstats.updatePopulation = async (id) => {
